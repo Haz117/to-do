@@ -1,4 +1,4 @@
-{
+git{
   "name": "todo",
   "version": "1.0.0",
   "description": "App de tareas con Expo, React Native y Firebase",
