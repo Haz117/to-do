@@ -3,20 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadPeople, savePeople, addPerson as addPersonToStorage, deletePerson as deletePersonFromStorage } from '../services/people';
 import { ensurePermissions, getAllScheduledNotifications, cancelAllNotifications } from '../services/notifications';
 import * as Notifications from 'expo-notifications';
 
 const ROLES = {
-  ADMIN: { name: 'Administrador', color: '#FF3B30', icon: '👑' },
-  MEMBER: { name: 'Miembro', color: '#007AFF', icon: '👤' },
-  GUEST: { name: 'Invitado', color: '#8E8E93', icon: '👁️' }
+  ADMIN: { name: 'Administrador', color: '#8B0000', icon: 'shield-checkmark' },
+  MEMBER: { name: 'Miembro', color: '#DAA520', icon: 'person' },
+  GUEST: { name: 'Invitado', color: '#8E8E93', icon: 'eye' }
 };
 
 const USERS_KEY = '@todo_users_v1';
 
 export default function AdminScreen({ navigation }) {
   const [users, setUsers] = useState([]);
+  const [people, setPeople] = useState([]);
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
@@ -30,16 +33,29 @@ export default function AdminScreen({ navigation }) {
 
   useEffect(() => {
     loadUsers();
+    loadPeopleList();
     checkAdminStatus();
   }, []);
+
+  const loadPeopleList = async () => {
+    const peopleData = await loadPeople();
+    setPeople(peopleData);
+  };
 
   const checkAdminStatus = async () => {
     try {
       const userData = await AsyncStorage.getItem('@current_user');
       if (userData) {
-        const user = JSON.parse(userData);
-        setCurrentUser(user);
-        setIsAdmin(user.role === 'ADMIN');
+        try {
+          const user = JSON.parse(userData);
+          setCurrentUser(user);
+          setIsAdmin(user.role === 'ADMIN');
+        } catch (parseError) {
+          console.error('Error parseando datos de usuario:', parseError);
+          // Limpiar datos corruptos
+          await AsyncStorage.removeItem('@current_user');
+          setShowLoginModal(true);
+        }
       } else {
         setShowLoginModal(true);
       }
@@ -167,9 +183,9 @@ export default function AdminScreen({ navigation }) {
     }
   };
 
-  const addUser = () => {
+  const addUser = async () => {
     if (!isAdmin) {
-      Alert.alert('Acceso Denegado', 'Solo los administradores pueden agregar usuarios');
+      Alert.alert('Acceso Denegado', 'Solo los administradores pueden agregar personas');
       return;
     }
 
@@ -187,14 +203,25 @@ export default function AdminScreen({ navigation }) {
       createdAt: Date.now()
     };
 
+    // Agregar a la lista de usuarios (autenticación)
     const updatedUsers = [...users, newUser];
     saveUsers(updatedUsers);
+
+    // Agregar a la lista de personas (para asignación de tareas)
+    await addPersonToStorage({ 
+      name: newUserName.trim(), 
+      email: newUserEmail.trim(), 
+      role: selectedRole 
+    });
+    
+    await loadPeopleList();
+    
     setNewUserName('');
     setNewUserEmail('');
     setNewUserPassword('');
     setSelectedRole('MEMBER');
     setShowAddModal(false);
-    Alert.alert('Éxito', 'Usuario agregado correctamente');
+    Alert.alert('Éxito', 'Persona agregada correctamente');
   };
 
   const changeRole = (userId, newRole) => {
@@ -210,23 +237,30 @@ export default function AdminScreen({ navigation }) {
     Alert.alert('Éxito', 'Rol actualizado correctamente');
   };
 
-  const deleteUser = (userId) => {
+  const deleteUser = async (userId) => {
     if (!isAdmin) {
-      Alert.alert('Acceso Denegado', 'Solo los administradores pueden eliminar usuarios');
+      Alert.alert('Acceso Denegado', 'Solo los administradores pueden eliminar personas');
       return;
     }
     
     Alert.alert(
       'Confirmar eliminación',
-      '¿Estás seguro de eliminar este usuario?',
+      '¿Estás seguro de eliminar esta persona?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const updatedUsers = users.filter(u => u.id !== userId);
             saveUsers(updatedUsers);
+            
+            // También eliminar de la lista de personas
+            const personToDelete = people.find(p => p.email === users.find(u => u.id === userId)?.email);
+            if (personToDelete) {
+              await deletePersonFromStorage(personToDelete.id);
+              await loadPeopleList();
+            }
           }
         }
       ]
@@ -256,7 +290,7 @@ export default function AdminScreen({ navigation }) {
             </View>
           </View>
           <View style={[styles.roleBadge, { backgroundColor: role.color + '15' }]}>
-            <Text style={styles.roleIcon}>{role.icon}</Text>
+            <Ionicons name={role.icon} size={16} color={role.color} />
             <Text style={[styles.roleText, { color: role.color }]}>{role.name}</Text>
           </View>
         </View>
@@ -275,12 +309,11 @@ export default function AdminScreen({ navigation }) {
                 onPress={() => changeRole(user.id, roleKey)}
                 disabled={isCurrentUser && roleKey !== 'ADMIN'}
               >
-                <Text style={[
-                  styles.roleButtonText,
-                  user.role === roleKey && { color: '#fff' }
-                ]}>
-                  {ROLES[roleKey].icon}
-                </Text>
+                <Ionicons 
+                  name={ROLES[roleKey].icon} 
+                  size={24} 
+                  color={user.role === roleKey ? '#fff' : ROLES[roleKey].color} 
+                />
               </TouchableOpacity>
             ))}
           </View>
@@ -289,7 +322,8 @@ export default function AdminScreen({ navigation }) {
               style={styles.deleteButton}
               onPress={() => deleteUser(user.id)}
             >
-              <Text style={styles.deleteButtonText}>🗑️ Eliminar</Text>
+              <Ionicons name="trash-outline" size={18} color="#8B0000" style={{ marginRight: 6 }} />
+              <Text style={styles.deleteButtonText}>Eliminar</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -300,84 +334,178 @@ export default function AdminScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#8B0000', '#6B0000']}
         style={styles.header}
       >
         <View style={styles.headerTop}>
-          <View>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
             <Text style={styles.heading}>Administración</Text>
-            <Text style={styles.subheading}>Gestiona usuarios y permisos</Text>
+            <Text style={styles.subheading}>Gestiona personas del equipo</Text>
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-            <Text style={styles.logoutText}>🚪 Salir</Text>
+            <Ionicons name="log-out-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.logoutText}>Salir</Text>
           </TouchableOpacity>
         </View>
         
         {currentUser && (
           <View style={styles.currentUserBanner}>
+            <Ionicons name={ROLES[currentUser.role]?.icon} size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.currentUserText}>
-              {ROLES[currentUser.role]?.icon} {currentUser.name} ({ROLES[currentUser.role]?.name})
+              {currentUser.name} ({ROLES[currentUser.role]?.name})
             </Text>
           </View>
         )}
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{users.length}</Text>
-            <Text style={styles.statLabel}>Total Usuarios</Text>
+        {/* BENTO GRID - Dashboard Administrativo */}
+        <View style={styles.bentoGrid}>
+          {/* Fila 1: Estadísticas principales */}
+          <View style={styles.bentoRow}>
+            <TouchableOpacity style={[styles.bentoCard, styles.bentoLarge]} activeOpacity={0.9}>
+              <LinearGradient colors={['#5856D6', '#4842C2']} style={styles.bentoGradient}>
+                <View style={styles.bentoHeader}>
+                  <Ionicons name="people" size={32} color="#FFFFFF" />
+                  <Text style={styles.bentoTitle}>Equipo Total</Text>
+                </View>
+                <Text style={styles.bentoHugeNumber}>{users.length}</Text>
+                <View style={styles.bentoFooter}>
+                  <View style={styles.bentoMetric}>
+                    <Ionicons name="shield-checkmark" size={16} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.bentoMetricText}>
+                      {users.filter(u => u.role === 'ADMIN').length} administradores
+                    </Text>
+                  </View>
+                  <View style={styles.bentoMetric}>
+                    <Ionicons name="person" size={16} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.bentoMetricText}>
+                      {users.filter(u => u.role === 'MEMBER').length} miembros activos
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.bentoColumn}>
+              <TouchableOpacity style={[styles.bentoCard, styles.bentoSmallSquare]} activeOpacity={0.9}>
+                <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.bentoGradient}>
+                  <Ionicons name="shield-checkmark" size={28} color="#FFFFFF" style={{ marginBottom: 8 }} />
+                  <Text style={styles.bentoNumber}>{users.filter(u => u.role === 'ADMIN').length}</Text>
+                  <Text style={styles.bentoLabel}>Admins</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.bentoCard, styles.bentoSmallSquare]} activeOpacity={0.9}>
+                <LinearGradient colors={['#DAA520', '#B8860B']} style={styles.bentoGradient}>
+                  <Ionicons name="person" size={28} color="#FFFFFF" style={{ marginBottom: 8 }} />
+                  <Text style={styles.bentoNumber}>{users.filter(u => u.role === 'MEMBER').length}</Text>
+                  <Text style={styles.bentoLabel}>Miembros</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{users.filter(u => u.role === 'ADMIN').length}</Text>
-            <Text style={styles.statLabel}>Admins</Text>
+
+          {/* Fila 2: Distribución de roles */}
+          <View style={styles.bentoRow}>
+            <View style={[styles.bentoCard, styles.bentoWide]}>
+              <View style={styles.bentoHeader}>
+                <Ionicons name="pie-chart" size={20} color="#1A1A1A" />
+                <Text style={[styles.bentoTitle, { color: '#1A1A1A' }]}>Distribución de Roles</Text>
+              </View>
+              <View style={styles.roleBarsContainer}>
+                {Object.entries(ROLES).map(([roleKey, roleData]) => {
+                  const count = users.filter(u => u.role === roleKey).length;
+                  const percentage = users.length > 0 ? (count / users.length) * 100 : 0;
+                  return (
+                    <View key={roleKey} style={styles.roleBarContainer}>
+                      <View style={styles.roleBarLabel}>
+                        <Ionicons name={roleData.icon} size={16} color={roleData.color} />
+                        <Text style={styles.roleBarText}>{roleData.name}</Text>
+                      </View>
+                      <View style={styles.roleBarTrack}>
+                        <View 
+                          style={[
+                            styles.roleBarFill, 
+                            { width: `${percentage}%`, backgroundColor: roleData.color }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.roleBarCount}>{count}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{users.filter(u => u.role === 'MEMBER').length}</Text>
-            <Text style={styles.statLabel}>Miembros</Text>
+
+          {/* Fila 3: Acciones rápidas */}
+          <View style={styles.bentoRow}>
+            <TouchableOpacity 
+              style={[styles.bentoCard, styles.bentoAction]} 
+              onPress={() => {
+                if (isAdmin) {
+                  setShowAddModal(true);
+                } else {
+                  Alert.alert('Acceso Denegado', 'Solo los administradores pueden agregar usuarios');
+                }
+              }}
+              activeOpacity={0.9}
+            >
+              <LinearGradient 
+                colors={isAdmin ? ['#34C759', '#28A745'] : ['#8E8E93', '#6E6E73']} 
+                style={styles.bentoGradient}
+              >
+                <Ionicons name="person-add" size={32} color="#FFFFFF" style={{ marginBottom: 12 }} />
+                <Text style={styles.bentoActionText}>
+                  {isAdmin ? 'Agregar Persona' : 'Solo Admin'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {isAdmin && (
+              <TouchableOpacity 
+                style={[styles.bentoCard, styles.bentoAction]} 
+                onPress={testNotification}
+                activeOpacity={0.9}
+              >
+                <LinearGradient colors={['#FF9500', '#FF6B00']} style={styles.bentoGradient}>
+                  <Ionicons name="notifications" size={32} color="#FFFFFF" style={{ marginBottom: 12 }} />
+                  <Text style={styles.bentoActionText}>Probar Notificación</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={() => {
-            if (isAdmin) {
-              setShowAddModal(true);
-            } else {
-              Alert.alert('Acceso Denegado', 'Solo los administradores pueden agregar usuarios');
-            }
-          }}
-        >
-          <LinearGradient
-            colors={isAdmin ? ['#667eea', '#764ba2'] : ['#8E8E93', '#6E6E73']}
-            style={styles.addButtonGradient}
-          >
-            <Text style={styles.addButtonText}>
-              {isAdmin ? '+ Agregar Usuario' : '🔒 Solo Admin'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
 
         {/* Sección de Notificaciones (solo Admin) */}
         {isAdmin && (
           <View style={styles.notificationSection}>
-            <Text style={styles.sectionTitle}>🔔 Gestión de Notificaciones</Text>
-            
-            <TouchableOpacity style={styles.notifButton} onPress={testNotification}>
-              <Text style={styles.notifButtonText}>🧪 Probar Notificación</Text>
-            </TouchableOpacity>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="notifications" size={22} color="#8B0000" style={{ marginRight: 8 }} />
+              <Text style={styles.sectionTitle}>Gestión de Notificaciones</Text>
+            </View>
             
             <TouchableOpacity style={styles.notifButton} onPress={viewScheduledNotifications}>
-              <Text style={styles.notifButtonText}>📋 Ver Programadas</Text>
+              <Ionicons name="list-outline" size={20} color="#DAA520" style={{ marginRight: 8 }} />
+              <Text style={styles.notifButtonText}>Ver Programadas</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={[styles.notifButton, styles.notifButtonDanger]} onPress={clearAllNotifications}>
-              <Text style={[styles.notifButtonText, styles.notifButtonTextDanger]}>🗑️ Cancelar Todas</Text>
+              <Ionicons name="trash-outline" size={20} color="#8B0000" style={{ marginRight: 8 }} />
+              <Text style={[styles.notifButtonText, styles.notifButtonTextDanger]}>Cancelar Todas</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={styles.usersList}>
+          <Text style={styles.sectionTitle}>Miembros del Equipo</Text>
           {users.map(renderUserCard)}
         </View>
       </ScrollView>
@@ -391,7 +519,10 @@ export default function AdminScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nuevo Usuario</Text>
+            <View style={styles.modalTitleContainer}>
+              <Ionicons name="person-add" size={28} color="#DAA520" style={{ marginRight: 10 }} />
+              <Text style={styles.modalTitle}>Nueva Persona</Text>
+            </View>
 
             <TextInput
               style={styles.input}
@@ -432,7 +563,7 @@ export default function AdminScreen({ navigation }) {
                   ]}
                   onPress={() => setSelectedRole(roleKey)}
                 >
-                  <Text style={styles.roleIcon}>{ROLES[roleKey].icon}</Text>
+                  <Ionicons name={ROLES[roleKey].icon} size={20} color={ROLES[roleKey].color} />
                   <Text style={styles.roleSelectorText}>{ROLES[roleKey].name}</Text>
                 </TouchableOpacity>
               ))}
@@ -466,15 +597,32 @@ export default function AdminScreen({ navigation }) {
         visible={showLoginModal}
         animationType="fade"
         transparent={true}
+        onRequestClose={() => {
+          setShowLoginModal(false);
+          navigation.goBack();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <LinearGradient
-              colors={['#667eea', '#764ba2']}
+              colors={['#8B0000', '#6B0000']}
               style={styles.loginHeader}
             >
-              <Text style={styles.loginTitle}>🔐 Iniciar Sesión</Text>
-              <Text style={styles.loginSubtitle}>Panel de Administración</Text>
+              <TouchableOpacity 
+                style={styles.modalBackButton} 
+                onPress={() => {
+                  setShowLoginModal(false);
+                  navigation.goBack();
+                }}
+              >
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Ionicons name="lock-closed" size={32} color="#FFFFFF" style={{ marginBottom: 8 }} />
+                <Text style={styles.loginTitle}>Iniciar Sesión</Text>
+                <Text style={styles.loginSubtitle}>Panel de Administración</Text>
+              </View>
+              <View style={{ width: 40 }} />
             </LinearGradient>
 
             <View style={styles.loginForm}>
@@ -499,15 +647,29 @@ export default function AdminScreen({ navigation }) {
 
               <TouchableOpacity style={styles.loginButton} onPress={login}>
                 <LinearGradient
-                  colors={['#667eea', '#764ba2']}
+                  colors={['#8B0000', '#6B0000']}
                   style={styles.confirmButtonGradient}
                 >
                   <Text style={styles.confirmButtonText}>Entrar</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
+              <TouchableOpacity 
+                style={styles.backToHomeButton}
+                onPress={() => {
+                  setShowLoginModal(false);
+                  navigation.goBack();
+                }}
+              >
+                <Ionicons name="home-outline" size={18} color="#8B0000" style={{ marginRight: 6 }} />
+                <Text style={styles.backToHomeText}>Volver al menú principal</Text>
+              </TouchableOpacity>
+
               <View style={styles.credentialsHint}>
-                <Text style={styles.hintTitle}>💡 Credenciales por defecto:</Text>
+                <View style={styles.hintTitleContainer}>
+                  <Ionicons name="bulb" size={16} color="#FF9500" style={{ marginRight: 6 }} />
+                  <Text style={styles.hintTitle}>Credenciales por defecto:</Text>
+                </View>
                 <Text style={styles.hintText}>Admin: admin@todo.com / admin123</Text>
                 <Text style={styles.hintText}>Demo: demo@todo.com / demo123</Text>
               </View>
@@ -529,15 +691,31 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 24,
     borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30
+    borderBottomRightRadius: 30,
+    shadowColor: '#8B0000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12
+    marginBottom: 12,
+    gap: 12
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4
   },
   logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -549,6 +727,8 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   currentUserBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -584,20 +764,22 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFAF0',
     padding: 20,
     borderRadius: 20,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 4
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   statNumber: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#667eea',
+    color: '#8B0000',
     marginBottom: 4
   },
   statLabel: {
@@ -611,15 +793,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#667eea',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8
   },
   addButtonGradient: {
-    padding: 18,
-    alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18
   },
   addButtonText: {
     color: '#FFFFFF',
@@ -628,56 +812,67 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   notificationSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFAF0',
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 4
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 16,
+    color: '#8B0000',
     letterSpacing: -0.5
   },
   notifButton: {
-    backgroundColor: '#F8F9FA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: '#E5E5EA'
+    borderColor: '#F5DEB3'
   },
   notifButtonDanger: {
     backgroundColor: '#FFEBEE',
-    borderColor: '#FF3B30'
+    borderColor: '#8B0000'
   },
   notifButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#8B0000',
     textAlign: 'center'
   },
   notifButtonTextDanger: {
-    color: '#FF3B30'
+    color: '#8B0000'
   },
   usersList: {
     gap: 16
   },
   userCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFAF0',
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 4
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   userHeader: {
     flexDirection: 'row',
@@ -781,19 +976,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF'
   },
   roleButtonActive: {
-    backgroundColor: '#667eea'
+    backgroundColor: '#8B0000'
   },
   roleButtonText: {
     fontSize: 20
   },
   deleteButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 12,
     borderRadius: 12,
     backgroundColor: '#FFEBEE',
-    alignItems: 'center'
+    borderWidth: 1.5,
+    borderColor: '#8B0000'
   },
   deleteButtonText: {
-    color: '#FF3B30',
+    color: '#8B0000',
     fontSize: 15,
     fontWeight: '600'
   },
@@ -820,18 +1019,22 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: '#1A1A1A',
-    marginBottom: 24,
     letterSpacing: -0.5
   },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24
+  },
   input: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFFAF0',
     padding: 16,
     borderRadius: 14,
     fontSize: 16,
     color: '#1A1A1A',
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5EA'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   label: {
     fontSize: 13,
@@ -899,6 +1102,15 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  modalBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center'
   },
   loginTitle: {
@@ -920,21 +1132,180 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 8
   },
+  backToHomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFFAF0',
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
+  },
+  backToHomeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#8B0000'
+  },
   credentialsHint: {
     backgroundColor: '#F8F9FA',
     padding: 16,
     borderRadius: 12,
     marginTop: 8
   },
+  hintTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   hintTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 8
+    color: '#1A1A1A'
   },
   hintText: {
     fontSize: 13,
     color: '#6E6E73',
     marginBottom: 4
+  },
+  // Bento Grid Styles
+  bentoGrid: {
+    gap: 16,
+    marginBottom: 32
+  },
+  bentoRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16
+  },
+  bentoColumn: {
+    gap: 16,
+    flex: 1
+  },
+  bentoCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8
+  },
+  bentoLarge: {
+    flex: 2,
+    minHeight: 200
+  },
+  bentoSmallSquare: {
+    flex: 1,
+    minHeight: 92
+  },
+  bentoWide: {
+    flex: 1,
+    backgroundColor: '#FFFAF0',
+    borderWidth: 2,
+    borderColor: '#F5DEB3',
+    padding: 18,
+    minHeight: 130
+  },
+  bentoAction: {
+    flex: 1,
+    minHeight: 120
+  },
+  bentoGradient: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between'
+  },
+  bentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12
+  },
+  bentoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3
+  },
+  bentoHugeNumber: {
+    fontSize: 64,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -3,
+    marginVertical: 8
+  },
+  bentoNumber: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -2,
+    marginBottom: 4
+  },
+  bentoLabel: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  bentoFooter: {
+    gap: 8
+  },
+  bentoMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  bentoMetricText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600'
+  },
+  bentoActionText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.3
+  },
+  roleBarsContainer: {
+    marginTop: 16,
+    gap: 14
+  },
+  roleBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  roleBarLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: 130
+  },
+  roleBarText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    flex: 1
+  },
+  roleBarTrack: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 5,
+    overflow: 'hidden'
+  },
+  roleBarFill: {
+    height: '100%',
+    borderRadius: 5
+  },
+  roleBarCount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    width: 30,
+    textAlign: 'right'
   }
 });

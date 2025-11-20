@@ -10,6 +10,7 @@ import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from './screens/HomeScreen';
 import TaskDetailScreen from './screens/TaskDetailScreen';
 import TaskChatScreen from './screens/TaskChatScreen';
@@ -35,11 +36,11 @@ const Stack = createNativeStackNavigator();
 
 function CustomTabBar({ activeTab, setActiveTab }) {
   const tabs = [
-    { name: 'Tareas', icon: '📋', screen: 'Home' },
-    { name: 'Kanban', icon: '📊', screen: 'Kanban' },
-    { name: 'Bandeja', icon: '📥', screen: 'MyInbox' },
-    { name: 'Reportes', icon: '📈', screen: 'Report' },
-    { name: 'Admin', icon: '⚙️', screen: 'Admin' }
+    { name: 'Tareas', icon: 'checkbox-outline', screen: 'Home' },
+    { name: 'Kanban', icon: 'grid-outline', screen: 'Kanban' },
+    { name: 'Bandeja', icon: 'mail-outline', screen: 'MyInbox' },
+    { name: 'Reportes', icon: 'stats-chart-outline', screen: 'Report' },
+    { name: 'Admin', icon: 'settings-outline', screen: 'Admin' }
   ];
 
   return (
@@ -50,12 +51,12 @@ function CustomTabBar({ activeTab, setActiveTab }) {
           style={styles.tabItem}
           onPress={() => setActiveTab(tab.screen)}
         >
-          <Text style={[
-            styles.tabIcon,
-            activeTab === tab.screen && styles.tabIconActive
-          ]}>
-            {tab.icon}
-          </Text>
+          <Ionicons 
+            name={activeTab === tab.screen ? tab.icon.replace('-outline', '') : tab.icon} 
+            size={activeTab === tab.screen ? 28 : 24} 
+            color={activeTab === tab.screen ? '#8B0000' : '#8E8E93'} 
+            style={styles.tabIcon}
+          />
           <Text style={[
             styles.tabLabel,
             activeTab === tab.screen && styles.tabLabelActive
@@ -208,14 +209,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   tabIcon: {
-    fontSize: 20,
-    marginBottom: 3,
-    opacity: 0.5
-  },
-  tabIconActive: {
-    fontSize: 24,
-    opacity: 1,
-    transform: [{ scale: 1.1 }]
+    marginBottom: 3
   },
   tabLabel: {
     fontSize: 10,
@@ -224,7 +218,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2
   },
   tabLabelActive: {
-    color: '#007AFF',
+    color: '#8B0000',
     fontWeight: '700'
   }
 });

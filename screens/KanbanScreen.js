@@ -5,14 +5,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import FilterBar from '../components/FilterBar';
 import { loadTasks, saveTasks } from '../storage';
 
 const STATUSES = [
-  { key: 'pendiente', label: 'Pendiente', color: '#ff9800' },
-  { key: 'en_proceso', label: 'En proceso', color: '#2196f3' },
-  { key: 'en_revision', label: 'En revisión', color: '#9c27b0' },
-  { key: 'cerrada', label: 'Cerrada', color: '#4caf50' }
+  { key: 'pendiente', label: 'Pendiente', color: '#FF9800', icon: 'hourglass-outline' },
+  { key: 'en_proceso', label: 'En proceso', color: '#2196F3', icon: 'play-circle-outline' },
+  { key: 'en_revision', label: 'En revisión', color: '#9C27B0', icon: 'eye-outline' },
+  { key: 'cerrada', label: 'Cerrada', color: '#4CAF50', icon: 'checkmark-circle-outline' }
 ];
 
 export default function KanbanScreen({ navigation }) {
@@ -58,9 +59,14 @@ export default function KanbanScreen({ navigation }) {
 
     return (
       <View key={status.key} style={styles.column}>
-        <View style={[styles.columnHeader, { backgroundColor: status.color }]}>
-          <Text style={styles.columnTitle}>{status.label}</Text>
-          <Text style={styles.columnCount}>{filtered.length}</Text>
+        <View style={[styles.columnHeader, { backgroundColor: status.color + '15' }]}>
+          <View style={styles.columnTitleContainer}>
+            <Ionicons name={status.icon} size={20} color={status.color} style={{ marginRight: 8 }} />
+            <Text style={[styles.columnTitle, { color: status.color }]}>{status.label}</Text>
+          </View>
+          <View style={[styles.columnCount, { backgroundColor: status.color }]}>
+            <Text style={styles.columnCountText}>{filtered.length}</Text>
+          </View>
         </View>
 
         <FlatList
@@ -71,23 +77,33 @@ export default function KanbanScreen({ navigation }) {
               onPress={() => openDetail(item)}
               style={styles.card}
             >
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardMeta}>
-                {item.assignedTo || 'Sin asignar'} • {item.priority || 'media'}
-              </Text>
-              <Text style={styles.cardDue}>
-                Vence: {new Date(item.dueAt).toLocaleDateString()}
-              </Text>
+              <View style={styles.cardPriorityIndicator}>
+                <View style={[
+                  styles.priorityDot,
+                  item.priority === 'alta' && styles.priorityDotHigh,
+                  item.priority === 'media' && styles.priorityDotMedium,
+                  item.priority === 'baja' && styles.priorityDotLow
+                ]} />
+              </View>
+              <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+              <View style={styles.cardMetaRow}>
+                <Ionicons name="person-outline" size={14} color="#8E8E93" />
+                <Text style={styles.cardMeta}>{item.assignedTo || 'Sin asignar'}</Text>
+              </View>
+              <View style={styles.cardMetaRow}>
+                <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
+                <Text style={styles.cardDue}>{new Date(item.dueAt).toLocaleDateString()}</Text>
+              </View>
 
               {/* Botones rápidos para cambiar estado */}
               <View style={styles.actionsRow}>
-                {STATUSES.filter(s => s.key !== status.key).map(s => (
+                {STATUSES.filter(s => s.key !== status.key).slice(0, 2).map(s => (
                   <TouchableOpacity
                     key={s.key}
                     onPress={() => changeStatus(item.id, s.key)}
-                    style={[styles.miniBtn, { backgroundColor: s.color }]}
+                    style={[styles.miniBtn, { borderColor: s.color }]}
                   >
-                    <Text style={styles.miniBtnText}>{s.label.slice(0, 3)}</Text>
+                    <Ionicons name={s.icon} size={14} color={s.color} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -101,10 +117,13 @@ export default function KanbanScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.headerGradient}>
+      <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.headerGradient}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Vista de tablero 📊</Text>
+            <View style={styles.greetingContainer}>
+              <Ionicons name="grid" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+              <Text style={styles.greeting}>Vista de tablero</Text>
+            </View>
             <Text style={styles.heading}>Kanban</Text>
           </View>
         </View>
@@ -122,7 +141,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#667eea',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -133,12 +152,16 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 28
   },
+  greetingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
   greeting: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     opacity: 0.9,
-    marginBottom: 4,
     letterSpacing: 0.3
   },
   heading: { 
@@ -151,91 +174,119 @@ const styles = StyleSheet.create({
   column: { 
     width: 300, 
     marginHorizontal: 8, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 16, 
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   columnHeader: { 
     padding: 18, 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA'
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0,0,0,0.05)'
+  },
+  columnTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
   },
   columnTitle: { 
-    color: '#1A1A1A', 
     fontWeight: '700', 
     fontSize: 17,
     letterSpacing: 0.2
   },
   columnCount: { 
-    color: '#fff', 
     fontSize: 13, 
     fontWeight: '700',
-    backgroundColor: '#6E6E73',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-    minWidth: 28,
+    minWidth: 28
+  },
+  columnCountText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'center'
   },
   card: { 
     margin: 12, 
     padding: 14, 
-    backgroundColor: '#FAFAFA', 
+    backgroundColor: '#FFFFFF', 
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5EA'
+    borderColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1
   },
-  cardActive: { 
-    backgroundColor: '#E3F2FD',
-    borderColor: '#007AFF'
+  cardPriorityIndicator: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    padding: 8
+  },
+  priorityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#C7C7CC'
+  },
+  priorityDotHigh: {
+    backgroundColor: '#8B0000'
+  },
+  priorityDotMedium: {
+    backgroundColor: '#DAA520'
+  },
+  priorityDotLow: {
+    backgroundColor: '#4CAF50'
   },
   cardTitle: { 
     fontSize: 16, 
     fontWeight: '700', 
-    marginBottom: 8, 
+    marginBottom: 10, 
     color: '#1A1A1A',
-    letterSpacing: -0.3
+    letterSpacing: -0.3,
+    paddingRight: 20
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6
   },
   cardMeta: { 
     fontSize: 14, 
     color: '#6E6E73', 
-    marginBottom: 4, 
     fontWeight: '500'
   },
   cardDue: { 
     fontSize: 13, 
-    color: '#AEAEB2',
+    color: '#8E8E93',
     fontWeight: '500'
   },
   actionsRow: { 
     flexDirection: 'row', 
     marginTop: 12, 
-    gap: 8, 
-    flexWrap: 'wrap'
+    gap: 8
   },
   miniBtn: { 
-    paddingHorizontal: 12, 
-    paddingVertical: 7, 
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#E5E5EA'
-  },
-  miniBtnText: { 
-    color: '#007AFF', 
-    fontSize: 13, 
-    fontWeight: '600',
-    letterSpacing: 0.2
+    alignItems: 'center',
+    justifyContent: 'center'
   }
 });

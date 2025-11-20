@@ -1,19 +1,20 @@
 // components/FilterBar.js
 // Barra de filtros y búsqueda reutilizable. Permite filtrar por área, responsable, prioridad, vencidas y buscar por título.
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
-export default function FilterBar({ onFilterChange }) {
+const FilterBar = memo(function FilterBar({ onFilterChange }) {
   const [searchText, setSearchText] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedResponsible, setSelectedResponsible] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [showOverdue, setShowOverdue] = useState(false);
+  const debounceTimer = useRef(null);
 
   const areas = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
   const priorities = ['alta', 'media', 'baja'];
 
-  const applyFilters = (updates = {}) => {
+  const applyFilters = useCallback((updates = {}) => {
     const filters = {
       searchText: updates.searchText !== undefined ? updates.searchText : searchText,
       area: updates.area !== undefined ? updates.area : selectedArea,
@@ -22,12 +23,30 @@ export default function FilterBar({ onFilterChange }) {
       overdue: updates.overdue !== undefined ? updates.overdue : showOverdue
     };
     onFilterChange && onFilterChange(filters);
-  };
+  }, [searchText, selectedArea, selectedResponsible, selectedPriority, showOverdue, onFilterChange]);
 
   const handleSearchChange = (text) => {
     setSearchText(text);
-    applyFilters({ searchText: text });
+    
+    // Limpiar el timer anterior
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Aplicar filtro después de 300ms de inactividad
+    debounceTimer.current = setTimeout(() => {
+      applyFilters({ searchText: text });
+    }, 300);
   };
+
+  // Limpiar el timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
 
   const toggleArea = (area) => {
     const newArea = selectedArea === area ? '' : area;
@@ -112,7 +131,9 @@ export default function FilterBar({ onFilterChange }) {
       </TouchableOpacity>
     </View>
   );
-}
+});
+
+export default FilterBar;
 
 const styles = StyleSheet.create({
   container: { 
@@ -122,18 +143,18 @@ const styles = StyleSheet.create({
   },
   searchInput: { 
     padding: 14, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 12, 
     marginBottom: 16,
     color: '#1A1A1A',
     fontSize: 16,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   section: { marginBottom: 16 },
   label: { 
@@ -152,18 +173,23 @@ const styles = StyleSheet.create({
   chip: { 
     paddingHorizontal: 16, 
     paddingVertical: 8, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 20, 
     borderWidth: 1.5,
-    borderColor: '#E5E5EA'
+    borderColor: '#F5DEB3'
   },
   chipActive: { 
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF'
+    backgroundColor: '#8B0000',
+    borderColor: '#8B0000',
+    shadowColor: '#DAA520',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2
   },
   chipOverdue: { 
-    backgroundColor: '#FF3B30',
-    borderColor: '#FF3B30'
+    backgroundColor: '#8B0000',
+    borderColor: '#8B0000'
   },
   chipText: { 
     fontSize: 14, 
@@ -182,7 +208,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4
   },
   clearText: { 
-    color: '#007AFF', 
+    color: '#8B0000', 
     fontSize: 15, 
     fontWeight: '600',
     letterSpacing: 0.1

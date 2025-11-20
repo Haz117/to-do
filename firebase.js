@@ -4,14 +4,15 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, serverTimestamp } from 'firebase/firestore';
 import Constants from 'expo-constants';
 
-// REEMPLAZA con tu config real de Firebase (API keys etc.)
+// Configuración de Firebase (fallback si las variables de entorno no están disponibles)
 const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyDNo2YzEqelUXBcMuSJq1n-eOKN5sHhGKM",
+  authDomain: "infra-sublime-464215-m5.firebaseapp.com",
+  projectId: "infra-sublime-464215-m5",
+  storageBucket: "infra-sublime-464215-m5.firebasestorage.app",
+  messagingSenderId: "205062729291",
+  appId: "1:205062729291:web:da314180f361bf2a3367ce",
+  measurementId: "G-T987W215LH"
 };
 
 // Intentamos obtener valores inyectados por app.config.js (expo) o desde process.env

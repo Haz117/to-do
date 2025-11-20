@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Button, TextInput, Platform, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { loadTasks, saveTasks } from '../storage';
+import { createTask, updateTask } from '../services/tasks';
+import { getPeopleNames } from '../services/people';
 import { scheduleNotificationForTask, cancelNotification, cancelNotifications, scheduleDailyReminders, notifyAssignment } from '../services/notifications';
 
 export default function TaskDetailScreen({ route, navigation }) {
@@ -21,6 +23,7 @@ export default function TaskDetailScreen({ route, navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState(dueAt);
+  const [peopleNames, setPeopleNames] = useState([]);
 
   const areas = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
   const priorities = ['baja', 'media', 'alta'];
@@ -28,7 +31,13 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     navigation.setOptions({ title: editingTask ? 'Editar tarea' : 'Crear tarea' });
+    loadPeopleNames();
   }, [editingTask]);
+
+  const loadPeopleNames = async () => {
+    const names = await getPeopleNames();
+    setPeopleNames(names);
+  };
 
   const onChangeDate = (event, selectedDate) => {
     if (Platform.OS === 'android') {
@@ -71,52 +80,57 @@ export default function TaskDetailScreen({ route, navigation }) {
       return;
     }
 
-    // Construir objeto tarea
-    const task = editingTask
-      ? { ...editingTask, title: title.trim(), description: description.trim(), assignedTo: assignedTo.trim(), area, priority, status, dueAt: dueAt.getTime(), updatedAt: Date.now() }
-      : { id: String(Date.now()), title: title.trim(), description: description.trim(), assignedTo: assignedTo.trim(), area, priority, status, dueAt: dueAt.getTime(), createdAt: Date.now(), updatedAt: Date.now() };
-
-    // Cargar tareas actuales, upsert y guardar
     try {
-      const all = await loadTasks();
-      const exists = all.findIndex(t => t.id === task.id);
-      if (exists >= 0) {
-        all[exists] = task;
-      } else {
-        all.unshift(task);
-      }
+      // Construir objeto tarea
+      const taskData = {
+        title: title.trim(),
+        description: description.trim(),
+        assignedTo: assignedTo.trim(),
+        area,
+        priority,
+        status,
+        dueAt: dueAt.getTime()
+      };
 
-      // Si la tarea ya tenía notificaciones previas, cancelarlas
+      let taskId;
+      
       if (editingTask) {
+        // Actualizar tarea existente
+        taskId = editingTask.id;
+        
+        // Cancelar notificaciones previas
         if (editingTask.notificationId) await cancelNotification(editingTask.notificationId);
         if (editingTask.dailyReminderIds) await cancelNotifications(editingTask.dailyReminderIds);
+        
+        await updateTask(taskId, taskData);
+      } else {
+        // Crear nueva tarea
+        taskId = await createTask(taskData);
       }
 
+      // Programar notificaciones
+      const task = { ...taskData, id: taskId };
+      
       // Programar nueva notificación (10 min antes)
       const notifId = await scheduleNotificationForTask(task, { minutesBefore: 10 });
-      if (notifId) task.notificationId = notifId;
-
-      // Programar recordatorios diarios cada 24 hrs (solo si no está cerrada)
-      if (task.status !== 'cerrada') {
-        const dailyIds = await scheduleDailyReminders(task);
-        if (dailyIds.length > 0) task.dailyReminderIds = dailyIds;
+      if (notifId) {
+        await updateTask(taskId, { notificationId: notifId });
       }
 
-      // Si es una tarea nueva o se cambió el responsable, notificar asignación
+      // Programar recordatorios diarios (solo si no está cerrada)
+      if (task.status !== 'cerrada') {
+        const dailyIds = await scheduleDailyReminders(task);
+        if (dailyIds.length > 0) {
+          await updateTask(taskId, { dailyReminderIds: dailyIds });
+        }
+      }
+
+      // Notificar asignación si es tarea nueva o cambió el responsable
       const isNewTask = !editingTask;
       const assignedToChanged = editingTask && editingTask.assignedTo !== task.assignedTo;
       if ((isNewTask || assignedToChanged) && task.assignedTo) {
         await notifyAssignment(task);
       }
-
-      // Actualizar la tarea con los IDs de notificación antes de guardar
-      if (exists >= 0) {
-        all[exists] = task;
-      } else {
-        all[0] = task; // Actualizar la primera posición con los IDs de notificación
-      }
-
-      await saveTasks(all);
       
       // Mostrar confirmación
       Alert.alert('Éxito', editingTask ? 'Tarea actualizada correctamente' : 'Tarea creada correctamente', [
@@ -131,13 +145,21 @@ export default function TaskDetailScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient 
-        colors={['#667eea', '#764ba2']} 
+        colors={['#8B0000', '#6B0000']} 
         style={styles.headerBar}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>✕</Text>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{editingTask ? '✏️ Editar Tarea' : '✨ Nueva Tarea'}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Ionicons 
+            name={editingTask ? 'pencil' : 'sparkles'} 
+            size={20} 
+            color="#FFFFFF" 
+            style={{ marginRight: 8 }} 
+          />
+          <Text style={styles.headerTitle}>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</Text>
+        </View>
         <View style={{ width: 40 }} />
       </LinearGradient>
       
@@ -149,7 +171,17 @@ export default function TaskDetailScreen({ route, navigation }) {
       <TextInput value={description} onChangeText={setDescription} placeholder="Descripción" placeholderTextColor="#C7C7CC" style={[styles.input, {height:80}]} multiline />
 
       <Text style={styles.label}>ASIGNADO A</Text>
-      <TextInput value={assignedTo} onChangeText={setAssignedTo} placeholder="Nombre del responsable" placeholderTextColor="#C7C7CC" style={styles.input} />
+      <View style={styles.pickerRow}>
+        {peopleNames.map(name => (
+          <TouchableOpacity
+            key={name}
+            onPress={() => setAssignedTo(name)}
+            style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive]}
+          >
+            <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]}>{name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.label}>ÁREA</Text>
       <View style={styles.pickerRow}>
@@ -196,7 +228,20 @@ export default function TaskDetailScreen({ route, navigation }) {
 
       <Text style={styles.label}>FECHA COMPROMISO</Text>
       <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-        <Text style={styles.dateText}>📅 {dueAt.toLocaleDateString()} {dueAt.toLocaleTimeString()}</Text>
+        <LinearGradient
+          colors={['#8B0000', '#6B0000']}
+          style={styles.dateButtonGradient}
+        >
+          <View style={styles.dateIconContainer}>
+            <Ionicons name="calendar" size={24} color="#FFFFFF" />
+          </View>
+          <View style={styles.dateTextContainer}>
+            <Text style={styles.dateLabelSmall}>Fecha seleccionada</Text>
+            <Text style={styles.dateText}>{dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+            <Text style={styles.timeText}>{dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+        </LinearGradient>
       </TouchableOpacity>
       
       {showDatePicker && (
@@ -247,7 +292,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#667eea',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -261,10 +306,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: '700'
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   headerTitle: {
     fontSize: 20,
@@ -286,34 +330,65 @@ const styles = StyleSheet.create({
   },
   input: { 
     padding: 16, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 12,
     color: '#1A1A1A',
     fontSize: 17,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   dateButton: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#8B0000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6
+  },
+  dateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    gap: 14
+  },
+  dateIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)'
+  },
+  dateTextContainer: {
+    flex: 1
+  },
+  dateLabelSmall: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4
   },
   dateText: {
-    fontSize: 17,
-    color: '#1A1A1A',
-    fontWeight: '500'
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 2
+  },
+  timeText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600'
   },
   pickerRow: { 
     flexDirection: 'row', 
@@ -325,14 +400,19 @@ const styles = StyleSheet.create({
   optionBtn: { 
     paddingHorizontal: 20, 
     paddingVertical: 12, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E5E5EA'
+    borderColor: '#F5DEB3'
   },
   optionBtnActive: { 
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF'
+    backgroundColor: '#8B0000',
+    borderColor: '#8B0000',
+    shadowColor: '#DAA520',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3
   },
   optionText: { 
     fontSize: 15, 
@@ -345,12 +425,12 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#8B0000',
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 36,
-    shadowColor: '#007AFF',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -363,21 +443,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   chatButton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFAF0',
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   chatButtonText: {
-    color: '#007AFF',
+    color: '#8B0000',
     fontSize: 17,
     fontWeight: '600'
   }

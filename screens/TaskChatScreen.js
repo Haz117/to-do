@@ -6,6 +6,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db, getServerTimestamp } from '../firebase';
 
@@ -46,13 +47,16 @@ export default function TaskChatScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.select({ios:'padding', android:undefined})}>
       <LinearGradient 
-        colors={['#667eea', '#764ba2']} 
+        colors={['#8B0000', '#6B0000']} 
         style={styles.headerBar}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>💬 {taskTitle || 'Chat'}</Text>
+        <View style={styles.headerTitleContainer}>
+          <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.headerTitle}>{taskTitle || 'Chat'}</Text>
+        </View>
         <View style={{ width: 40 }} />
       </LinearGradient>
 
@@ -79,7 +83,7 @@ export default function TaskChatScreen({ route, navigation }) {
           style={styles.input}
         />
         <TouchableOpacity style={styles.sendButton} onPress={send}>
-          <Text style={styles.sendButtonText}>↑</Text>
+          <Ionicons name="send" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#667eea',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -114,41 +118,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  closeButtonText: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: '700'
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center'
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.5,
-    flex: 1,
-    textAlign: 'center'
+    letterSpacing: -0.5
   },
   messagesContainer: {
     padding: 20
   },
   msgRow: { 
     marginBottom: 16, 
-    backgroundColor: '#fff', 
+    backgroundColor: '#FFFAF0', 
     padding: 16, 
     borderRadius: 20,
     maxWidth: '85%',
     alignSelf: 'flex-start',
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   msgAuthor: { 
     fontWeight: '700', 
     marginBottom: 6, 
-    color: '#007AFF',
+    color: '#8B0000',
     fontSize: 14,
     letterSpacing: 0.2
   },
@@ -181,28 +184,25 @@ const styles = StyleSheet.create({
   input: { 
     flex: 1, 
     padding: 12, 
-    backgroundColor: '#F2F2F7', 
+    backgroundColor: '#FFFAF0', 
     borderRadius: 24,
     color: '#1A1A1A',
     fontSize: 16,
-    fontWeight: '400'
+    fontWeight: '400',
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#8B0000',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700'
   }
 });

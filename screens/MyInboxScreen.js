@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import TaskItem from '../components/TaskItem';
 import { loadTasks, saveTasks } from '../storage';
 import { loadCurrentUser, saveCurrentUser } from '../services/user';
@@ -17,7 +18,9 @@ export default function MyInboxScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       const t = await loadTasks();
-      setTasks(t || []);git 
+      setTasks(t || []);
+      const u = await loadCurrentUser();
+      setCurrentUser(u);
       setEditingUser(u);
     })();
   }, []);
@@ -76,13 +79,16 @@ export default function MyInboxScreen({ navigation }) {
       <TaskItem task={item} onPress={() => openDetail(item)} />
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => markClosed(item)}>
-          <Text style={styles.actionText}>✓ Cerrar</Text>
+          <Ionicons name="checkmark-circle-outline" size={18} color="#8B0000" style={{ marginRight: 6 }} />
+          <Text style={styles.actionText}>Cerrar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => postponeOneDay(item)}>
-          <Text style={styles.actionText}>⏰ Posponer</Text>
+          <Ionicons name="time-outline" size={18} color="#DAA520" style={{ marginRight: 6 }} />
+          <Text style={styles.actionText}>Posponer</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={() => openChat(item)}>
-          <Text style={[styles.actionText, {color: '#fff'}]}>💬 Chat</Text>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={[styles.actionText, {color: '#fff'}]}>Chat</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -90,25 +96,32 @@ export default function MyInboxScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.headerGradient}>
+      <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.headerGradient}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Tus tareas pendientes 📬</Text>
+            <View style={styles.greetingContainer}>
+              <Ionicons name="mail" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+              <Text style={styles.greeting}>Tus tareas pendientes</Text>
+            </View>
             <Text style={styles.heading}>Mi Bandeja</Text>
           </View>
           <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
             <LinearGradient colors={['#FFFFFF', '#F8F9FA']} style={styles.addButtonGradient}>
-              <Text style={styles.addButtonText}>+</Text>
+              <Ionicons name="add" size={32} color="#8B0000" />
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
       <View style={styles.userSection}>
-        <Text style={styles.userLabel}>USUARIO ACTUAL</Text>
+        <View style={styles.userLabelContainer}>
+          <Ionicons name="person-circle-outline" size={16} color="#8B0000" style={{ marginRight: 6 }} />
+          <Text style={styles.userLabel}>USUARIO ACTUAL</Text>
+        </View>
         <View style={styles.userRow}>
           <TextInput style={styles.input} value={editingUser} onChangeText={setEditingUser} placeholder="Tu nombre" placeholderTextColor="#C7C7CC" />
           <TouchableOpacity style={styles.saveBtn} onPress={saveUser}>
+            <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.saveBtnText}>Guardar</Text>
           </TouchableOpacity>
         </View>
@@ -122,7 +135,7 @@ export default function MyInboxScreen({ navigation }) {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📭</Text>
+            <Ionicons name="mail-open-outline" size={80} color="#AEAEB2" style={{ marginBottom: 20, opacity: 0.3 }} />
             <Text style={styles.emptyText}>Sin tareas</Text>
             <Text style={styles.emptySubtext}>No tienes tareas asignadas en este momento</Text>
           </View>
@@ -140,7 +153,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#667eea',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -154,12 +167,16 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 28
   },
+  greetingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
   greeting: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     opacity: 0.9,
-    marginBottom: 4,
     letterSpacing: 0.3
   },
   heading: { 
@@ -185,31 +202,35 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   addButtonText: {
-    color: '#667eea',
+    color: '#8B0000',
     fontSize: 32,
     fontWeight: '300',
     marginTop: -2
   },
   userSection: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFAF0',
     marginHorizontal: 20,
     marginTop: 12,
     marginBottom: 20,
     padding: 20,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
+  },
+  userLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12
   },
   userLabel: {
     fontSize: 12,
-    color: '#6E6E73',
+    color: '#8B0000',
     fontWeight: '700',
-    marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1
   },
@@ -221,22 +242,26 @@ const styles = StyleSheet.create({
   input: { 
     flex: 1, 
     padding: 14, 
-    backgroundColor: '#F2F2F7', 
+    backgroundColor: '#FFFFFF', 
     borderRadius: 12,
     color: '#1A1A1A',
     fontSize: 16,
-    fontWeight: '500'
+    fontWeight: '500',
+    borderWidth: 1.5,
+    borderColor: '#F5DEB3'
   },
   saveBtn: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#8B0000',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 12,
-    shadowColor: '#007AFF',
+    shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5
+    elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   saveBtnText: {
     color: '#fff',
@@ -260,17 +285,19 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFAF0',
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E5E5EA'
+    borderColor: '#F5DEB3',
+    flexDirection: 'row',
+    justifyContent: 'center'
   },
   actionBtnPrimary: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF'
+    backgroundColor: '#8B0000',
+    borderColor: '#8B0000'
   },
   actionText: {
     fontSize: 14,
@@ -282,11 +309,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 100,
     paddingHorizontal: 40
-  },
-  emptyIcon: {
-    fontSize: 80,
-    marginBottom: 20,
-    opacity: 0.3
   },
   emptyText: {
     fontSize: 26,
