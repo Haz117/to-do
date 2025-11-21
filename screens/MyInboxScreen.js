@@ -2,41 +2,32 @@
 // "Mi bandeja" - lista de tareas asignadas al usuario actual, ordenadas por fecha de vencimiento.
 // Acciones rápidas: marcar cerrada y posponer 1 día. Abre detalle y chat.
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import TaskItem from '../components/TaskItem';
-import { loadTasks, saveTasks } from '../storage';
-import { loadCurrentUser, saveCurrentUser } from '../services/user';
+import { subscribeToTasks, updateTask, deleteTask as deleteTaskFirebase } from '../services/tasks';
+import { getCurrentUserName } from '../services/auth';
 import { scheduleNotificationForTask, cancelNotification } from '../services/notifications';
 
 export default function MyInboxScreen({ navigation }) {
   const [tasks, setTasks] = useState([]);
   const [currentUser, setCurrentUser] = useState('');
-  const [editingUser, setEditingUser] = useState('');
 
+  // Cargar usuario actual desde Firebase Auth
   useEffect(() => {
-    (async () => {
-      const t = await loadTasks();
-      setTasks(t || []);
-      const u = await loadCurrentUser();
-      setCurrentUser(u);
-      setEditingUser(u);
-    })();
+    const userName = getCurrentUserName();
+    setCurrentUser(userName);
   }, []);
 
-  // Guarda usuario
-  const saveUser = async () => {
-    await saveCurrentUser(editingUser.trim() || 'Usuario A');
-    setCurrentUser(editingUser.trim() || 'Usuario A');
-    Alert.alert('Usuario guardado', `Usuario actual: ${editingUser.trim() || 'Usuario A'}`);
-  };
+  // Suscribirse a cambios en tiempo real de Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToTasks((updatedTasks) => {
+      setTasks(updatedTasks);
+    });
 
-  // Actualiza tareas en storage y estado
-  const persistTasks = async (newTasks) => {
-    setTasks(newTasks);
-    await saveTasks(newTasks);
-  };
+    return () => unsubscribe();
+  }, []);
 
   const filtered = tasks
     .filter(t => t.assignedTo && t.assignedTo.toLowerCase() === (currentUser || '').toLowerCase())
@@ -44,10 +35,10 @@ export default function MyInboxScreen({ navigation }) {
 
   const markClosed = async (task) => {
     try {
-      const all = tasks.map(t => (t.id === task.id ? { ...t, status: 'cerrada', updatedAt: Date.now() } : t));
-      // cancelar notificación existente
+      // Cancelar notificación existente
       if (task.notificationId) await cancelNotification(task.notificationId);
-      await persistTasks(all);
+      await updateTask(task.id, { status: 'cerrada' });
+      // La actualización del estado se hace automáticamente por el listener
     } catch (e) {
       console.warn('Error marcando cerrada', e);
     }
@@ -56,18 +47,44 @@ export default function MyInboxScreen({ navigation }) {
   const postponeOneDay = async (task) => {
     try {
       const newDue = (task.dueAt || Date.now()) + 24 * 3600 * 1000; // +1 día
-      const updatedTask = { ...task, dueAt: newDue, updatedAt: Date.now() };
-      // cancelar notificación previa
+      const updatedTask = { ...task, dueAt: newDue };
+      
+      // Cancelar notificación previa
       if (task.notificationId) await cancelNotification(task.notificationId);
-      // reprogramar notificación 10 minutos antes
+      
+      // Reprogramar notificación 10 minutos antes
       const notifId = await scheduleNotificationForTask(updatedTask, { minutesBefore: 10 });
-      if (notifId) updatedTask.notificationId = notifId;
-
-      const all = tasks.map(t => (t.id === task.id ? updatedTask : t));
-      await persistTasks(all);
+      
+      await updateTask(task.id, { 
+        dueAt: newDue,
+        notificationId: notifId || task.notificationId
+      });
+      // La actualización del estado se hace automáticamente por el listener
     } catch (e) {
       console.warn('Error posponiendo tarea', e);
     }
+  };
+
+  const deleteTask = async (taskId) => {
+    Alert.alert(
+      'Eliminar tarea',
+      '¿Estás seguro de que quieres eliminar esta tarea?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteTaskFirebase(taskId);
+          }
+        }
+      ]
+    );
+  };
+
+  const toggleComplete = async (task) => {
+    const newStatus = task.status === 'cerrada' ? 'pendiente' : 'cerrada';
+    await updateTask(task.id, { status: newStatus });
   };
 
   const openDetail = (task) => navigation.navigate('TaskDetail', { task });
@@ -76,7 +93,12 @@ export default function MyInboxScreen({ navigation }) {
 
   const renderItem = ({ item }) => (
     <View style={{ marginBottom: 12 }}>
-      <TaskItem task={item} onPress={() => openDetail(item)} />
+      <TaskItem 
+        task={item} 
+        onPress={() => openDetail(item)}
+        onDelete={() => deleteTask(item.id)}
+        onToggleComplete={() => toggleComplete(item)}
+      />
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => markClosed(item)}>
           <Ionicons name="checkmark-circle-outline" size={18} color="#8B0000" style={{ marginRight: 6 }} />
@@ -118,14 +140,8 @@ export default function MyInboxScreen({ navigation }) {
           <Ionicons name="person-circle-outline" size={16} color="#8B0000" style={{ marginRight: 6 }} />
           <Text style={styles.userLabel}>USUARIO ACTUAL</Text>
         </View>
-        <View style={styles.userRow}>
-          <TextInput style={styles.input} value={editingUser} onChangeText={setEditingUser} placeholder="Tu nombre" placeholderTextColor="#C7C7CC" />
-          <TouchableOpacity style={styles.saveBtn} onPress={saveUser}>
-            <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.saveBtnText}>Guardar</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.currentUser}>{currentUser || 'No configurado'}</Text>
+        <Text style={styles.currentUserName}>{currentUser || 'No configurado'}</Text>
+        <Text style={styles.currentUserHint}>Las tareas están filtradas para ti</Text>
       </View>
 
       <FlatList
@@ -234,45 +250,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1
   },
-  userRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center',
-    gap: 12
-  },
-  input: { 
-    flex: 1, 
-    padding: 14, 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 12,
-    color: '#1A1A1A',
-    fontSize: 16,
-    fontWeight: '500',
-    borderWidth: 1.5,
-    borderColor: '#F5DEB3'
-  },
-  saveBtn: {
-    backgroundColor: '#8B0000',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#8B0000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontSize: 15,
+  currentUserName: {
+    fontSize: 20,
     fontWeight: '700',
-    letterSpacing: 0.3
+    color: '#1A1A1A',
+    marginBottom: 6
   },
-  currentUser: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#6E6E73',
+  currentUserHint: {
+    fontSize: 14,
+    color: '#8E8E93',
     fontWeight: '500'
   },
   listContent: {

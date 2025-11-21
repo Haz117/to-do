@@ -3,6 +3,9 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { notifyTaskAssigned, notifyNewComment, notifyDeadlineApproaching } from './fcm';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Configurar handler de notificaciones
 Notifications.setNotificationHandler({
@@ -150,39 +153,56 @@ export async function scheduleDailyReminders(task, maxReminders = 3) {
   }
 }
 
-// Notificación al asignar tarea
+// Notificación al asignar tarea (Local + Push)
 export async function notifyAssignment(task) {
   try {
+    // 1. Enviar notificación local (inmediata)
     const granted = await ensurePermissions();
-    if (!granted) {
-      console.log('No se puede enviar notificación de asignación sin permisos');
-      return null;
-    }
-
-    if (!task.assignedTo) {
-      console.log('No hay usuario asignado, no se envía notificación');
-      return null;
-    }
-
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '📋 Nueva Tarea Asignada',
-        body: `Te asignaron: "${task.title}" - Vence: ${new Date(task.dueAt).toLocaleDateString()}`,
-        data: { 
-          taskId: task.id, 
-          type: 'assignment',
-          taskTitle: task.title,
-          assignedTo: task.assignedTo
+    let localNotifId = null;
+    
+    if (granted) {
+      localNotifId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📋 Nueva Tarea Asignada',
+          body: `Te asignaron: "${task.title}" - Vence: ${new Date(task.dueAt).toLocaleDateString()}`,
+          data: { 
+            taskId: task.id, 
+            type: 'assignment',
+            taskTitle: task.title,
+            assignedTo: task.assignedTo
+          },
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          color: '#007AFF',
         },
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        color: '#007AFF',
-      },
-      trigger: null // Notificación inmediata
-    });
+        trigger: null // Notificación inmediata
+      });
 
-    console.log(`Notificación de asignación enviada con ID: ${id}`);
-    return id;
+      console.log(`✅ Notificación local de asignación enviada con ID: ${localNotifId}`);
+    }
+
+    // 2. Buscar UID del usuario asignado y enviar push notification
+    if (task.assignedTo) {
+      try {
+        // Buscar usuario por nombre en la colección de usuarios (si usas nombres)
+        // O si assignedTo ya es un UID, usarlo directamente
+        
+        // Por ahora, si assignedTo contiene el UID del usuario, enviar push
+        // En tu caso actual assignedTo es un string con nombres, necesitarás adaptar esto
+        
+        // Ejemplo: si tuvieras una función para convertir nombre a UID
+        // const userUID = await getUserUIDByName(task.assignedTo);
+        // if (userUID) {
+        //   await notifyTaskAssigned(userUID, task);
+        // }
+        
+        console.log('ℹ️ Push notification pendiente de configurar: necesitas mapear nombres a UIDs');
+      } catch (error) {
+        console.error('❌ Error enviando push notification:', error);
+      }
+    }
+
+    return localNotifId;
   } catch (e) {
     console.error('Error enviando notificación de asignación:', e);
     return null;

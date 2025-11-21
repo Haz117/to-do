@@ -9,25 +9,43 @@ import {
   onSnapshot, 
   query, 
   orderBy,
+  where,
   serverTimestamp,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { loadTasks as loadLocal, saveTasks as saveLocal } from '../storage';
+import { getCurrentUserUID, getCurrentUserName } from './auth';
+import { getUserProfile } from './roles';
 
 const COLLECTION_NAME = 'tasks';
 
 /**
- * Suscribirse a cambios en tiempo real de todas las tareas
+ * Suscribirse a cambios en tiempo real de las tareas del usuario autenticado
  * @param {Function} callback - Función que recibe el array de tareas actualizado
  * @returns {Function} Función para cancelar la suscripción
  */
 export function subscribeToTasks(callback) {
   try {
-    const tasksQuery = query(
-      collection(db, COLLECTION_NAME),
-      orderBy('createdAt', 'desc')
-    );
+    const currentUserUID = getCurrentUserUID();
+    
+    // Crear query base
+    let tasksQuery;
+    
+    if (currentUserUID) {
+      // Filtrar tareas donde el usuario tiene acceso
+      tasksQuery = query(
+        collection(db, COLLECTION_NAME),
+        where('userAccess', 'array-contains', currentUserUID),
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      // Sin usuario autenticado, mostrar todas (compatibilidad hacia atrás)
+      tasksQuery = query(
+        collection(db, COLLECTION_NAME),
+        orderBy('createdAt', 'desc')
+      );
+    }
 
     // Listener en tiempo real
     const unsubscribe = onSnapshot(
@@ -64,14 +82,31 @@ export function subscribeToTasks(callback) {
 }
 
 /**
- * Crear una nueva tarea en Firebase
+ * Crear una nueva tarea en Firebase con información del usuario
  * @param {Object} task - Objeto con datos de la tarea
  * @returns {Promise<string>} ID de la tarea creada
  */
 export async function createTask(task) {
   try {
+    const currentUserUID = getCurrentUserUID();
+    const currentUserName = getCurrentUserName();
+    const userProfile = await getUserProfile();
+    
+    // Array de usuarios con acceso (creador + asignados)
+    const userAccess = [currentUserUID];
+    
+    // Si tiene assignedTo, agregar esos usuarios también
+    if (task.assignedTo && Array.isArray(task.assignedTo)) {
+      // Nota: En el futuro, aquí deberíamos convertir nombres a UIDs
+      // Por ahora mantenemos compatibilidad con el sistema de nombres
+    }
+    
     const taskData = {
       ...task,
+      createdBy: currentUserUID || 'anonymous',
+      createdByName: currentUserName || 'Usuario Anónimo',
+      department: task.department || userProfile?.department || '',
+      userAccess: userAccess,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       dueAt: Timestamp.fromMillis(task.dueAt)

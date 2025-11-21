@@ -7,14 +7,23 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db, getServerTimestamp } from '../firebase';
+import { getCurrentUserUID, getCurrentUserName } from '../services/auth';
+import { notifyNewComment } from '../services/fcm';
 
 export default function TaskChatScreen({ route, navigation }) {
   const { taskId, taskTitle } = route.params;
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
+  const [currentUser, setCurrentUser] = useState('');
   const flatRef = useRef();
+
+  // Cargar usuario actual desde Firebase Auth
+  useEffect(() => {
+    const userName = getCurrentUserName();
+    setCurrentUser(userName || 'Usuario');
+  }, []);
 
   useEffect(() => {
     // Listener en tiempo real de la colección de mensajes de la tarea
@@ -31,11 +40,33 @@ export default function TaskChatScreen({ route, navigation }) {
   const send = async () => {
     if (!text.trim()) return;
     try {
+      // 1. Enviar mensaje al chat
       await addDoc(collection(db, 'tasks', taskId, 'messages'), {
         text: text.trim(),
-        author: 'Anon', // aquí podrías poner el usuario real
+        author: currentUser || 'Usuario',
         createdAt: getServerTimestamp()
       });
+      
+      // 2. Obtener información de la tarea para notificar
+      try {
+        const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+        if (taskDoc.exists()) {
+          const task = { id: taskDoc.id, ...taskDoc.data() };
+          const currentUID = getCurrentUserUID();
+          
+          // 3. Notificar a todos los usuarios con acceso (excepto quien envió)
+          if (task.userAccess && Array.isArray(task.userAccess)) {
+            task.userAccess.forEach(async (userId) => {
+              if (userId !== currentUID) {
+                await notifyNewComment(userId, task, currentUser);
+              }
+            });
+          }
+        }
+      } catch (notifError) {
+        console.warn('Error enviando notificación de comentario:', notifError);
+      }
+      
       setText('');
       // scroll opcional
       setTimeout(() => flatRef.current?.scrollToEnd?.({ animated: true }), 200);

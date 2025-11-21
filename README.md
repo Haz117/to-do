@@ -4,19 +4,41 @@ Aplicación de gestión de tareas desarrollada con React Native, Expo y Firebase
 
 🚀 Características
 
-✅ Crear, editar y eliminar tareas
+✅ **Gestión de Tareas**
+- Crear, editar y eliminar tareas
+- Asignación de tareas a usuarios
+- Prioridades y estados personalizables
+- Fechas de compromiso con recordatorios
+
+🔐 **Autenticación**
+- Sistema de login con Firebase Auth
+- Roles de usuario (Admin, Jefe, Operativo)
+- Gestión de permisos por departamento
+
+🔔 **Notificaciones**
+- Notificaciones push (FCM)
+- Recordatorios automáticos
+- Alertas de asignación de tareas
+- Notificaciones de nuevos comentarios
+
+💬 **Colaboración**
+- Chat por tarea en tiempo real
+- Sistema de firmas digitales
+- Comentarios y actualizaciones
+
+📊 **Vistas y Reportes**
+- Vista principal tipo Bento Grid
+- Vista Kanban interactiva
+- Bandeja de entrada personalizada
+- Reportes y estadísticas por área
+- Exportación de datos (CSV)
+
+☁️ **Sincronización**
+- Firestore en tiempo real
+- Fallback a almacenamiento local
+- Manejo de conexión offline
 
 📱 Compatible con iOS, Android y Web
-
-🔔 Notificaciones push
-
-💬 Chat por tarea
-
-📊 Vista tipo Kanban
-
-📥 Bandeja de entrada personal
-
-☁️ Sincronización con Firebase
 
 📋 Requisitos Previos
 
@@ -74,23 +96,34 @@ Web: Presiona w o ejecuta npm run web
 Dispositivo físico: Escanea el código QR con Expo Go
 
 📁 Estructura del Proyecto
+```
 TODO/
 ├── components/          # Componentes reutilizables
 │   ├── FilterBar.js
 │   └── TaskItem.js
 ├── screens/             # Pantallas principales
-│   ├── HomeScreen.js
-│   ├── KanbanScreen.js
-│   ├── MyInboxScreen.js
-│   ├── TaskChatScreen.js
-│   └── TaskDetailScreen.js
-├── services/            # Lógica y utilidades
-│   ├── notifications.js
-│   └── user.js
+│   ├── AdminScreen.js       # Configuración y administración
+│   ├── HomeScreen.js        # Vista principal de tareas
+│   ├── KanbanScreen.js      # Vista tipo Kanban
+│   ├── LoginScreen.js       # Autenticación
+│   ├── MyInboxScreen.js     # Bandeja personal
+│   ├── ReportScreen.js      # Reportes y estadísticas
+│   ├── TaskChatScreen.js    # Chat por tarea
+│   └── TaskDetailScreen.js  # Crear/editar tareas
+├── services/            # Lógica de negocio y utilidades
+│   ├── auth.js             # Autenticación con Firebase Auth
+│   ├── fcm.js              # Push notifications (FCM)
+│   ├── notifications.js    # Gestión de notificaciones locales
+│   ├── people.js           # [DEPRECATED] Migrado a roles.js
+│   ├── reports.js          # Generación de reportes
+│   ├── roles.js            # Gestión de roles y usuarios
+│   ├── signatures.js       # Sistema de firmas digitales
+│   └── tasks.js            # CRUD de tareas con Firestore
 ├── App.js               # Punto de entrada principal
 ├── firebase.js          # Configuración de Firebase
-├── storage.js           # Manejo de almacenamiento local
+├── storage.js           # [FALLBACK] Almacenamiento local
 └── app.config.js        # Configuración de Expo
+```
 
 🔥 Configurar Firestore
 
@@ -122,6 +155,49 @@ npm install --legacy-peer-deps
 📄 Licencia
 
 ISC License
+
+---
+
+## 🔄 Changelog - Noviembre 2025
+
+### ✅ Correcciones y Mejoras
+
+**Inicialización de Firebase**
+- ✅ Corregido error "No Firebase App '[DEFAULT]' has been created"
+- ✅ Firebase Auth ahora se inicializa correctamente con la instancia de app
+
+**Limpieza de Código**
+- ✅ Removida dependencia no usada: `@react-navigation/bottom-tabs`
+- ✅ Eliminado archivo obsoleto: `services/user.js`
+- ✅ Marcados archivos legacy: `storage.js`, `people.js`
+
+**Migración a Firebase Auth**
+- ✅ `MyInboxScreen` ahora usa `getCurrentUserName()` de Firebase Auth
+- ✅ `TaskChatScreen` migrado a Firebase Auth
+- ✅ `AdminScreen` simplificado, eliminadas funciones duplicadas
+- ✅ `ReportScreen` ahora usa `subscribeToTasks()` para datos en tiempo real
+- ✅ `TaskDetailScreen` migrado de `people.js` a `roles.js` (Firebase Auth)
+
+**Nuevas Funciones**
+- ✅ `getAllUsersNames()` en `roles.js` - Obtiene usuarios activos de Firebase
+- ✅ Sistema centralizado de autenticación
+- ✅ Sincronización en tiempo real en todas las pantallas
+
+### 🎯 Arquitectura Mejorada
+
+**Antes:**
+- Sistema mixto: AsyncStorage + Firebase
+- Usuario como string en localStorage
+- Código duplicado en múltiples pantallas
+
+**Ahora:**
+- Firebase como fuente única de verdad
+- Sistema de roles y permisos robusto
+- Usuario autenticado desde Firebase Auth
+- Updates en tiempo real con Firestore
+- Código limpio y mantenible
+
+---
 
 👥 Autor
 

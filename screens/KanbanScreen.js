@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import FilterBar from '../components/FilterBar';
-import { loadTasks, saveTasks } from '../storage';
+import { subscribeToTasks, updateTask } from '../services/tasks';
 
 const STATUSES = [
   { key: 'pendiente', label: 'Pendiente', color: '#FF9800', icon: 'hourglass-outline' },
@@ -20,23 +20,18 @@ export default function KanbanScreen({ navigation }) {
   const [tasks, setTasks] = useState([]);
   const [filters, setFilters] = useState({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
 
+  // Suscribirse a cambios en tiempo real
   useEffect(() => {
-    loadData();
+    const unsubscribe = subscribeToTasks((updatedTasks) => {
+      setTasks(updatedTasks);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const loadData = async () => {
-    const t = await loadTasks();
-    setTasks(t || []);
-  };
-
-  const persistTasks = async (newTasks) => {
-    setTasks(newTasks);
-    await saveTasks(newTasks);
-  };
-
-  const changeStatus = (taskId, newStatus) => {
-    const updated = tasks.map(t => (t.id === taskId ? { ...t, status: newStatus, updatedAt: Date.now() } : t));
-    persistTasks(updated);
+  const changeStatus = async (taskId, newStatus) => {
+    await updateTask(taskId, { status: newStatus });
+    // La actualización del estado se hace automáticamente por el listener
   };
 
   const openDetail = (task) => navigation.navigate('TaskDetail', { task });

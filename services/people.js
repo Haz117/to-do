@@ -1,5 +1,9 @@
 // services/people.js
-// Servicio para gestionar personas del equipo
+// ⚠️ DEPRECATED: Este archivo ha sido reemplazado por services/roles.js
+// Ahora se usa getAllUsersNames() de roles.js que obtiene usuarios reales de Firebase Auth
+// Este archivo se mantiene solo para evitar errores en caso de referencias antiguas
+// pero debería eliminarse en futuras versiones
+// Servicio para gestionar personas del equipo (LEGACY)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PEOPLE_KEY = '@todo_people_v1';

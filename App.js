@@ -9,8 +9,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import TaskDetailScreen from './screens/TaskDetailScreen';
 import TaskChatScreen from './screens/TaskChatScreen';
@@ -18,17 +19,13 @@ import MyInboxScreen from './screens/MyInboxScreen';
 import KanbanScreen from './screens/KanbanScreen';
 import ReportScreen from './screens/ReportScreen';
 import AdminScreen from './screens/AdminScreen';
+import { onAuthChange, signOut } from './services/auth';
+import { getExpoPushToken, registerDeviceToken, unregisterDeviceToken, configureNotifications } from './services/fcm';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
-// Configuración del handler de notificaciones (mostrar aun si app en foreground)
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// Configurar handler de notificaciones con FCM
+configureNotifications();
 
 const Stack = createNativeStackNavigator();
 
@@ -102,6 +99,36 @@ function MainNavigator({ navigation }) {
 
 export default function App() {
   const navigationRef = useRef();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expoPushToken, setExpoPushToken] = useState(null);
+  
+  useEffect(() => {
+    // Observar cambios en autenticación
+    const unsubscribe = onAuthChange(async (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+
+      if (currentUser) {
+        // Usuario inició sesión: registrar token de push notifications
+        const token = await getExpoPushToken();
+        if (token) {
+          setExpoPushToken(token);
+          await registerDeviceToken(token);
+          console.log('✅ Token de push registrado para usuario:', currentUser.email);
+        }
+      } else {
+        // Usuario cerró sesión: eliminar token
+        if (expoPushToken) {
+          await unregisterDeviceToken(expoPushToken);
+          setExpoPushToken(null);
+          console.log('✅ Token de push eliminado');
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [expoPushToken]);
   
   useEffect(() => {
     (async () => {
@@ -148,6 +175,26 @@ export default function App() {
     };
   }, []);
 
+  // Pantalla de carga mientras verifica autenticación
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B0000" />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  // Si no hay usuario autenticado, mostrar LoginScreen
+  if (!user) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <LoginScreen />
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Usuario autenticado, mostrar app principal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef}>
@@ -220,5 +267,17 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#8B0000',
     fontWeight: '700'
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA'
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#8B0000',
+    fontWeight: '600'
   }
 });

@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasAccess(userAccessList) {
+      return isAuthenticated() && request.auth.uid in userAccessList;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isJefeOrAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'jefe'];
+    }
+    
+    // TAREAS - Control de acceso estricto
+    match /tasks/{taskId} {
+      // Leer: solo si estás en userAccess
+      allow read: if hasAccess(resource.data.userAccess);
+      
+      // Crear: solo autenticados, y debes estar en userAccess
+      allow create: if isAuthenticated() && 
+                       request.auth.uid in request.resource.data.userAccess &&
+                       request.resource.data.createdBy == request.auth.uid;
+      
+      // Actualizar: solo si tienes acceso o eres jefe/admin
+      allow update: if hasAccess(resource.data.userAccess) || isJefeOrAdmin();
+      
+      // Eliminar: solo el creador o admin
+      allow delete: if isOwner(resource.data.createdBy) || isAdmin();
+      
+      // Mensajes de chat en tareas
+      match /messages/{messageId} {
+        // Leer mensajes si tienes acceso a la tarea padre
+        allow read: if isAuthenticated();
+        
+        // Crear mensajes si tienes acceso a la tarea
+        allow create: if isAuthenticated() &&
+                         request.resource.data.author != null;
+        
+        // No se pueden editar ni eliminar mensajes (auditoría)
+        allow update, delete: if false;
+      }
+    }
+    
+    // USUARIOS - Perfil y configuración
+    match /users/{userId} {
+      // Leer tu propio perfil o ser admin
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Crear tu propio perfil al registrarte
+      allow create: if isOwner(userId) &&
+                       request.resource.data.role == 'operativo'; // Por defecto operativo
+      
+      // Actualizar tu propio perfil (excepto rol)
+      allow update: if isOwner(userId) && 
+                       request.resource.data.role == resource.data.role; // No cambiar rol
+      
+      // Admin puede actualizar roles
+      allow update: if isAdmin();
+      
+      // Solo admin puede eliminar usuarios
+      allow delete: if isAdmin();
+    }
+    
+    // TOKENS FCM - Notificaciones push
+    match /fcmTokens/{tokenId} {
+      // Leer tus propios tokens o ser admin
+      allow read: if isAuthenticated();
+      
+      // Crear token solo si eres el dueño
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Actualizar tu propio token
+      allow update: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid;
+      
+      // Eliminar tu propio token
+      allow delete: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid;
+    }
+    
+    // DEPARTAMENTOS - Catálogo de áreas
+    match /departments/{deptId} {
+      // Todos pueden leer departamentos
+      allow read: if isAuthenticated();
+      
+      // Solo admin puede crear/modificar departamentos
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // REPORTES - Auditoría y estadísticas
+    match /reports/{reportId} {
+      // Leer reportes de tu área o ser jefe/admin
+      allow read: if isAuthenticated() && 
+                     (resource.data.createdBy == request.auth.uid || isJefeOrAdmin());
+      
+      // Crear reportes (cualquier autenticado)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.createdBy == request.auth.uid;
+      
+      // Solo el creador o admin puede modificar
+      allow update: if isOwner(resource.data.createdBy) || isAdmin();
+      
+      // Solo admin puede eliminar reportes
+      allow delete: if isAdmin();
+    }
+    
+    // FIRMAS DIGITALES - Confirmación de recepción de tareas
+    match /signatures/{signatureId} {
+      // Leer firmas relacionadas a tus tareas
+      allow read: if isAuthenticated();
+      
+      // Crear firma solo si eres el firmante
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.signedAt != null;
+      
+      // No se pueden modificar ni eliminar firmas (auditoría)
+      allow update, delete: if false;
+    }
+    
+    // LOGS DE AUDITORÍA - Solo lectura para admin
+    match /auditLogs/{logId} {
+      // Solo admin puede leer logs
+      allow read: if isAdmin();
+      
+      // Sistema crea logs automáticamente
+      allow create: if isAuthenticated();
+      
+      // Logs no se pueden modificar ni eliminar
+      allow update, delete: if false;
+    }
+  }
+}

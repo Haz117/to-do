@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createTask, updateTask } from '../services/tasks';
-import { getPeopleNames } from '../services/people';
+import { getAllUsersNames } from '../services/roles';
 import { scheduleNotificationForTask, cancelNotification, cancelNotifications, scheduleDailyReminders, notifyAssignment } from '../services/notifications';
 
 export default function TaskDetailScreen({ route, navigation }) {
@@ -31,11 +31,11 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     navigation.setOptions({ title: editingTask ? 'Editar tarea' : 'Crear tarea' });
-    loadPeopleNames();
+    loadUserNames();
   }, [editingTask]);
 
-  const loadPeopleNames = async () => {
-    const names = await getPeopleNames();
+  const loadUserNames = async () => {
+    const names = await getAllUsersNames();
     setPeopleNames(names);
   };
 

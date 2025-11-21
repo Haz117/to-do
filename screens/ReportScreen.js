@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { loadTasks } from '../storage';
+import { subscribeToTasks } from '../services/tasks';
 
 const AREAS = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
 const STATUSES = [
@@ -18,14 +18,14 @@ export default function ReportScreen({ navigation }) {
   const [tasks, setTasks] = useState([]);
   const [selectedModal, setSelectedModal] = useState(null); // 'estados', 'areas', null
 
+  // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
-    loadData();
-  }, []);
+    const unsubscribe = subscribeToTasks((updatedTasks) => {
+      setTasks(updatedTasks);
+    });
 
-  const loadData = async () => {
-    const t = await loadTasks();
-    setTasks(t || []);
-  };
+    return () => unsubscribe();
+  }, []);
 
   // Agrupar por área
   const groupByArea = () => {

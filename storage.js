@@ -1,4 +1,6 @@
 // storage.js
+// LEGACY/FALLBACK: Usado solo como respaldo local cuando Firebase no está disponible
+// Las tareas ahora se guardan principalmente en Firestore (services/tasks.js)
 // Helpers simples para guardar y cargar la lista de tareas en AsyncStorage
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

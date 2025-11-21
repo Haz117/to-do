@@ -31,5 +31,8 @@ const firebaseConfigResolved = {
 const app = initializeApp(firebaseConfigResolved);
 export const db = getFirestore(app);
 
+// Exportar app para uso en otros servicios (auth, storage, etc.)
+export { app };
+
 // Helper: timestamp de servidor (útil para mensajes)
 export const getServerTimestamp = () => serverTimestamp();
