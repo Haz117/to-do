@@ -10,6 +10,9 @@ import { getAllUsersNames } from '../services/roles';
 import { scheduleNotificationForTask, cancelNotification, notifyAssignment } from '../services/notifications';
 import { getCurrentSession } from '../services/authFirestore';
 import Toast from '../components/Toast';
+import ShakeInput from '../components/ShakeInput';
+import ProgressLoader from '../components/ProgressLoader';
+import PressableButton from '../components/PressableButton';
 
 export default function TaskDetailScreen({ route, navigation }) {
   // Si route.params.task está presente, estamos editando; si no, creamos nueva
@@ -34,6 +37,11 @@ export default function TaskDetailScreen({ route, navigation }) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [saveProgress, setSaveProgress] = useState(null);
+  
+  // Refs para inputs
+  const titleInputRef = useRef(null);
+  const descriptionInputRef = useRef(null);
   
   // Animaciones
   const buttonScale = useRef(new Animated.Value(1)).current;
@@ -137,32 +145,49 @@ export default function TaskDetailScreen({ route, navigation }) {
     
     // Validaciones de campos
     if (!title.trim()) {
-      Alert.alert('Campo requerido', 'El título es obligatorio');
+      titleInputRef.current?.shake();
+      setToastMessage('El título es obligatorio');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
     if (title.trim().length < 3) {
-      Alert.alert('Título muy corto', 'El título debe tener al menos 3 caracteres');
+      titleInputRef.current?.shake();
+      setToastMessage('El título debe tener al menos 3 caracteres');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
     if (title.trim().length > 100) {
-      Alert.alert('Título muy largo', 'El título no puede tener más de 100 caracteres');
+      titleInputRef.current?.shake();
+      setToastMessage('El título no puede tener más de 100 caracteres');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert('Campo requerido', 'La descripción es obligatoria');
+      descriptionInputRef.current?.shake();
+      setToastMessage('La descripción es obligatoria');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
     if (description.trim().length < 10) {
-      Alert.alert('Descripción muy corta', 'La descripción debe tener al menos 10 caracteres');
+      descriptionInputRef.current?.shake();
+      setToastMessage('La descripción debe tener al menos 10 caracteres');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
     if (!assignedTo) {
-      Alert.alert('Campo requerido', 'Debes asignar la tarea a alguien');
+      setToastMessage('Debes asignar la tarea a alguien');
+      setToastType('error');
+      setToastVisible(true);
       return;
     }
 
@@ -186,6 +211,18 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   const proceedWithSave = async () => {
     setIsSaving(true);
+    setSaveProgress(0);
+    
+    // Simular progreso
+    const progressInterval = setInterval(() => {
+      setSaveProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 100);
     
     try {
       // Validar permisos
@@ -245,7 +282,7 @@ export default function TaskDetailScreen({ route, navigation }) {
       const taskData = {
         title: title.trim(),
         description: description.trim(),
-        assignedTo: assignedTo.trim(),
+        assignedTo: assignedTo.trim().toLowerCase(), // ✅ Normalizar email a minúsculas
         area,
         priority,
         status,
@@ -263,7 +300,9 @@ export default function TaskDetailScreen({ route, navigation }) {
           await cancelNotification(editingTask.notificationId);
         }
         
+        setSaveProgress(60);
         await updateTask(taskId, taskData);
+        setSaveProgress(100);
         
         // Mostrar toast de éxito
         setToastMessage('Tarea actualizada exitosamente');
@@ -271,10 +310,15 @@ export default function TaskDetailScreen({ route, navigation }) {
         setToastVisible(true);
         
         // Navegar después de un breve delay
-        setTimeout(() => navigation.goBack(), 1500);
+        setTimeout(() => {
+          setSaveProgress(null);
+          navigation.goBack();
+        }, 1000);
       } else {
         // Crear nueva tarea
+        setSaveProgress(60);
         taskId = await createTask(taskData);
+        setSaveProgress(100);
         
         // Mostrar toast de éxito
         setToastMessage('Tarea creada exitosamente');
@@ -282,7 +326,10 @@ export default function TaskDetailScreen({ route, navigation }) {
         setToastVisible(true);
         
         // Navegar después de un breve delay
-        setTimeout(() => navigation.goBack(), 1500);
+        setTimeout(() => {
+          setSaveProgress(null);
+          navigation.goBack();
+        }, 1000);
       }
 
       // Crear objeto task completo con ID para notificaciones
@@ -305,8 +352,11 @@ export default function TaskDetailScreen({ route, navigation }) {
       }
       
       setIsSaving(false);
+      setSaveProgress(null);
     } catch (e) {
+      clearInterval(progressInterval);
       setIsSaving(false);
+      setSaveProgress(null);
       console.error('Error guardando tarea:', e);
       
       // Mostrar toast de error
@@ -340,17 +390,20 @@ export default function TaskDetailScreen({ route, navigation }) {
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.label}>TÍTULO</Text>
-        <TextInput 
+        <ShakeInput
+          ref={titleInputRef}
           value={title} 
           onChangeText={setTitle} 
           placeholder="Título corto" 
           placeholderTextColor="#C7C7CC" 
           style={styles.input}
           editable={canEdit}
+          error={!title.trim() && title.length > 0}
         />
 
       <Text style={styles.label}>DESCRIPCIÓN</Text>
-      <TextInput 
+      <ShakeInput
+        ref={descriptionInputRef}
         value={description} 
         onChangeText={setDescription} 
         placeholder="Descripción" 
@@ -358,6 +411,7 @@ export default function TaskDetailScreen({ route, navigation }) {
         style={[styles.input, {height:80}]} 
         multiline
         editable={canEdit}
+        error={!description.trim() && description.length > 0}
       />
 
       <Text style={styles.label}>ASIGNADO A</Text>
@@ -369,7 +423,7 @@ export default function TaskDetailScreen({ route, navigation }) {
             style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
             disabled={!canEdit}
           >
-            <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]}>{name}</Text>
+            <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -391,7 +445,7 @@ export default function TaskDetailScreen({ route, navigation }) {
               ]}
               disabled={!canSelectArea}
             >
-              <Text style={[styles.optionText, area === a && styles.optionTextActive]}>{a}</Text>
+              <Text style={[styles.optionText, area === a && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{a}</Text>
             </TouchableOpacity>
           );
         })}
@@ -406,7 +460,7 @@ export default function TaskDetailScreen({ route, navigation }) {
             style={[styles.optionBtn, priority === p && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
             disabled={!canEdit}
           >
-            <Text style={[styles.optionText, priority === p && styles.optionTextActive]}>
+            <Text style={[styles.optionText, priority === p && styles.optionTextActive]} numberOfLines={1}>
               {p.charAt(0).toUpperCase() + p.slice(1)}
             </Text>
           </TouchableOpacity>
@@ -421,7 +475,7 @@ export default function TaskDetailScreen({ route, navigation }) {
             onPress={() => setStatus(s)}
             style={[styles.optionBtn, status === s && styles.optionBtnActive]}
           >
-            <Text style={[styles.optionText, status === s && styles.optionTextActive]}>
+            <Text style={[styles.optionText, status === s && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">
               {s === 'en_proceso' ? 'En proceso' : s === 'en_revision' ? 'En revisión' : s.charAt(0).toUpperCase() + s.slice(1)}
             </Text>
           </TouchableOpacity>
@@ -466,19 +520,22 @@ export default function TaskDetailScreen({ route, navigation }) {
         />
       )}
 
-      <TouchableOpacity 
-        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
+      <PressableButton 
         onPress={save}
         disabled={isSaving}
-        activeOpacity={0.8}
+        scaleValue={0.95}
+        haptic={true}
       >
-        <Animated.View style={{ transform: [{ scale: buttonScale }], flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {isSaving && <ActivityIndicator color="#FFFFFF" size="small" />}
-          <Text style={styles.saveButtonText}>
-            {isSaving ? 'Guardando...' : (editingTask ? '✅ Guardar Cambios' : '✨ Crear Tarea')}
-          </Text>
-        </Animated.View>
-      </TouchableOpacity>
+        <View style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}>
+          <Animated.View style={{ transform: [{ scale: buttonScale }], flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {isSaving && <ActivityIndicator color="#FFFFFF" size="small" />}
+            {!isSaving && <Ionicons name={editingTask ? "checkmark-circle" : "add-circle"} size={20} color="#FFFFFF" />}
+            <Text style={styles.saveButtonText}>
+              {isSaving ? 'Guardando...' : (editingTask ? 'Guardar Cambios' : 'Crear Tarea')}
+            </Text>
+          </Animated.View>
+        </View>
+      </PressableButton>
 
       {editingTask && (
         <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('TaskChat', { taskId: editingTask.id, taskTitle: editingTask.title })}>
@@ -493,6 +550,12 @@ export default function TaskDetailScreen({ route, navigation }) {
         message={toastMessage}
         type={toastType}
         onHide={() => setToastVisible(false)}
+      />
+      
+      <ProgressLoader
+        visible={saveProgress !== null}
+        progress={saveProgress}
+        message={saveProgress === 100 ? '¡Completado!' : 'Guardando tarea...'}
       />
     </View>
   );
@@ -630,7 +693,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 1
+    elevation: 1,
+    maxWidth: '48%',
+    flexShrink: 1
   },
   optionBtnActive: { 
     backgroundColor: '#8B0000',
@@ -650,7 +715,9 @@ const styles = StyleSheet.create({
     fontSize: 15, 
     color: '#1A1A1A', 
     fontWeight: '700',
-    letterSpacing: 0.1
+    letterSpacing: 0.1,
+    textAlign: 'center',
+    flexShrink: 1
   },
   optionTextActive: { 
     color: '#FFFFFF', 

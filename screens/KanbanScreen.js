@@ -1,19 +1,30 @@
 // screens/KanbanScreen.js
 // Tablero Kanban con columnas por estado. Implementa Drag & Drop para cambiar estado de tareas.
 // Estados: pendiente, en_proceso, en_revision, cerrada
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, RefreshControl, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+// Temporarily disabled Animated imports that may cause issues
+// import Animated, {
+//   useAnimatedStyle,
+//   useSharedValue,
+//   withSpring,
+//   runOnJS,
+// } from 'react-native-reanimated';
 import FilterBar from '../components/FilterBar';
+import EmptyState from '../components/EmptyState';
+import ShimmerEffect from '../components/ShimmerEffect';
+import SpringCard from '../components/SpringCard';
+import BottomSheet from '../components/BottomSheet';
+import CircularProgress from '../components/CircularProgress';
+import PulsingDot from '../components/PulsingDot';
+import RippleButton from '../components/RippleButton';
+import FloatingActionButton from '../components/FloatingActionButton';
 import { subscribeToTasks, updateTask } from '../services/tasks';
+import { hapticMedium, hapticHeavy } from '../utils/haptics';
+import Toast from 'react-native-toast-message';
 
 const STATUSES = [
   { key: 'pendiente', label: 'Pendiente', color: '#FF9800', icon: 'hourglass-outline' },
@@ -27,25 +38,66 @@ export default function KanbanScreen({ navigation }) {
   const [filters, setFilters] = useState({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
   const [refreshing, setRefreshing] = useState(false);
   const [draggingTask, setDraggingTask] = useState(null);
+  const [showStats, setShowStats] = useState(false);
+  
+  // Animaciones
+  const headerSlide = useRef(new Animated.Value(-50)).current;
+  const columnsSlide = useRef(new Animated.Value(100)).current;
+
+  // Animación de entrada
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(headerSlide, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(columnsSlide, {
+        toValue: 0,
+        delay: 150,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((updatedTasks) => {
+    let unsubscribe;
+    
+    subscribeToTasks((updatedTasks) => {
       setTasks(updatedTasks);
+    }).then((unsub) => {
+      unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    hapticMedium();
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
   }, []);
 
   const changeStatus = useCallback(async (taskId, newStatus) => {
+    hapticMedium(); // Haptic on status change
     await updateTask(taskId, { status: newStatus });
+    Toast.show({
+      type: 'success',
+      text1: 'Estado actualizado',
+      text2: 'La tarea se movió correctamente',
+      position: 'top',
+      visibilityTime: 2000,
+    });
     // La actualización del estado se hace automáticamente por el listener
   }, []);
 
@@ -75,54 +127,27 @@ export default function KanbanScreen({ navigation }) {
 
   // Componente de tarjeta arrastrable
   const DraggableCard = ({ item, status }) => {
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
-    const scale = useSharedValue(1);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { scale: scale.value },
-      ],
-      zIndex: draggingTask?.id === item.id ? 1000 : 1,
-    }));
-
-    const onGestureEvent = useCallback((event) => {
-      const { translationX, translationY, state } = event.nativeEvent;
-
-      if (state === State.ACTIVE) {
-        translateX.value = translationX;
-        translateY.value = translationY;
-        scale.value = withSpring(1.05);
-        runOnJS(setDraggingTask)(item);
-      } else if (state === State.END || state === State.CANCELLED) {
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-        scale.value = withSpring(1);
-        runOnJS(handleDragEnd)(item, event);
-      }
-    }, [item]);
-
+    const isOverdue = item.dueAt && new Date(item.dueAt.toDate()) < new Date() && item.status !== 'cerrada';
+    
     return (
-      <PanGestureHandler onHandlerStateChange={onGestureEvent} onGestureEvent={onGestureEvent}>
-        <Animated.View style={[animatedStyle]}>
-          <TouchableOpacity
-            onPress={() => openDetail(item)}
-            style={[
-              styles.card,
-              draggingTask?.id === item.id && styles.cardDragging
-            ]}
-            activeOpacity={0.9}
-          >
-            <View style={styles.cardPriorityIndicator}>
-              <View style={[
-                styles.priorityDot,
-                item.priority === 'alta' && styles.priorityDotHigh,
-                item.priority === 'media' && styles.priorityDotMedium,
-                item.priority === 'baja' && styles.priorityDotLow
-              ]} />
-            </View>
+      <SpringCard
+        onPress={() => openDetail(item)}
+        style={[
+          styles.card,
+          draggingTask?.id === item.id && styles.cardDragging
+        ]}
+      >
+        <View style={styles.cardPriorityIndicator}>
+          <View style={[
+            styles.priorityDot,
+            item.priority === 'alta' && styles.priorityDotHigh,
+            item.priority === 'media' && styles.priorityDotMedium,
+            item.priority === 'baja' && styles.priorityDotLow
+          ]} />
+          {isOverdue && (
+            <PulsingDot size={8} color="#FF3B30" style={{ marginLeft: 6 }} />
+          )}
+        </View>
             
             {/* Icono de drag */}
             <View style={styles.dragHandle}>
@@ -132,28 +157,28 @@ export default function KanbanScreen({ navigation }) {
             <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
             <View style={styles.cardMetaRow}>
               <Ionicons name="person-outline" size={14} color="#8E8E93" />
-              <Text style={styles.cardMeta}>{item.assignedTo || 'Sin asignar'}</Text>
+              <Text style={styles.cardMeta} numberOfLines={1} ellipsizeMode="tail">{item.assignedTo || 'Sin asignar'}</Text>
             </View>
             <View style={styles.cardMetaRow}>
               <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
-              <Text style={styles.cardDue}>{new Date(item.dueAt).toLocaleDateString()}</Text>
+              <Text style={styles.cardDue} numberOfLines={1}>{new Date(item.dueAt).toLocaleDateString()}</Text>
             </View>
 
             {/* Botones rápidos para cambiar estado (respaldo) */}
             <View style={styles.actionsRow}>
               {STATUSES.filter(s => s.key !== status.key).slice(0, 2).map(s => (
-                <TouchableOpacity
+                <RippleButton
                   key={s.key}
                   onPress={() => changeStatus(item.id, s.key)}
                   style={[styles.miniBtn, { borderColor: s.color }]}
+                  rippleColor={s.color}
+                  size="small"
                 >
                   <Ionicons name={s.icon} size={14} color={s.color} />
-                </TouchableOpacity>
+                </RippleButton>
               ))}
             </View>
-          </TouchableOpacity>
-        </Animated.View>
-      </PanGestureHandler>
+          </SpringCard>
     );
   };
 
@@ -172,6 +197,7 @@ export default function KanbanScreen({ navigation }) {
   const renderColumn = (status) => {
     const byStatus = tasks.filter(t => (t.status || 'pendiente') === status.key);
     const filtered = applyFilters(byStatus);
+    const completionRate = byStatus.length > 0 ? (filtered.length / byStatus.length) * 100 : 0;
 
     return (
       <View key={status.key} style={styles.column}>
@@ -235,6 +261,66 @@ export default function KanbanScreen({ navigation }) {
             </Text>
           </View>
         )}
+
+        {/* FloatingActionButton con acciones rápidas */}
+        <FloatingActionButton
+          icon="add"
+          color="#8B0000"
+          actions={[
+            {
+              icon: 'add-circle',
+              label: 'Nueva Tarea',
+              onPress: () => navigation.navigate('TaskDetail')
+            },
+            {
+              icon: 'stats-chart',
+              label: 'Estadísticas',
+              onPress: () => setShowStats(true)
+            },
+            {
+              icon: 'filter',
+              label: 'Filtros',
+              onPress: () => {} // FilterBar ya está visible
+            }
+          ]}
+        />
+
+        {/* BottomSheet para estadísticas */}
+        <BottomSheet
+          visible={showStats}
+          onClose={() => setShowStats(false)}
+          height={400}
+          title="Estadísticas del Tablero"
+        >
+          <View style={styles.statsContainer}>
+            {STATUSES.map(status => {
+              const statusTasks = tasks.filter(t => t.status === status.key);
+              const total = tasks.length;
+              const percentage = total > 0 ? (statusTasks.length / total) * 100 : 0;
+              
+              return (
+                <View key={status.key} style={styles.statItem}>
+                  <View style={styles.statHeader}>
+                    <Ionicons name={status.icon} size={20} color={status.color} />
+                    <Text style={styles.statLabel}>{status.label}</Text>
+                  </View>
+                  <View style={styles.statProgress}>
+                    <CircularProgress
+                      size={60}
+                      strokeWidth={6}
+                      progress={percentage}
+                      color={status.color}
+                    />
+                    <View style={styles.statNumbers}>
+                      <Text style={styles.statCount}>{statusTasks.length}</Text>
+                      <Text style={styles.statPercentage}>{percentage.toFixed(0)}%</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </BottomSheet>
       </View>
     </GestureHandlerRootView>
   );
@@ -378,20 +464,24 @@ const styles = StyleSheet.create({
     marginBottom: 10, 
     color: '#1A1A1A',
     letterSpacing: -0.2,
-    paddingRight: 24,
-    lineHeight: 22
+    paddingRight: 28,
+    paddingLeft: 30,
+    lineHeight: 22,
+    flexShrink: 1
   },
   cardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    gap: 8
+    gap: 8,
+    flexWrap: 'nowrap'
   },
   cardMeta: { 
     fontSize: 14, 
     color: '#1A1A1A', 
     fontWeight: '600',
-    flex: 1
+    flex: 1,
+    flexShrink: 1
   },
   cardDue: { 
     fontSize: 13, 
@@ -439,5 +529,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#8B0000',
     letterSpacing: 0.3
-  }
+  },
+  statsContainer: {
+    padding: 16,
+  },
+  statItem: {
+    marginBottom: 20,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 16,
+  },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
+    color: '#1A1A1A',
+  },
+  statProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statNumbers: {
+    alignItems: 'flex-end',
+  },
+  statCount: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  statPercentage: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
 });

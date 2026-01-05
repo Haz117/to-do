@@ -1,49 +1,76 @@
 // components/SkeletonLoader.js
-// Skeleton loader animado para mejorar la percepción de carga
-import React, { useEffect } from 'react';
+// Skeleton loader animado con shimmer effect profesional
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SkeletonLoader({ type = 'card', count = 3 }) {
-  const pulseAnim = new Animated.Value(0.3);
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
+    const shimmer = Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      })
     );
-    pulse.start();
-    return () => pulse.stop();
+    shimmer.start();
+    return () => shimmer.stop();
   }, []);
+
+  const translateX = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-350, 350],
+  });
+
+  const ShimmerOverlay = () => (
+    <Animated.View
+      style={[
+        styles.shimmerOverlay,
+        { transform: [{ translateX }] },
+      ]}
+    >
+      <LinearGradient
+        colors={['transparent', 'rgba(255, 255, 255, 0.5)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.shimmerGradient}
+      />
+    </Animated.View>
+  );
 
   if (type === 'bento') {
     return (
       <View style={styles.bentoContainer}>
         {/* Fila 1: Grande + Mediano */}
         <View style={styles.bentoRow}>
-          <Animated.View style={[styles.bentoLarge, { opacity: pulseAnim }]} />
-          <Animated.View style={[styles.bentoMedium, { opacity: pulseAnim }]} />
+          <View style={[styles.bentoLarge, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
+          <View style={[styles.bentoMedium, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
         </View>
         
         {/* Fila 2: 3 pequeños */}
         <View style={styles.bentoRow}>
-          <Animated.View style={[styles.bentoSmall, { opacity: pulseAnim }]} />
-          <Animated.View style={[styles.bentoSmall, { opacity: pulseAnim }]} />
-          <Animated.View style={[styles.bentoSmall, { opacity: pulseAnim }]} />
+          <View style={[styles.bentoSmall, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
+          <View style={[styles.bentoSmall, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
+          <View style={[styles.bentoSmall, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
         </View>
         
         {/* Fila 3: Ancho */}
         <View style={styles.bentoRow}>
-          <Animated.View style={[styles.bentoWide, { opacity: pulseAnim }]} />
+          <View style={[styles.bentoWide, styles.shimmerContainer]}>
+            <ShimmerOverlay />
+          </View>
         </View>
       </View>
     );
@@ -53,17 +80,22 @@ export default function SkeletonLoader({ type = 'card', count = 3 }) {
     return (
       <View style={styles.cardContainer}>
         {[...Array(count)].map((_, index) => (
-          <Animated.View
-            key={index}
-            style={[styles.card, { opacity: pulseAnim }]}
-          >
+          <View key={index} style={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.titleSkeleton} />
-              <View style={styles.badgeSkeleton} />
+              <View style={[styles.titleSkeleton, styles.shimmerContainer]}>
+                <ShimmerOverlay />
+              </View>
+              <View style={[styles.badgeSkeleton, styles.shimmerContainer]}>
+                <ShimmerOverlay />
+              </View>
             </View>
-            <View style={styles.metaSkeleton} />
-            <View style={styles.metaSmallSkeleton} />
-          </Animated.View>
+            <View style={[styles.metaSkeleton, styles.shimmerContainer]}>
+              <ShimmerOverlay />
+            </View>
+            <View style={[styles.metaSmallSkeleton, styles.shimmerContainer]}>
+              <ShimmerOverlay />
+            </View>
+          </View>
         ))}
       </View>
     );
@@ -73,6 +105,23 @@ export default function SkeletonLoader({ type = 'card', count = 3 }) {
 }
 
 const styles = StyleSheet.create({
+  shimmerContainer: {
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  shimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  shimmerGradient: {
+    flex: 1,
+    width: 350,
+  },
   bentoContainer: {
     gap: 14,
     marginBottom: 32,
@@ -103,7 +152,7 @@ const styles = StyleSheet.create({
   bentoWide: {
     flex: 1,
     minHeight: 110,
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#E5E5EA',ñ
     borderRadius: 28,
   },
   cardContainer: {

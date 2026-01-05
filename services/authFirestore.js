@@ -52,22 +52,31 @@ export const registerUser = async (email, password, displayName, role = 'operati
 // Iniciar sesión
 export const loginUser = async (email, password) => {
   try {
+    console.log('🔐 Intentando login con:', email);
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', email.toLowerCase()));
     const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
+      console.log('❌ Usuario no encontrado:', email);
       return { success: false, error: 'Usuario no encontrado' };
     }
     
     const userDoc = querySnapshot.docs[0];
     const userData = userDoc.data();
+    console.log('✅ Usuario encontrado:', userData.email, '- Rol:', userData.role);
     
     // Verificar contraseña
     const hashedPassword = simpleHash(password + email);
+    console.log('🔑 Hash calculado:', hashedPassword);
+    console.log('🔑 Hash en BD:', userData.password);
+    
     if (userData.password !== hashedPassword) {
+      console.log('❌ Contraseña incorrecta');
       return { success: false, error: 'Contraseña incorrecta' };
     }
+    
+    console.log('✅ Contraseña correcta');
     
     // Verificar si está activo
     if (!userData.active) {
@@ -79,7 +88,9 @@ export const loginUser = async (email, password) => {
       userId: userDoc.id,
       email: userData.email,
       displayName: userData.displayName,
-      role: userData.role
+      role: userData.role,
+      department: userData.department || '',
+      area: userData.area || userData.department || ''
     };
     
     await AsyncStorage.setItem('userSession', JSON.stringify(session));
@@ -132,4 +143,44 @@ export const getCurrentUserData = async () => {
     return { success: true, data: result.session };
   }
   return { success: false, error: 'No hay sesión activa' };
+};
+
+// Refrescar sesión desde Firestore (útil cuando el perfil se actualiza)
+export const refreshSession = async () => {
+  try {
+    const sessionResult = await getCurrentSession();
+    if (!sessionResult.success) {
+      return { success: false, error: 'No hay sesión activa' };
+    }
+
+    const userId = sessionResult.session.userId;
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', sessionResult.session.email));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return { success: false, error: 'Usuario no encontrado' };
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    // Actualizar sesión con datos frescos de Firestore
+    const updatedSession = {
+      userId: userDoc.id,
+      email: userData.email,
+      displayName: userData.displayName,
+      role: userData.role,
+      department: userData.department || '',
+      area: userData.area || userData.department || ''
+    };
+
+    await AsyncStorage.setItem('userSession', JSON.stringify(updatedSession));
+    
+    console.log('✅ Sesión refrescada:', updatedSession);
+    return { success: true, session: updatedSession };
+  } catch (error) {
+    console.error('Error refrescando sesión:', error);
+    return { success: false, error: error.message };
+  }
 };

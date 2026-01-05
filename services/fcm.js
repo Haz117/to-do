@@ -46,10 +46,10 @@ export async function requestPushPermissions() {
       return false;
     }
 
-    console.log('✅ Permisos de notificaciones otorgados');
+    console.log('[FCM] Permisos de notificaciones otorgados');
     return true;
   } catch (error) {
-    console.error('❌ Error solicitando permisos:', error);
+    console.error('[FCM] Error solicitando permisos:', error);
     return false;
   }
 }
@@ -76,10 +76,10 @@ export async function getExpoPushToken() {
       projectId: 'infra-sublime-464215-m5' // Tu project ID de Firebase
     });
 
-    console.log('✅ Token de Expo Push obtenido:', tokenData.data);
+    console.log('[FCM] Token de Expo Push obtenido:', tokenData.data);
     return tokenData.data;
   } catch (error) {
-    console.error('❌ Error obteniendo token de Expo Push:', error);
+    console.error('[FCM] Error obteniendo token de Expo Push:', error);
     return null;
   }
 }
@@ -116,10 +116,10 @@ export async function registerDeviceToken(token) {
       lastUsed: new Date()
     });
 
-    console.log('✅ Token registrado en Firestore:', token.substring(0, 20) + '...');
+    console.log('[FCM] Token registrado en Firestore:', token.substring(0, 20) + '...');
     return true;
   } catch (error) {
-    console.error('❌ Error registrando token:', error);
+    console.error('[FCM] Error registrando token:', error);
     return false;
   }
 }
@@ -135,10 +135,10 @@ export async function unregisterDeviceToken(token) {
   try {
     const tokenDoc = doc(db, TOKENS_COLLECTION, token);
     await deleteDoc(tokenDoc);
-    console.log('✅ Token eliminado de Firestore');
+    console.log('[FCM] Token eliminado de Firestore');
     return true;
   } catch (error) {
-    console.error('❌ Error eliminando token:', error);
+    console.error('[FCM] Error eliminando token:', error);
     return false;
   }
 }
@@ -160,10 +160,10 @@ export async function getUserTokens(userId) {
     const snapshot = await getDocs(tokensQuery);
     const tokens = snapshot.docs.map(doc => doc.data().token);
     
-    console.log(`✅ Se encontraron ${tokens.length} tokens para usuario:`, userId.substring(0, 8) + '...');
+    console.log(`[FCM] Se encontraron ${tokens.length} tokens para usuario:`, userId.substring(0, 8) + '...');
     return tokens;
   } catch (error) {
-    console.error('❌ Error obteniendo tokens del usuario:', error);
+    console.error('[FCM] Error obteniendo tokens del usuario:', error);
     return [];
   }
 }
@@ -203,10 +203,10 @@ export async function sendPushNotification(tokens, notification) {
     });
 
     const result = await response.json();
-    console.log('✅ Notificaciones enviadas:', result);
+    console.log('[FCM] Notificaciones enviadas:', result);
     return true;
   } catch (error) {
-    console.error('❌ Error enviando notificaciones push:', error);
+    console.error('[FCM] Error enviando notificaciones push:', error);
     return false;
   }
 }
@@ -234,7 +234,7 @@ export async function notifyUser(userId, title, body, data = {}) {
       data
     });
   } catch (error) {
-    console.error('❌ Error notificando usuario:', error);
+    console.error('[FCM] Error notificando usuario:', error);
     return false;
   }
 }

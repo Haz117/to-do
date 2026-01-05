@@ -1,10 +1,16 @@
 // screens/CalendarScreen.js
 // Vista de calendario mensual con tareas por día
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import EmptyState from '../components/EmptyState';
+import SpringCard from '../components/SpringCard';
+import CircularProgress from '../components/CircularProgress';
+import PulsingDot from '../components/PulsingDot';
+import AnimatedBadge from '../components/AnimatedBadge';
 import { subscribeToTasks } from '../services/tasks';
+import { hapticLight } from '../utils/feedback';
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -17,11 +23,19 @@ export default function CalendarScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((updatedTasks) => {
+    let unsubscribe;
+    
+    subscribeToTasks((updatedTasks) => {
       setTasks(updatedTasks);
+    }).then((unsub) => {
+      unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Generar días del mes con memoización para mejor rendimiento
@@ -91,6 +105,7 @@ export default function CalendarScreen({ navigation }) {
   };
 
   const openDayDetail = (date) => {
+    hapticLight(); // Light haptic on date selection
     setSelectedDate(date);
     setModalVisible(true);
   };
@@ -214,7 +229,7 @@ export default function CalendarScreen({ navigation }) {
             style={styles.todayButton}
             onPress={() => setCurrentDate(new Date())}
           >
-            <Text style={styles.todayButtonText}>Hoy</Text>
+            <Text style={styles.todayButtonText}>HOY</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -356,7 +371,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   scrollContent: {
     padding: 20

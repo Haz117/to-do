@@ -50,10 +50,10 @@ export async function createSignature(taskId, signatureData = {}) {
     };
 
     const docRef = await addDoc(collection(db, 'signatures'), signature);
-    console.log('✅ Firma digital registrada:', docRef.id);
+    console.log('[Signatures] Firma digital registrada:', docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error('❌ Error registrando firma:', error);
+    console.error('[Signatures] Error registrando firma:', error);
     throw error;
   }
 }

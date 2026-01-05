@@ -43,6 +43,11 @@ export async function subscribeToTasks(callback) {
     const userEmail = sessionResult.session.email;
     const userDepartment = sessionResult.session.department;
 
+    console.log('\ud83d\udd11 PERMISOS DE USUARIO:');
+    console.log('  - Email:', userEmail);
+    console.log('  - Rol:', userRole);
+    console.log('  - Departamento:', userDepartment);
+
     // Enviar cache inmediatamente para UX rápido
     if (cachedTasks.length > 0 && Date.now() - lastFetchTime < CACHE_DURATION) {
       callback(cachedTasks);
@@ -53,19 +58,22 @@ export async function subscribeToTasks(callback) {
     // Construir query según el rol del usuario
     if (userRole === 'admin') {
       // Admin: Ver todas las tareas
+      console.log('\u2705 ADMIN - Mostrando todas las tareas');
       tasksQuery = query(
         collection(db, COLLECTION_NAME),
         orderBy('createdAt', 'desc')
       );
     } else if (userRole === 'jefe') {
       // Jefe: Solo tareas de su departamento/área
+      console.log('\ud83d\udcc1 JEFE - Filtrando por departamento:', userDepartment);
       tasksQuery = query(
         collection(db, COLLECTION_NAME),
         where('area', '==', userDepartment),
         orderBy('createdAt', 'desc')
       );
     } else if (userRole === 'operativo') {
-      // Operativo: Solo tareas asignadas a él
+      // Operativo: Solo tareas asignadas a él (comparación exacta con email)
+      console.log('🔒 Filtro OPERATIVO - Email:', userEmail);
       tasksQuery = query(
         collection(db, COLLECTION_NAME),
         where('assignedTo', '==', userEmail),
@@ -82,14 +90,25 @@ export async function subscribeToTasks(callback) {
     const unsubscribe = onSnapshot(
       tasksQuery,
       (snapshot) => {
-        const tasks = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          // Convertir Timestamps de Firebase a milisegundos
-          createdAt: doc.data().createdAt?.toMillis() || Date.now(),
-          updatedAt: doc.data().updatedAt?.toMillis() || Date.now(),
-          dueAt: doc.data().dueAt?.toMillis() || Date.now()
-        }));
+        const tasks = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Convertir Timestamps de Firebase a milisegundos solo si son Timestamps
+            createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : data.createdAt || Date.now(),
+            updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : data.updatedAt || Date.now(),
+            dueAt: data.dueAt?.toMillis ? data.dueAt.toMillis() : data.dueAt || Date.now()
+          };
+        });
+        
+        console.log(`📋 Tareas cargadas para ${userRole}:`, tasks.length);
+        if (userRole === 'operativo') {
+          console.log('🔍 Tareas del operativo:', tasks.map(t => ({
+            title: t.title,
+            assignedTo: t.assignedTo
+          })));
+        }
         
         // Actualizar cache
         cachedTasks = tasks;
@@ -162,14 +181,14 @@ export async function createTask(task) {
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), taskData);
-    console.log('✅ Tarea creada en Firebase:', docRef.id);
+    console.log('[Firebase] Tarea creada:', docRef.id);
     
     // Reemplazar tarea optimista con la real
     cachedTasks = cachedTasks.filter(t => t.id !== tempId);
     
     return docRef.id;
   } catch (error) {
-    console.error('❌ Error creando tarea en Firebase:', error);
+    console.error('[Firebase] Error creando tarea:', error);
     // Remover tarea optimista en caso de error
     cachedTasks = cachedTasks.filter(t => t.id !== tempId);
     
@@ -219,14 +238,14 @@ export async function updateTask(taskId, updates) {
     }
 
     await updateDoc(taskRef, updateData);
-    console.log('✅ Tarea actualizada en Firebase:', taskId);
+    console.log('[Firebase] Tarea actualizada:', taskId);
     
     // Remover flag optimista
     if (taskIndex >= 0) {
       delete cachedTasks[taskIndex]._optimistic;
     }
   } catch (error) {
-    console.error('❌ Error actualizando tarea en Firebase:', error);
+    console.error('[Firebase] Error actualizando tarea:', error);
     
     // ROLLBACK: Restaurar estado anterior
     if (previousTask && taskIndex >= 0) {
@@ -255,9 +274,9 @@ export async function deleteTask(taskId) {
   try {
     const taskRef = doc(db, COLLECTION_NAME, taskId);
     await deleteDoc(taskRef);
-    console.log('✅ Tarea eliminada de Firebase:', taskId);
+    console.log('[Firebase] Tarea eliminada:', taskId);
   } catch (error) {
-    console.error('❌ Error eliminando tarea de Firebase:', error);
+    console.error('[Firebase] Error eliminando tarea:', error);
     
     // Lanzar error con mensaje específico
     if (error.code === 'permission-denied') {

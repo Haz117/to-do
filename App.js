@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import TaskDetailScreen from './screens/TaskDetailScreen';
@@ -38,7 +39,7 @@ const Stack = createNativeStackNavigator();
 
 // Componente de navegación por tabs personalizado
 
-function CustomTabBar({ activeTab, setActiveTab, userRole, userName }) {
+function CustomTabBar({ activeTab, setActiveTab, userRole, userName, onLogout }) {
   const allTabs = [
     { name: 'Tareas', icon: 'checkbox-outline', screen: 'Home' },
     { name: 'Calendario', icon: 'calendar-outline', screen: 'Calendar' },
@@ -47,30 +48,44 @@ function CustomTabBar({ activeTab, setActiveTab, userRole, userName }) {
     { name: 'Admin', icon: 'settings-outline', screen: 'Admin' }
   ];
 
-  // Filtrar Admin tab si el usuario no es admin
-  const tabs = userRole === 'admin' 
-    ? allTabs 
-    : allTabs.filter(tab => tab.screen !== 'Admin');
+  // Filtrar tabs según rol:
+  // - Operativo: Solo Tareas, Calendario y Kanban
+  // - Jefe/Admin: Todos los tabs (Admin solo para admin)
+  let tabs = allTabs;
+  if (userRole === 'operativo') {
+    tabs = allTabs.filter(tab => ['Home', 'Calendar', 'Kanban'].includes(tab.screen));
+  } else if (userRole !== 'admin') {
+    tabs = allTabs.filter(tab => tab.screen !== 'Admin');
+  }
 
   return (
     <View>
       {/* Indicador de rol */}
       {userRole && (
         <View style={styles.roleIndicator}>
-          <View style={[styles.roleBadge, userRole === 'admin' && styles.roleBadgeAdmin]}>
-            <Ionicons 
-              name={userRole === 'admin' ? 'shield-checkmark' : 'person'} 
-              size={14} 
-              color="#FFFFFF" 
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.roleBadgeText}>
-              {userRole === 'admin' ? 'Admin' : 'Operativo'}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={[styles.roleBadge, userRole === 'admin' && styles.roleBadgeAdmin]}>
+              <Ionicons 
+                name={userRole === 'admin' ? 'shield-checkmark' : 'person'} 
+                size={14} 
+                color="#FFFFFF" 
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.roleBadgeText}>
+                {userRole === 'admin' ? 'Admin' : userRole === 'jefe' ? 'Jefe' : 'Operativo'}
+              </Text>
+            </View>
+            {userName && (
+              <Text style={styles.userNameText}>{userName}</Text>
+            )}
           </View>
-          {userName && (
-            <Text style={styles.userNameText}>{userName}</Text>
-          )}
+          <TouchableOpacity
+            onPress={onLogout}
+            style={styles.logoutButton}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#8B0000" />
+            <Text style={styles.logoutText}>Salir</Text>
+          </TouchableOpacity>
         </View>
       )}
       <View style={styles.tabBar}>
@@ -100,7 +115,7 @@ function CustomTabBar({ activeTab, setActiveTab, userRole, userName }) {
 }
 
 // Navegador principal
-function MainNavigator({ navigation }) {
+function MainNavigator({ navigation, onLogout }) {
   const [activeTab, setActiveTab] = useState('Home');
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState(null);
@@ -118,7 +133,7 @@ function MainNavigator({ navigation }) {
   };
 
   const renderScreen = () => {
-    const screenProps = { navigation };
+    const screenProps = { navigation, onLogout };
     
     switch (activeTab) {
       case 'Home':
@@ -141,7 +156,13 @@ function MainNavigator({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       {renderScreen()}
-      <CustomTabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} userName={userName} />
+      <CustomTabBar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        userRole={userRole} 
+        userName={userName} 
+        onLogout={onLogout}
+      />
     </View>
   );
 }
@@ -160,6 +181,12 @@ export default function App() {
     setIsAuthenticated(result.success);
     setIsLoading(false);
   };
+
+  const handleLogout = async () => {
+    const { logoutUser } = require('./services/authFirestore');
+    await logoutUser();
+    setIsAuthenticated(false);
+  };
   
   useEffect(() => {
     (async () => {
@@ -173,26 +200,26 @@ export default function App() {
             finalStatus = status;
           }
           if (finalStatus !== 'granted') {
-            console.log('Permisos de notificación denegados');
+            console.log('[Notifications] Permisos de notificación denegados');
           } else {
-            console.log('✅ Permisos de notificación concedidos');
+            console.log('[Notifications] Permisos de notificación concedidos');
           }
         } catch (error) {
           // Silenciar error en Expo Go donde push notifications no están disponibles
-          console.log('Notificaciones no disponibles en Expo Go');
+          console.log('[Notifications] No disponibles en Expo Go');
         }
       }
     })();
 
     // Listener para notificaciones recibidas cuando la app está en foreground
     const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('🔔 Notificación recibida:', notification.request.content.title);
+      console.log('[Notifications] Recibida:', notification.request.content.title);
     });
 
     // Listener para cuando el usuario interactúa con una notificación
     const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      console.log('👆 Usuario interactuó con notificación:', data);
+      console.log('[Notifications] Usuario interactuó:', data);
       
       // Navegar a la tarea si se proporciona el ID
       if (data.taskId && navigationRef.current) {
@@ -222,45 +249,73 @@ export default function App() {
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
-              animation: 'slide_from_bottom',
-              presentation: 'modal',
-              contentStyle: { backgroundColor: '#FAFAFA' }
+              // Transiciones nativas optimizadas
+              animation: 'default',
+              presentation: 'card',
+              contentStyle: { backgroundColor: '#FAFAFA' },
+              // Configuración de animación sutil
+              animationDuration: 250, // Rápido pero visible
+              gestureEnabled: true, // Swipe back habilitado
+              gestureDirection: 'horizontal',
+              // Optimización crítica
+              animationTypeForReplace: 'push',
+              // Customización de transición
+              customAnimationOnGesture: true,
+              fullScreenGestureEnabled: true,
             }}
           >
             {!isAuthenticated ? (
               <Stack.Screen 
                 name="Login" 
-                options={{ headerShown: false }}
+                options={{ 
+                  headerShown: false,
+                  animation: 'fade', // Fade-in suave para login
+                  animationDuration: 200,
+                  gestureEnabled: false // No swipe en login
+                }}
               >
                 {(props) => <LoginScreen {...props} onLogin={() => setIsAuthenticated(true)} />}
               </Stack.Screen>
             ) : (
               <>
                 <Stack.Screen 
-                  name="Main" 
-                  component={MainNavigator}
-                  options={{ headerShown: false }}
-                />
+                  name="Main"
+                  options={{ 
+                    headerShown: false,
+                    animation: 'fade',
+                    animationDuration: 200,
+                  }}
+                >
+                  {(props) => <MainNavigator {...props} onLogout={handleLogout} />}
+                </Stack.Screen>
                 <Stack.Screen 
                   name="TaskDetail" 
                   component={TaskDetailScreen}
                   options={{ 
                     presentation: 'card',
-                    animation: 'slide_from_right'
+                    animation: 'slide_from_right', // iOS style
+                    animationDuration: 250,
+                    gestureEnabled: true,
+                    gestureDirection: 'horizontal',
+                    fullScreenGestureEnabled: true,
                   }}
                 />
                 <Stack.Screen 
                   name="TaskChat" 
                   component={TaskChatScreen}
-                options={{ 
-                  presentation: 'card',
-                  animation: 'slide_from_right'
-                }}
-              />
+                  options={{ 
+                    presentation: 'modal', // Modal style para chat
+                    animation: 'slide_from_bottom',
+                    animationDuration: 300, // Un poco más lento para modal
+                    gestureEnabled: true,
+                    gestureDirection: 'vertical', // Swipe down para cerrar
+                  }}
+                />
             </>
           )}
         </Stack.Navigator>
       </NavigationContainer>
+      <Toast />
     </GestureHandlerRootView>
     </ThemeProvider>
   );
@@ -297,7 +352,23 @@ const styles = StyleSheet.create({
   userNameText: {
     fontSize: 13,
     color: '#6E6E73',
-    fontWeight: '600'
+    fontWeight: '600',
+    marginLeft: 8
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE5E5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4
+  },
+  logoutText: {
+    fontSize: 12,
+    color: '#8B0000',
+    fontWeight: '700',
+    letterSpacing: 0.3
   },
   tabBar: {
     flexDirection: 'row',

@@ -23,11 +23,19 @@ export default function ReportScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((updatedTasks) => {
+    let unsubscribe;
+    
+    subscribeToTasks((updatedTasks) => {
       setTasks(updatedTasks);
+    }).then((unsub) => {
+      unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Agrupar por área

@@ -12,7 +12,7 @@ import * as Notifications from 'expo-notifications';
 import { getCurrentSession, logoutUser, isAdmin } from '../services/authFirestore';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function AdminScreen({ navigation }) {
+export default function AdminScreen({ navigation, onLogout }) {
   const { isDark, toggleTheme, theme } = useTheme();
   const [notificationCount, setNotificationCount] = useState(0);
   const [userName, setUserName] = useState('');
@@ -105,7 +105,7 @@ export default function AdminScreen({ navigation }) {
         password: hashedPassword
       });
 
-      Alert.alert('✅ Contraseña Reseteada', 'La contraseña ha sido actualizada');
+      Alert.alert('Contraseña Reseteada', 'La contraseña ha sido actualizada');
       setResetEmail('');
       setNewPassword('');
     } catch (error) {
@@ -118,7 +118,7 @@ export default function AdminScreen({ navigation }) {
       await updateDoc(doc(db, 'users', userId), {
         active: !currentStatus
       });
-      Alert.alert('✅ Estado Actualizado', 'El usuario ha sido ' + (!currentStatus ? 'activado' : 'desactivado'));
+      Alert.alert('Estado Actualizado', 'El usuario ha sido ' + (!currentStatus ? 'activado' : 'desactivado'));
       loadAllUsers();
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el estado: ' + error.message);
@@ -157,7 +157,7 @@ export default function AdminScreen({ navigation }) {
       const result = await registerUser(userEmail.trim(), userPassword, userName.trim(), userRole);
       
       if (result.success) {
-        Alert.alert('✅ Usuario Creado', `${userName} ha sido agregado como ${userRole}`);
+        Alert.alert('Usuario Creado', `${userName} ha sido agregado como ${userRole}`);
         setUserName('');
         setUserEmail('');
         setUserPassword('');
@@ -193,7 +193,7 @@ export default function AdminScreen({ navigation }) {
       });
 
       Alert.alert(
-        '✅ Notificación Programada', 
+        'Notificación Programada', 
         'Recibirás una notificación en 2 segundos.\n\nNOTA: Las notificaciones push no funcionan en Expo Go, pero se guardan para builds nativos.'
       );
       
@@ -204,7 +204,7 @@ export default function AdminScreen({ navigation }) {
         'Información', 
         'Las notificaciones push no están disponibles en Expo Go.\n\nPara usarlas necesitas crear un build de desarrollo con:\n\neas build --profile development --platform android'
       );
-      console.log('Error de notificación (esperado en Expo Go):', error.message);
+      console.log('[Notifications] Error (esperado en Expo Go):', error.message);
     }
   };
 
@@ -234,7 +234,7 @@ export default function AdminScreen({ navigation }) {
           onPress: async () => {
             await cancelAllNotifications();
             setNotificationCount(0);
-            Alert.alert('✅ Listo', 'Todas las notificaciones han sido canceladas');
+            Alert.alert('Completado', 'Todas las notificaciones han sido canceladas');
           }
         }
       ]
@@ -256,7 +256,7 @@ export default function AdminScreen({ navigation }) {
             try {
               const result = await generateTaskReport();
               Alert.alert(
-                '✅ Reporte Generado', 
+                'Reporte Generado', 
                 'El archivo CSV ha sido generado.\n\nNOTA: La descarga de archivos tiene limitaciones en Expo Go. En producción el archivo se guardará en la carpeta de Descargas.'
               );
             } catch (error) {
@@ -264,7 +264,7 @@ export default function AdminScreen({ navigation }) {
                 'Información', 
                 'La exportación de reportes está implementada pero tiene limitaciones en Expo Go.\n\nEn un build de producción, el archivo CSV se guardará en la carpeta de Descargas del dispositivo.'
               );
-              console.log('Error exportando (esperado en Expo Go):', error.message);
+              console.log('[Export] Error (esperado en Expo Go):', error.message);
             }
           }
         },
@@ -274,7 +274,7 @@ export default function AdminScreen({ navigation }) {
             const now = new Date();
             try {
               await generateMonthlyReport(now.getFullYear(), now.getMonth() + 1);
-              Alert.alert('✅ Reporte Generado', 'Las estadísticas han sido exportadas');
+              Alert.alert('Reporte Generado', 'Las estadísticas han sido exportadas');
             } catch (error) {
               Alert.alert('Error', error.message);
             }
@@ -298,8 +298,23 @@ export default function AdminScreen({ navigation }) {
           <TouchableOpacity 
             style={styles.logoutButton}
             onPress={async () => {
-              await logoutUser();
-              navigation.replace('Login');
+              Alert.alert(
+                'Cerrar Sesión',
+                '¿Estás seguro que deseas cerrar sesión?',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Cerrar Sesión',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await logoutUser();
+                      if (onLogout) {
+                        onLogout();
+                      }
+                    }
+                  }
+                ]
+              );
             }}
           >
             <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />

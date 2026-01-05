@@ -6,9 +6,13 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshContr
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import TaskItem from '../components/TaskItem';
+import EmptyState from '../components/EmptyState';
+import ShimmerEffect from '../components/ShimmerEffect';
 import { subscribeToTasks, updateTask, deleteTask as deleteTaskFirebase } from '../services/tasks';
 import { scheduleNotificationForTask, cancelNotification } from '../services/notifications';
 import { getCurrentSession } from '../services/authFirestore';
+import { hapticMedium } from '../utils/haptics';
+import Toast from '../components/Toast';
 
 export default function MyInboxScreen({ navigation }) {
   const [tasks, setTasks] = useState([]);
@@ -28,6 +32,7 @@ export default function MyInboxScreen({ navigation }) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    hapticMedium();
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
@@ -35,11 +40,19 @@ export default function MyInboxScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((updatedTasks) => {
+    let unsubscribe;
+    
+    subscribeToTasks((updatedTasks) => {
       setTasks(updatedTasks);
+    }).then((unsub) => {
+      unsubscribe = unsub;
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
   // Filtrar tareas asignadas al usuario actual y ordenar por fecha
@@ -55,17 +68,33 @@ export default function MyInboxScreen({ navigation }) {
 
   const markClosed = async (task) => {
     try {
+      hapticMedium();
       // Cancelar notificación existente
       if (task.notificationId) await cancelNotification(task.notificationId);
       await updateTask(task.id, { status: 'cerrada' });
+      Toast.show({
+        type: 'success',
+        text1: 'Completada',
+        text2: 'Tarea marcada como completada',
+        position: 'top',
+        visibilityTime: 2000,
+      });
       // La actualización del estado se hace automáticamente por el listener
     } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Error al marcar como cerrada: ' + e.message,
+        position: 'top',
+        visibilityTime: 3000,
+      });
       console.warn('Error marcando cerrada', e);
     }
   };
 
   const postponeOneDay = async (task) => {
     try {
+      hapticMedium();
       const newDue = (task.dueAt || Date.now()) + 24 * 3600 * 1000; // +1 día
       const updatedTask = { ...task, dueAt: newDue };
       
@@ -79,8 +108,22 @@ export default function MyInboxScreen({ navigation }) {
         dueAt: newDue,
         notificationId: notifId || task.notificationId
       });
+      Toast.show({
+        type: 'success',
+        text1: 'Pospuesta',
+        text2: 'Tarea pospuesta 1 día',
+        position: 'top',
+        visibilityTime: 2000,
+      });
       // La actualización del estado se hace automáticamente por el listener
     } catch (e) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Error al posponer: ' + e.message,
+        position: 'top',
+        visibilityTime: 3000,
+      });
       console.warn('Error posponiendo tarea', e);
     }
   };
@@ -160,10 +203,10 @@ export default function MyInboxScreen({ navigation }) {
           <Ionicons name="person-outline" size={16} color="#8B0000" style={{ marginRight: 6 }} />
           <Text style={styles.userLabel}>MIS TAREAS ASIGNADAS</Text>
         </View>
-        <Text style={styles.currentUserName}>
+        <Text style={styles.currentUserName} numberOfLines={1} ellipsizeMode="tail">
           {currentUser?.displayName || 'Cargando...'}
         </Text>
-        <Text style={styles.currentUserHint}>
+        <Text style={styles.currentUserHint} numberOfLines={1} ellipsizeMode="tail">
           {currentUser?.email || 'Iniciando sesión...'}
         </Text>
       </View>
@@ -182,11 +225,11 @@ export default function MyInboxScreen({ navigation }) {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="mail-open-outline" size={80} color="#AEAEB2" style={{ marginBottom: 20, opacity: 0.3 }} />
-            <Text style={styles.emptyText}>Sin tareas</Text>
-            <Text style={styles.emptySubtext}>No tienes tareas asignadas en este momento</Text>
-          </View>
+          <EmptyState
+            icon="mail-open-outline"
+            title="Sin tareas"
+            message="No tienes tareas asignadas en este momento. ¡Disfruta tu tiempo libre!"
+          />
         }
       />
     </View>
@@ -286,12 +329,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 6
+    marginBottom: 6,
+    flexShrink: 1
   },
   currentUserHint: {
     fontSize: 14,
     color: '#8E8E93',
-    fontWeight: '500'
+    fontWeight: '500',
+    flexShrink: 1
   },
   listContent: {
     padding: 20
@@ -321,7 +366,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
-    letterSpacing: 0.2
+    letterSpacing: 0.2,
+    flexShrink: 1
   },
   emptyContainer: {
     alignItems: 'center',

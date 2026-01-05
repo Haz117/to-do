@@ -51,7 +51,7 @@ module.exports = {
       FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
       FIREBASE_MEASUREMENT_ID: process.env.FIREBASE_MEASUREMENT_ID,
       eas: {
-        projectId: "tu-project-id-aqui" // Se genera con 'eas build:configure'
+        projectId: "TODO-GENERAR-CON-EAS" // Se genera automáticamente con 'eas build:configure'
       }
     }
   }

@@ -1,15 +1,60 @@
 // components/Toast.js
 // Componente de Toast para feedback visual de acciones
+// Ahora con soporte para acciones y swipe to dismiss
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, View } from 'react-native';
+import { Animated, Text, StyleSheet, View, TouchableOpacity, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const Toast = ({ message, type = 'success', visible, onHide, duration = 3000 }) => {
+const Toast = ({ 
+  message, 
+  type = 'success', 
+  visible, 
+  onHide, 
+  duration = 3000,
+  action = null, // { label: string, onPress: function }
+  swipeToDismiss = true 
+}) => {
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const swipeX = useRef(new Animated.Value(0)).current;
+
+  // PanResponder para swipe to dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => swipeToDismiss,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return swipeToDismiss && Math.abs(gestureState.dx) > 5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (swipeToDismiss) {
+          swipeX.setValue(gestureState.dx);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 100) {
+          // Swipe suficientemente lejos, ocultar
+          Animated.timing(swipeX, {
+            toValue: gestureState.dx > 0 ? 500 : -500,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            swipeX.setValue(0);
+            hideToast();
+          });
+        } else {
+          // Volver a posición original
+          Animated.spring(swipeX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
+      swipeX.setValue(0);
       // Mostrar
       Animated.parallel([
         Animated.spring(translateY, {
@@ -75,10 +120,11 @@ const Toast = ({ message, type = 'success', visible, onHide, duration = 3000 }) 
 
   return (
     <Animated.View
+      {...panResponder.panHandlers}
       style={[
         styles.container,
         {
-          transform: [{ translateY }],
+          transform: [{ translateY }, { translateX: swipeX }],
           opacity,
           backgroundColor: getColor()
         }
@@ -86,6 +132,19 @@ const Toast = ({ message, type = 'success', visible, onHide, duration = 3000 }) 
     >
       <Ionicons name={getIcon()} size={24} color="#FFFFFF" style={styles.icon} />
       <Text style={styles.message} numberOfLines={2}>{message}</Text>
+      
+      {action && (
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            action.onPress();
+            hideToast();
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.actionText}>{action.label}</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 };
@@ -116,6 +175,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.2
+  },
+  actionButton: {
+    marginLeft: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 8,
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3
   }
 });
 
