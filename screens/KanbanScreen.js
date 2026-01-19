@@ -247,6 +247,8 @@ export default function KanbanScreen({ navigation }) {
     );
   };
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -342,9 +344,10 @@ export default function KanbanScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, isDark) => StyleSheet.create({
   container: { 
-    flex: 1 
+    flex: 1,
+    backgroundColor: theme.background
   },
   headerGradient: {
     paddingHorizontal: 24,
@@ -352,7 +355,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
-    shadowColor: '#000',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -400,9 +403,10 @@ const styles = StyleSheet.create({
     width: 300, 
     marginRight: 16,
     borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    backgroundColor: theme.card,
+    shadowColor: isDark ? theme.primary : '#000',
     shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.3  { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4
@@ -456,10 +460,12 @@ const styles = StyleSheet.create({
   card: { 
     margin: 12,
     padding: 16,
-    borderRadius: 20,
+    backgroundColor: theme.surface,
     borderWidth: 1.5,
-    shadowColor: '#000',
+    borderColor: theme.border,
+    shadowColor: isDark ? theme.primary : '#000',
     shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDark ? 0.2  { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
     elevation: 4
@@ -518,7 +524,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { 
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '700',,
+    color: theme.text
     marginBottom: 14,
     lineHeight: 22,
     letterSpacing: -0.2
@@ -534,17 +541,14 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12
   },
-  cardInfoText: {
+  cardInfoT,
+    color: theme.textSecondaryext: {
     fontSize: 13,
     fontWeight: '600',
     flex: 1
   },
   dragIndicator: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFAF0',
+    position: 'absoluisDark ? theme.surface : '#FFFAF0',
     paddingVertical: 16,
     paddingHorizontal: 24,
     marginHorizontal: 20,
@@ -553,14 +557,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    shadowColor: '#9F2241',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 2,
-    borderColor: '#9F2241'
+    borderColor: theme.primary
   },
+  dragIndicatorText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.primary
   dragIndicatorText: {
     fontSize: 16,
     fontWeight: '700',
@@ -570,9 +578,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     padding: 16,
   },
-  statItem: {
-    marginBottom: 20,
-    backgroundColor: '#F8F9FA',
+  statItem: {theme.surface,
     borderRadius: 16,
     padding: 16,
   },
@@ -585,6 +591,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
+    color: theme.text',
+    marginLeft: 8,
     color: '#1A1A1A',
   },
   statProgress: {
@@ -596,11 +604,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   statCount: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1A1A1A',
+    fontSiztheme.text,
   },
   statPercentage: {
+    fontSize: 14,
+    color: theme.textSecondary
     fontSize: 14,
     color: '#8E8E93',
     fontWeight: '600',
