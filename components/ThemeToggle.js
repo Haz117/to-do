@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
-import { hapticMedium } from '../utils/feedback';
+import { hapticMedium } from '../utils/haptics';
 
 /**
  * ThemeToggle button - Switches between light and dark mode

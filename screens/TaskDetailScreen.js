@@ -2,17 +2,21 @@
 // Formulario para crear o editar una tarea. Incluye DateTimePicker y programación de notificación.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Button, TextInput, Platform, Alert, TouchableOpacity, ScrollView, Animated, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { createTask, updateTask } from '../services/tasks';
+import { createTask, updateTask, deleteTask } from '../services/tasks';
 import { getAllUsersNames } from '../services/roles';
 import { scheduleNotificationForTask, cancelNotification, notifyAssignment } from '../services/notifications';
 import { getCurrentSession } from '../services/authFirestore';
 import Toast from '../components/Toast';
 import ShakeInput from '../components/ShakeInput';
-import ProgressLoader from '../components/ProgressLoader';
+import LoadingIndicator from '../components/LoadingIndicator';
 import PressableButton from '../components/PressableButton';
+
+// Importar DateTimePicker solo en móvil
+let DateTimePicker;
+if (Platform.OS !== 'web') {
+  DateTimePicker = require('@react-native-community/datetimepicker').default;
+}
 
 export default function TaskDetailScreen({ route, navigation }) {
   // Si route.params.task está presente, estamos editando; si no, creamos nueva
@@ -108,35 +112,38 @@ export default function TaskDetailScreen({ route, navigation }) {
   const onChangeDate = (event, selectedDate) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
-      if (selectedDate) {
-        setTempDate(selectedDate);
-        // Después de seleccionar fecha, mostrar selector de hora
+    }
+    
+    if (event.type === 'set' && selectedDate) {
+      setTempDate(selectedDate);
+      if (Platform.OS === 'android') {
+        // En Android, mostrar el time picker después de seleccionar la fecha
         setTimeout(() => setShowTimePicker(true), 100);
+      } else {
+        // En iOS, actualizar directamente
+        const newDate = new Date(dueAt);
+        newDate.setFullYear(selectedDate.getFullYear());
+        newDate.setMonth(selectedDate.getMonth());
+        newDate.setDate(selectedDate.getDate());
+        setDueAt(newDate);
       }
-    } else {
-      if (selectedDate) {
-        setTempDate(selectedDate);
-      }
+    } else if (event.type === 'dismissed') {
+      setShowDatePicker(false);
     }
   };
 
   const onChangeTime = (event, selectedTime) => {
     if (Platform.OS === 'android') {
       setShowTimePicker(false);
-      if (selectedTime) {
-        // Combinar fecha de tempDate con la hora seleccionada
-        const finalDate = new Date(tempDate);
-        finalDate.setHours(selectedTime.getHours());
-        finalDate.setMinutes(selectedTime.getMinutes());
-        setDueAt(finalDate);
-      }
-    } else {
-      if (selectedTime) {
-        const finalDate = new Date(tempDate);
-        finalDate.setHours(selectedTime.getHours());
-        finalDate.setMinutes(selectedTime.getMinutes());
-        setDueAt(finalDate);
-      }
+    }
+    if (event.type === 'set' && selectedTime) {
+      // Combinar fecha de tempDate con la hora seleccionada
+      const finalDate = new Date(tempDate);
+      finalDate.setHours(selectedTime.getHours());
+      finalDate.setMinutes(selectedTime.getMinutes());
+      setDueAt(finalDate);
+    } else if (event.type === 'dismissed') {
+      setShowTimePicker(false);
     }
   };
 
@@ -366,12 +373,39 @@ export default function TaskDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Eliminar Tarea',
+      '¿Estás seguro que deseas eliminar esta tarea? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsSaving(true);
+              await deleteTask(editingTask.id);
+              setToastMessage('Tarea eliminada correctamente');
+              setToastType('success');
+              setToastVisible(true);
+              setTimeout(() => navigation.goBack(), 1000);
+            } catch (error) {
+              console.error('Error al eliminar tarea:', error);
+              setToastMessage('Error al eliminar la tarea');
+              setToastType('error');
+              setToastVisible(true);
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <LinearGradient 
-        colors={['#8B0000', '#6B0000']} 
-        style={styles.headerBar}
-      >
+      <View style={[styles.headerBar, { backgroundColor: '#9F2241' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <Ionicons name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -384,165 +418,207 @@ export default function TaskDetailScreen({ route, navigation }) {
           />
           <Text style={styles.headerTitle}>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</Text>
         </View>
-        <View style={{ width: 40 }} />
-      </LinearGradient>
+        {editingTask && currentUser?.role === 'admin' && (
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Ionicons name="trash" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        {!editingTask && <View style={{ width: 40 }} />}
+      </View>
       
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.label}>TÍTULO</Text>
-        <ShakeInput
-          ref={titleInputRef}
-          value={title} 
-          onChangeText={setTitle} 
-          placeholder="Título corto" 
-          placeholderTextColor="#C7C7CC" 
-          style={styles.input}
-          editable={canEdit}
-          error={!title.trim() && title.length > 0}
-        />
+          <Text style={styles.label}>TÍTULO</Text>
+          <ShakeInput
+            ref={titleInputRef}
+            value={title} 
+            onChangeText={setTitle} 
+            placeholder="Título corto" 
+            placeholderTextColor="#C7C7CC" 
+            style={styles.input}
+            editable={canEdit}
+            error={!title.trim() && title.length > 0}
+          />
 
-      <Text style={styles.label}>DESCRIPCIÓN</Text>
-      <ShakeInput
-        ref={descriptionInputRef}
-        value={description} 
-        onChangeText={setDescription} 
-        placeholder="Descripción" 
-        placeholderTextColor="#C7C7CC" 
-        style={[styles.input, {height:80}]} 
-        multiline
-        editable={canEdit}
-        error={!description.trim() && description.length > 0}
-      />
+          <Text style={styles.label}>DESCRIPCIÓN</Text>
+          <ShakeInput
+            ref={descriptionInputRef}
+            value={description} 
+            onChangeText={setDescription} 
+            placeholder="Descripción" 
+            placeholderTextColor="#C7C7CC" 
+            style={[styles.input, {height:80}]} 
+            multiline
+            editable={canEdit}
+            error={!description.trim() && description.length > 0}
+          />
 
-      <Text style={styles.label}>ASIGNADO A</Text>
-      <View style={styles.pickerRow}>
-        {peopleNames.map(name => (
-          <TouchableOpacity
-            key={name}
-            onPress={() => canEdit && setAssignedTo(name)}
-            style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
-            disabled={!canEdit}
+          <Text style={styles.label}>ASIGNADO A</Text>
+          <View style={styles.pickerRow}>
+            {peopleNames.map(name => (
+              <TouchableOpacity
+                key={name}
+                onPress={() => canEdit && setAssignedTo(name)}
+                style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
+                disabled={!canEdit}
+              >
+                <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>ÁREA</Text>
+          <View style={styles.pickerRow}>
+            {areas.map(a => {
+              // Jefes solo pueden seleccionar su propia área
+              const areaDep = areaToDepMap[a] || a.toLowerCase();
+              const canSelectArea = canEdit && (currentUser?.role === 'admin' || areaDep === currentUser?.department);
+              return (
+                <TouchableOpacity
+                  key={a}
+                  onPress={() => canSelectArea && setArea(a)}
+                  style={[
+                    styles.optionBtn, 
+                    area === a && styles.optionBtnActive, 
+                    !canSelectArea && styles.optionBtnDisabled
+                  ]}
+                  disabled={!canSelectArea}
+                >
+                  <Text style={[styles.optionText, area === a && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{a}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>PRIORIDAD</Text>
+          <View style={styles.pickerRow}>
+            {priorities.map(p => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => canEdit && setPriority(p)}
+                style={[styles.optionBtn, priority === p && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
+                disabled={!canEdit}
+              >
+                <Text style={[styles.optionText, priority === p && styles.optionTextActive]} numberOfLines={1}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>ESTADO</Text>
+          <View style={styles.pickerRow}>
+            {statuses.map(s => (
+              <TouchableOpacity
+                key={s}
+                onPress={() => setStatus(s)}
+                style={[styles.optionBtn, status === s && styles.optionBtnActive]}
+              >
+                <Text style={[styles.optionText, status === s && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">
+                  {s === 'en_proceso' ? 'En proceso' : s === 'en_revision' ? 'En revisión' : s.charAt(0).toUpperCase() + s.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.label}>FECHA COMPROMISO</Text>
+          
+          {Platform.OS === 'web' ? (
+            <View style={styles.webDateContainer}>
+              <input
+                type="datetime-local"
+                value={dueAt.toISOString().slice(0, 16)}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  if (!isNaN(newDate.getTime())) {
+                    setDueAt(newDate);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: 15,
+                  fontSize: 16,
+                  borderRadius: 12,
+                  border: '2px solid #9F2241',
+                  backgroundColor: '#FFFFFF',
+                  color: '#000000',
+                  fontFamily: 'system-ui'
+                }}
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingHorizontal: 4 }}>
+                <Ionicons name="calendar" size={16} color="#9F2241" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 14, color: '#666' }}>
+                  {dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  {' a las '}
+                  {dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <View style={[styles.dateButtonGradient, { backgroundColor: '#9F2241' }]}>
+                  <View style={styles.dateIconContainer}>
+                    <Ionicons name="calendar" size={24} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.dateTextContainer}>
+                    <Text style={styles.dateLabelSmall}>Fecha seleccionada</Text>
+                    <Text style={styles.dateText}>{dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                    <Text style={styles.timeText}>{dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
+          
+          {Platform.OS !== 'web' && (
+            <>
+              {showDatePicker && DateTimePicker && (
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="default"
+                  onChange={onChangeDate}
+                  minimumDate={new Date()}
+                />
+              )}
+              
+              {showTimePicker && DateTimePicker && (
+                <DateTimePicker
+                  value={tempDate}
+                  mode="time"
+                  display="default"
+                  onChange={onChangeTime}
+                  is24Hour={true}
+                />
+              )}
+            </>
+          )}
+
+          <PressableButton 
+            onPress={save}
+            disabled={isSaving}
+            scaleValue={0.95}
+            haptic={true}
           >
-            <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            <View style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}>
+              <Animated.View style={{ transform: [{ scale: buttonScale }], flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                {isSaving && <ActivityIndicator color="#FFFFFF" size="small" />}
+                {!isSaving && <Ionicons name={editingTask ? "checkmark-circle" : "add-circle"} size={20} color="#FFFFFF" />}
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? 'Guardando...' : (editingTask ? 'Guardar Cambios' : 'Crear Tarea')}
+                </Text>
+              </Animated.View>
+            </View>
+          </PressableButton>
 
-      <Text style={styles.label}>ÁREA</Text>
-      <View style={styles.pickerRow}>
-        {areas.map(a => {
-          // Jefes solo pueden seleccionar su propia área
-          const areaDep = areaToDepMap[a] || a.toLowerCase();
-          const canSelectArea = canEdit && (currentUser?.role === 'admin' || areaDep === currentUser?.department);
-          return (
-            <TouchableOpacity
-              key={a}
-              onPress={() => canSelectArea && setArea(a)}
-              style={[
-                styles.optionBtn, 
-                area === a && styles.optionBtnActive, 
-                !canSelectArea && styles.optionBtnDisabled
-              ]}
-              disabled={!canSelectArea}
-            >
-              <Text style={[styles.optionText, area === a && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{a}</Text>
+          {editingTask && (
+            <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('TaskChat', { taskId: editingTask.id, taskTitle: editingTask.title })}>
+              <Text style={styles.chatButtonText}>Abrir Chat</Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={styles.label}>PRIORIDAD</Text>
-      <View style={styles.pickerRow}>
-        {priorities.map(p => (
-          <TouchableOpacity
-            key={p}
-            onPress={() => canEdit && setPriority(p)}
-            style={[styles.optionBtn, priority === p && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
-            disabled={!canEdit}
-          >
-            <Text style={[styles.optionText, priority === p && styles.optionTextActive]} numberOfLines={1}>
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>ESTADO</Text>
-      <View style={styles.pickerRow}>
-        {statuses.map(s => (
-          <TouchableOpacity
-            key={s}
-            onPress={() => setStatus(s)}
-            style={[styles.optionBtn, status === s && styles.optionBtnActive]}
-          >
-            <Text style={[styles.optionText, status === s && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">
-              {s === 'en_proceso' ? 'En proceso' : s === 'en_revision' ? 'En revisión' : s.charAt(0).toUpperCase() + s.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>FECHA COMPROMISO</Text>
-      <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-        <LinearGradient
-          colors={['#8B0000', '#6B0000']}
-          style={styles.dateButtonGradient}
-        >
-          <View style={styles.dateIconContainer}>
-            <Ionicons name="calendar" size={24} color="#FFFFFF" />
-          </View>
-          <View style={styles.dateTextContainer}>
-            <Text style={styles.dateLabelSmall}>Fecha seleccionada</Text>
-            <Text style={styles.dateText}>{dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-            <Text style={styles.timeText}>{dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
-        </LinearGradient>
-      </TouchableOpacity>
-      
-      {showDatePicker && (
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display="default"
-          onChange={onChangeDate}
-          minimumDate={new Date()}
-        />
-      )}
-      
-      {showTimePicker && (
-        <DateTimePicker
-          value={tempDate}
-          mode="time"
-          display="default"
-          onChange={onChangeTime}
-          is24Hour={true}
-        />
-      )}
-
-      <PressableButton 
-        onPress={save}
-        disabled={isSaving}
-        scaleValue={0.95}
-        haptic={true}
-      >
-        <View style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}>
-          <Animated.View style={{ transform: [{ scale: buttonScale }], flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            {isSaving && <ActivityIndicator color="#FFFFFF" size="small" />}
-            {!isSaving && <Ionicons name={editingTask ? "checkmark-circle" : "add-circle"} size={20} color="#FFFFFF" />}
-            <Text style={styles.saveButtonText}>
-              {isSaving ? 'Guardando...' : (editingTask ? 'Guardar Cambios' : 'Crear Tarea')}
-            </Text>
-          </Animated.View>
-        </View>
-      </PressableButton>
-
-      {editingTask && (
-        <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('TaskChat', { taskId: editingTask.id, taskTitle: editingTask.title })}>
-          <Text style={styles.chatButtonText}>Abrir Chat</Text>
-        </TouchableOpacity>
-      )}
-      </ScrollView>
+          )}
+        </ScrollView>
       </Animated.View>
       
       <Toast 
@@ -552,11 +628,32 @@ export default function TaskDetailScreen({ route, navigation }) {
         onHide={() => setToastVisible(false)}
       />
       
-      <ProgressLoader
-        visible={saveProgress !== null}
-        progress={saveProgress}
-        message={saveProgress === 100 ? '¡Completado!' : 'Guardando tarea...'}
-      />
+      {saveProgress !== null && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <View style={{
+            backgroundColor: '#FFF',
+            padding: 24,
+            borderRadius: 16,
+            alignItems: 'center',
+            gap: 12
+          }}>
+            <LoadingIndicator type="spinner" color="#9F2241" size={12} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#1A1A1A' }}>
+              {saveProgress === 100 ? '¡Completado!' : 'Guardando tarea...'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -575,13 +672,21 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8
   },
   closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  deleteButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -618,7 +723,7 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     fontSize: 16,
     fontWeight: '600',
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -630,7 +735,7 @@ const styles = StyleSheet.create({
   dateButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -689,7 +794,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#F5DEB3',
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -698,9 +803,9 @@ const styles = StyleSheet.create({
     flexShrink: 1
   },
   optionBtnActive: { 
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000',
-    shadowColor: '#8B0000',
+    backgroundColor: '#9F2241',
+    borderColor: '#9F2241',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -724,12 +829,12 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   saveButton: {
-    backgroundColor: '#8B0000',
+    backgroundColor: '#9F2241',
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 36,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -760,8 +865,22 @@ const styles = StyleSheet.create({
     borderColor: '#F5DEB3'
   },
   chatButtonText: {
-    color: '#8B0000',
+    color: '#9F2241',
     fontSize: 17,
     fontWeight: '600'
+  },
+  webDateInputContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  webDateInput: {
+    fontSize: 16,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#9F2241',
+    color: '#1A1A1A',
+    fontWeight: '600',
   }
 });

@@ -10,16 +10,22 @@ import CircularProgress from '../components/CircularProgress';
 import PulsingDot from '../components/PulsingDot';
 import AnimatedBadge from '../components/AnimatedBadge';
 import { subscribeToTasks } from '../services/tasks';
-import { hapticLight } from '../utils/feedback';
+import { hapticLight, hapticMedium } from '../utils/haptics';
+import { useTheme } from '../contexts/ThemeContext';
+import Toast from '../components/Toast';
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function CalendarScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
@@ -125,15 +131,26 @@ export default function CalendarScreen({ navigation }) {
         key={date.toISOString()}
         style={[
           styles.day,
-          today && styles.dayToday,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          today && { backgroundColor: theme.primary, borderColor: theme.primary },
           hasHighPriority && styles.dayHighPriority,
           isOverdue && styles.dayOverdue
         ]}
-        onPress={() => dayTasks.length > 0 && openDayDetail(date)}
+        onPress={() => {
+          if (dayTasks.length > 0) {
+            hapticLight();
+            openDayDetail(date);
+          } else {
+            setToastMessage('No hay tareas para este día');
+            setToastType('info');
+            setToastVisible(true);
+          }
+        }}
         activeOpacity={0.7}
       >
         <Text style={[
           styles.dayNumber,
+          { color: theme.text },
           today && styles.dayNumberToday,
           (hasHighPriority || isOverdue) && styles.dayNumberActive
         ]}>
@@ -165,8 +182,9 @@ export default function CalendarScreen({ navigation }) {
   const renderTaskItem = (task) => (
     <TouchableOpacity
       key={task.id}
-      style={styles.modalTaskCard}
+      style={[styles.modalTaskCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
       onPress={() => {
+        hapticLight();
         setModalVisible(false);
         navigation.navigate('TaskDetail', { task });
       }}
@@ -179,21 +197,21 @@ export default function CalendarScreen({ navigation }) {
           task.priority === 'media' && styles.modalTaskPriorityMedium,
           task.priority === 'baja' && styles.modalTaskPriorityLow
         ]} />
-        <Text style={styles.modalTaskTitle} numberOfLines={2}>{task.title}</Text>
+        <Text style={[styles.modalTaskTitle, { color: theme.text }]} numberOfLines={2}>{task.title}</Text>
       </View>
       
       <View style={styles.modalTaskMeta}>
         <View style={styles.modalTaskMetaItem}>
-          <Ionicons name="business-outline" size={14} color="#6E6E73" />
-          <Text style={styles.modalTaskMetaText}>{task.area}</Text>
+          <Ionicons name="business-outline" size={14} color={theme.textSecondary} />
+          <Text style={[styles.modalTaskMetaText, { color: theme.textSecondary }]}>{task.area}</Text>
         </View>
         <View style={styles.modalTaskMetaItem}>
-          <Ionicons name="person-outline" size={14} color="#6E6E73" />
-          <Text style={styles.modalTaskMetaText}>{task.assignedTo || 'Sin asignar'}</Text>
+          <Ionicons name="person-outline" size={14} color={theme.textSecondary} />
+          <Text style={[styles.modalTaskMetaText, { color: theme.textSecondary }]}>{task.assignedTo || 'Sin asignar'}</Text>
         </View>
         <View style={styles.modalTaskMetaItem}>
-          <Ionicons name="time-outline" size={14} color="#6E6E73" />
-          <Text style={styles.modalTaskMetaText}>
+          <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
+          <Text style={[styles.modalTaskMetaText, { color: theme.textSecondary }]}>
             {new Date(task.dueAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
@@ -215,8 +233,8 @@ export default function CalendarScreen({ navigation }) {
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.headerGradient}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : '#9F2241' }]}>
         <View style={styles.header}>
           <View>
             <View style={styles.greetingContainer}>
@@ -227,28 +245,46 @@ export default function CalendarScreen({ navigation }) {
           </View>
           <TouchableOpacity 
             style={styles.todayButton}
-            onPress={() => setCurrentDate(new Date())}
+            onPress={() => {
+              hapticMedium();
+              setCurrentDate(new Date());
+              setToastMessage('¡Vista actualizada a hoy!');
+              setToastType('info');
+              setToastVisible(true);
+            }}
           >
             <Text style={styles.todayButtonText}>HOY</Text>
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Controles de mes */}
         <View style={styles.monthControls}>
-          <TouchableOpacity onPress={previousMonth} style={styles.monthButton}>
-            <Ionicons name="chevron-back" size={24} color="#8B0000" />
+          <TouchableOpacity 
+            onPress={() => {
+              hapticLight();
+              previousMonth();
+            }} 
+            style={[styles.monthButton, { backgroundColor: theme.surface }]}
+          >
+            <Ionicons name="chevron-back" size={24} color={theme.primary} />
           </TouchableOpacity>
           
-          <View style={styles.monthDisplay}>
-            <Text style={styles.monthText}>
+          <View style={[styles.monthDisplay, { backgroundColor: theme.cardBackground }]}>
+            <Text style={[styles.monthText, { color: theme.text }]}>
               {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
             </Text>
           </View>
           
-          <TouchableOpacity onPress={nextMonth} style={styles.monthButton}>
-            <Ionicons name="chevron-forward" size={24} color="#8B0000" />
+          <TouchableOpacity 
+            onPress={() => {
+              hapticLight();
+              nextMonth();
+            }} 
+            style={[styles.monthButton, { backgroundColor: theme.surface }]}
+          >
+            <Ionicons name="chevron-forward" size={24} color={theme.primary} />
           </TouchableOpacity>
         </View>
 
@@ -256,7 +292,7 @@ export default function CalendarScreen({ navigation }) {
         <View style={styles.weekHeader}>
           {DAYS.map(day => (
             <View key={day} style={styles.weekDay}>
-              <Text style={styles.weekDayText}>{day}</Text>
+              <Text style={[styles.weekDayText, { color: theme.textSecondary }]}>{day}</Text>
             </View>
           ))}
         </View>
@@ -267,20 +303,20 @@ export default function CalendarScreen({ navigation }) {
         </View>
 
         {/* Leyenda */}
-        <View style={styles.legend}>
-          <Text style={styles.legendTitle}>Leyenda:</Text>
+        <View style={[styles.legend, { backgroundColor: theme.cardBackground }]}>
+          <Text style={[styles.legendTitle, { color: theme.text }]}>Leyenda:</Text>
           <View style={styles.legendItems}>
             <View style={styles.legendItem}>
               <View style={[styles.taskDot, styles.taskDotHigh]} />
-              <Text style={styles.legendText}>Alta</Text>
+              <Text style={[styles.legendText, { color: theme.textSecondary }]}>Alta</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.taskDot, styles.taskDotMedium]} />
-              <Text style={styles.legendText}>Media</Text>
+              <Text style={[styles.legendText, { color: theme.textSecondary }]}>Media</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.taskDot, styles.taskDotLow]} />
-              <Text style={styles.legendText}>Baja</Text>
+              <Text style={[styles.legendText, { color: theme.textSecondary }]}>Baja</Text>
             </View>
           </View>
         </View>
@@ -294,18 +330,23 @@ export default function CalendarScreen({ navigation }) {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
                   {selectedDate?.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </Text>
-                <Text style={styles.modalSubtitle}>
+                <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
                   {selectedDateTasks.length} {selectedDateTasks.length === 1 ? 'tarea' : 'tareas'}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close-circle" size={32} color="#8E8E93" />
+              <TouchableOpacity 
+                onPress={() => {
+                  hapticLight();
+                  setModalVisible(false);
+                }}
+              >
+                <Ionicons name="close-circle" size={32} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -315,6 +356,13 @@ export default function CalendarScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 }
@@ -327,7 +375,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -395,11 +443,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F5DEB3'
+    borderColor: '#9F2241'
   },
   monthDisplay: {
     flex: 1,
@@ -414,11 +462,11 @@ const styles = StyleSheet.create({
   weekHeader: {
     flexDirection: 'row',
     marginBottom: 12,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 8,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: '#9F2241'
   },
   weekDay: {
     flex: 1,
@@ -428,7 +476,7 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#8B0000',
+    color: '#9F2241',
     letterSpacing: 0.3
   },
   calendar: {
@@ -454,7 +502,7 @@ const styles = StyleSheet.create({
     padding: 4
   },
   dayToday: {
-    backgroundColor: '#8B0000',
+    backgroundColor: '#9F2241',
     borderRadius: 12,
     margin: 2
   },
@@ -480,7 +528,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF'
   },
   dayNumberActive: {
-    color: '#8B0000',
+    color: '#9F2241',
     fontWeight: '900'
   },
   taskIndicators: {
@@ -513,11 +561,11 @@ const styles = StyleSheet.create({
   },
   legend: {
     marginTop: 24,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: '#F3F4F6',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: '#9F2241'
   },
   legendTitle: {
     fontSize: 14,
@@ -591,7 +639,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1.5,
     borderColor: '#F5DEB3',
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -646,7 +694,7 @@ const styles = StyleSheet.create({
   modalTaskStatusText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#8B0000',
+    color: '#9F2241',
     backgroundColor: '#FFE4E1',
     paddingHorizontal: 10,
     paddingVertical: 5,

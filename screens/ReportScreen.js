@@ -6,6 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { subscribeToTasks } from '../services/tasks';
 import { PieChart, BarChart } from 'react-native-chart-kit';
+import { useTheme } from '../contexts/ThemeContext';
+import { hapticMedium } from '../utils/haptics';
+import Toast from '../components/Toast';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -18,8 +21,12 @@ const STATUSES = [
 ];
 
 export default function ReportScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [selectedModal, setSelectedModal] = useState(null); // 'estados', 'areas', null
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
@@ -139,7 +146,7 @@ export default function ReportScreen({ navigation }) {
           ))}
           {data.vencidas > 0 && (
             <View style={styles.statItem}>
-              <View style={[styles.statBadge, { backgroundColor: '#8B0000' }]}>
+              <View style={[styles.statBadge, { backgroundColor: '#9F2241' }]}>
                 <Ionicons name="time" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.statNumber}>{data.vencidas}</Text>
@@ -183,8 +190,8 @@ export default function ReportScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.headerGradient}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : '#9F2241' }]}>
         <View style={styles.header}>
           <View>
             <View style={styles.greetingContainer}>
@@ -194,10 +201,10 @@ export default function ReportScreen({ navigation }) {
             <Text style={styles.heading}>Reportes</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.subtitle}>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</Text>
 
         {/* BENTO GRID - Dashboard de Métricas */}
         <View style={styles.bentoGrid}>
@@ -220,7 +227,7 @@ export default function ReportScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.bentoCard, styles.bentoThird]} activeOpacity={0.9}>
-              <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.bentoGradient}>
+              <LinearGradient colors={['#9F2241', '#7A1A32']} style={styles.bentoGradient}>
                 <Ionicons name="alert-circle" size={28} color="#FFFFFF" style={{ marginBottom: 8 }} />
                 <Text style={styles.bentoNumber}>{overdueTasks.length}</Text>
                 <Text style={styles.bentoLabel}>Vencidas</Text>
@@ -319,7 +326,7 @@ export default function ReportScreen({ navigation }) {
         {criticalTasks.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionTitleContainer}>
-              <Ionicons name="warning" size={24} color="#8B0000" style={{ marginRight: 8 }} />
+              <Ionicons name="warning" size={24} color="#9F2241" style={{ marginRight: 8 }} />
               <Text style={styles.sectionTitle}>Tareas Críticas (Alta Prioridad)</Text>
             </View>
             {criticalTasks.map(renderTaskItem)}
@@ -330,7 +337,7 @@ export default function ReportScreen({ navigation }) {
         {overdueTasks.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionTitleContainer}>
-              <Ionicons name="alert-circle" size={24} color="#8B0000" style={{ marginRight: 8 }} />
+              <Ionicons name="alert-circle" size={24} color="#9F2241" style={{ marginRight: 8 }} />
               <Text style={styles.sectionTitle}>Tareas Vencidas</Text>
             </View>
             {overdueTasks.map(renderTaskItem)}
@@ -457,8 +464,8 @@ export default function ReportScreen({ navigation }) {
                       </View>
                       {data.vencidas > 0 && (
                         <View style={styles.modalAreaStatItem}>
-                          <Ionicons name="alert-circle" size={14} color="#8B0000" />
-                          <Text style={[styles.modalAreaStatText, { color: '#8B0000', fontWeight: '700' }]}>
+                          <Ionicons name="alert-circle" size={14} color="#9F2241" />
+                          <Text style={[styles.modalAreaStatText, { color: '#9F2241', fontWeight: '700' }]}>
                             {data.vencidas} Vencidas
                           </Text>
                         </View>
@@ -471,6 +478,13 @@ export default function ReportScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 }
@@ -480,7 +494,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -583,8 +597,8 @@ const styles = StyleSheet.create({
     borderRadius: 14, 
     marginBottom: 12, 
     borderLeftWidth: 4, 
-    borderLeftColor: '#8B0000',
-    shadowColor: '#8B0000',
+    borderLeftColor: '#9F2241',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -606,7 +620,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   taskPriorityHigh: {
-    backgroundColor: '#8B0000'
+    backgroundColor: '#9F2241'
   },
   taskTitle: { fontSize: 17, fontWeight: '700', flex: 1, color: '#1A1A1A', letterSpacing: -0.3 },
   taskMetaRow: {
@@ -762,7 +776,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   topAreaBadgeCompact: {
-    backgroundColor: '#8B0000',
+    backgroundColor: '#9F2241',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -857,7 +871,7 @@ const styles = StyleSheet.create({
   topAreaTotal: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#8B0000'
+    color: '#9F2241'
   },
   topAreaStats: {
     flexDirection: 'row',
@@ -944,7 +958,7 @@ const styles = StyleSheet.create({
   modalAreaTotal: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#8B0000'
+    color: '#9F2241'
   },
   modalAreaStats: {
     gap: 8

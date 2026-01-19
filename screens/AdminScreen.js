@@ -1,7 +1,7 @@
 // screens/AdminScreen.js
 // Pantalla de configuración y administración
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ensurePermissions, getAllScheduledNotifications, cancelAllNotifications } from '../services/notifications';
@@ -11,6 +11,8 @@ import { db } from '../firebase';
 import * as Notifications from 'expo-notifications';
 import { getCurrentSession, logoutUser, isAdmin } from '../services/authFirestore';
 import { useTheme } from '../contexts/ThemeContext';
+import SpringCard from '../components/SpringCard';
+import { hapticMedium, hapticLight } from '../utils/haptics';
 
 export default function AdminScreen({ navigation, onLogout }) {
   const { isDark, toggleTheme, theme } = useTheme();
@@ -285,11 +287,8 @@ export default function AdminScreen({ navigation, onLogout }) {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#8B0000', '#6B0000']}
-        style={styles.header}
-      >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: isDark ? '#1A1A1A' : '#9F2241' }]}>
         <View style={styles.headerTop}>
           <View style={{ flex: 1 }}>
             <Text style={styles.heading}>Administración</Text>
@@ -298,6 +297,7 @@ export default function AdminScreen({ navigation, onLogout }) {
           <TouchableOpacity 
             style={styles.logoutButton}
             onPress={async () => {
+              hapticMedium();
               Alert.alert(
                 'Cerrar Sesión',
                 '¿Estás seguro que deseas cerrar sesión?',
@@ -320,58 +320,218 @@ export default function AdminScreen({ navigation, onLogout }) {
             <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Lista de Usuarios */}
-        <View style={styles.section}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Stats Overview */}
+        <View style={styles.statsContainer}>
+          <SpringCard style={[styles.statCard, { backgroundColor: isDark ? '#1E3A8A' : '#3B82F6' }]}>
+            <Ionicons name="people" size={32} color="#FFFFFF" />
+            <Text style={styles.statNumber}>{allUsers.length}</Text>
+            <Text style={styles.statLabel}>Usuarios</Text>
+          </SpringCard>
+
+          <SpringCard style={[styles.statCard, { backgroundColor: isDark ? '#7C2D12' : '#F59E0B' }]}>
+            <Ionicons name="notifications" size={32} color="#FFFFFF" />
+            <Text style={styles.statNumber}>{notificationCount}</Text>
+            <Text style={styles.statLabel}>Notificaciones</Text>
+          </SpringCard>
+
+          <SpringCard style={[styles.statCard, { backgroundColor: isDark ? '#065F46' : '#10B981' }]}>
+            <Ionicons name={isDark ? "moon" : "sunny"} size={32} color="#FFFFFF" />
+            <Text style={styles.statNumber}>{isDark ? 'ON' : 'OFF'}</Text>
+            <Text style={styles.statLabel}>Modo Oscuro</Text>
+          </SpringCard>
+        </View>
+
+        {/* Crear Usuario */}
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="people" size={22} color="#8B0000" style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Usuarios ({allUsers.length})</Text>
+            <LinearGradient
+              colors={isDark ? ['#7C3AED', '#5B21B6'] : ['#8B4789', '#6B3587']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="person-add" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Crear Usuario</Text>
+          </View>
+          
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+            <Ionicons name="person-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+            <TextInput
+              placeholder="Nombre del usuario"
+              placeholderTextColor={theme.placeholder}
+              value={userName}
+              onChangeText={setUserName}
+              style={[styles.input, { color: theme.text }]}
+              autoCapitalize="words"
+            />
+          </View>
+          
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+            <Ionicons name="mail-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor={theme.placeholder}
+              value={userEmail}
+              onChangeText={setUserEmail}
+              style={[styles.input, { color: theme.text }]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+            <TextInput
+              placeholder="Contraseña"
+              placeholderTextColor={theme.placeholder}
+              value={userPassword}
+              onChangeText={setUserPassword}
+              style={[styles.input, { color: theme.text }]}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.roleSelector}>
+            <TouchableOpacity 
+              style={[
+                styles.roleButton, 
+                { backgroundColor: theme.surface },
+                userRole === 'operativo' && styles.roleButtonActive
+              ]}
+              onPress={() => {
+                hapticLight();
+                setUserRole('operativo');
+              }}
+            >
+              <Text style={[
+                styles.roleButtonText, 
+                { color: theme.textSecondary },
+                userRole === 'operativo' && styles.roleButtonTextActive
+              ]}>
+                Operativo
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.roleButton, 
+                { backgroundColor: theme.surface },
+                userRole === 'admin' && styles.roleButtonActive
+              ]}
+              onPress={() => {
+                hapticLight();
+                setUserRole('admin');
+              }}
+            >
+              <Text style={[
+                styles.roleButtonText, 
+                { color: theme.textSecondary },
+                userRole === 'admin' && styles.roleButtonTextActive
+              ]}>
+                Administrador
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity 
             style={styles.actionButton} 
-            onPress={() => setShowUserList(!showUserList)}
+            onPress={() => {
+              hapticMedium();
+              createUser();
+            }}
           >
-            <View style={styles.buttonOutline}>
-              <Ionicons 
-                name={showUserList ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#5856D6" 
-                style={{ marginRight: 8 }} 
-              />
-              <Text style={styles.buttonTextOutline}>
-                {showUserList ? 'Ocultar Lista' : 'Ver Todos los Usuarios'}
-              </Text>
-            </View>
+            <LinearGradient colors={['#34C759', '#28A745']} style={styles.buttonGradient}>
+              <Ionicons name="add-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>Crear Usuario</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </SpringCard>
+
+        {/* Lista de Usuarios */}
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+          <View style={styles.sectionHeader}>
+            <LinearGradient
+              colors={isDark ? ['#1E40AF', '#1E3A8A'] : ['#3B82F6', '#2563EB']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="people" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Usuarios ({allUsers.length})</Text>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.expandButton, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={() => {
+              hapticLight();
+              setShowUserList(!showUserList);
+            }}
+          >
+            <Ionicons 
+              name={showUserList ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={theme.primary} 
+              style={{ marginRight: 8 }} 
+            />
+            <Text style={[styles.expandButtonText, { color: theme.primary }]}>
+              {showUserList ? 'Ocultar Lista' : 'Ver Todos los Usuarios'}
+            </Text>
           </TouchableOpacity>
 
           {showUserList && (
             <View style={styles.userListContainer}>
               {allUsers.map((user) => (
-                <View key={user.id} style={styles.userCard}>
+                <View 
+                  key={user.id} 
+                  style={[styles.userCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
                   <View style={styles.userInfo}>
                     <View style={styles.userHeader}>
-                      <Ionicons 
-                        name={user.role === 'admin' ? 'shield-checkmark' : 'person'} 
-                        size={18} 
-                        color={user.role === 'admin' ? '#8B0000' : '#5856D6'} 
-                      />
-                      <Text style={styles.userName}>{user.displayName}</Text>
-                      <View style={[styles.userRoleBadge, user.role === 'admin' && styles.userRoleBadgeAdmin]}>
+                      <View style={[
+                        styles.userAvatar, 
+                        { backgroundColor: user.role === 'admin' ? (isDark ? '#7C2D12' : '#DC2626') : (isDark ? '#1E40AF' : '#3B82F6') }
+                      ]}>
+                        <Ionicons 
+                          name={user.role === 'admin' ? 'shield-checkmark' : 'person'} 
+                          size={16} 
+                          color="#FFFFFF"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.userName, { color: theme.text }]}>{user.displayName}</Text>
+                        <Text style={[styles.userEmail, { color: theme.textSecondary }]}>{user.email}</Text>
+                      </View>
+                      <View style={[
+                        styles.userRoleBadge, 
+                        { backgroundColor: user.role === 'admin' ? (isDark ? '#7C2D12' : '#DC2626') : (isDark ? '#1E40AF' : '#3B82F6') }
+                      ]}>
                         <Text style={styles.userRoleText}>{user.role}</Text>
                       </View>
                     </View>
-                    <Text style={styles.userEmail}>{user.email}</Text>
-                    <Text style={styles.userDate}>
-                      Creado: {user.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
+                    <Text style={[styles.userDate, { color: theme.textSecondary }]}>
+                      📅 {user.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.statusButton, !user.active && styles.statusButtonInactive]}
-                    onPress={() => toggleUserStatus(user.id, user.active)}
+                    style={[
+                      styles.statusButton, 
+                      !user.active && styles.statusButtonInactive
+                    ]}
+                    onPress={() => {
+                      hapticMedium();
+                      toggleUserStatus(user.id, user.active);
+                    }}
                   >
+                    <Ionicons 
+                      name={user.active ? "checkmark-circle" : "close-circle"} 
+                      size={16} 
+                      color="#FFFFFF" 
+                      style={{ marginRight: 4 }}
+                    />
                     <Text style={styles.statusButtonText}>
                       {user.active ? 'Activo' : 'Inactivo'}
                     </Text>
@@ -380,210 +540,183 @@ export default function AdminScreen({ navigation, onLogout }) {
               ))}
             </View>
           )}
-        </View>
-
-        {/* Crear Usuario */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="person-add" size={22} color="#8B0000" style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Crear Usuario</Text>
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#8B0000" style={styles.inputIcon} />
-            <TextInput
-              placeholder="Nombre del usuario"
-              placeholderTextColor="#C7C7CC"
-              value={userName}
-              onChangeText={setUserName}
-              style={styles.input}
-              autoCapitalize="words"
-            />
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#8B0000" style={styles.inputIcon} />
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#C7C7CC"
-              value={userEmail}
-              onChangeText={setUserEmail}
-              style={styles.input}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#8B0000" style={styles.inputIcon} />
-            <TextInput
-              placeholder="Contraseña"
-              placeholderTextColor="#C7C7CC"
-              value={userPassword}
-              onChangeText={setUserPassword}
-              style={styles.input}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.roleSelector}>
-            <TouchableOpacity 
-              style={[styles.roleButton, userRole === 'operativo' && styles.roleButtonActive]}
-              onPress={() => setUserRole('operativo')}
-            >
-              <Text style={[styles.roleButtonText, userRole === 'operativo' && styles.roleButtonTextActive]}>
-                Operativo
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.roleButton, userRole === 'admin' && styles.roleButtonActive]}
-              onPress={() => setUserRole('admin')}
-            >
-              <Text style={[styles.roleButtonText, userRole === 'admin' && styles.roleButtonTextActive]}>
-                Administrador
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.actionButton} onPress={createUser}>
-            <LinearGradient colors={['#34C759', '#28A745']} style={styles.buttonGradient}>
-              <Ionicons name="add-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonText}>Crear Usuario</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        </SpringCard>
 
         {/* Recuperación de Contraseña */}
-        <View style={styles.section}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="key" size={22} color="#8B0000" style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Resetear Contraseña</Text>
+            <LinearGradient
+              colors={isDark ? ['#B45309', '#92400E'] : ['#F59E0B', '#D97706']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="key" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Resetear Contraseña</Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#8B0000" style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+            <Ionicons name="mail-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
             <TextInput
               placeholder="Email del usuario"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor={theme.placeholder}
               value={resetEmail}
               onChangeText={setResetEmail}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#8B0000" style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
             <TextInput
               placeholder="Nueva contraseña"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor={theme.placeholder}
               value={newPassword}
               onChangeText={setNewPassword}
-              style={styles.input}
+              style={[styles.input, { color: theme.text }]}
               secureTextEntry
               autoCapitalize="none"
             />
           </View>
 
-          <TouchableOpacity style={styles.actionButton} onPress={resetUserPassword}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => {
+              hapticMedium();
+              resetUserPassword();
+            }}
+          >
             <LinearGradient colors={['#FF9500', '#FF8000']} style={styles.buttonGradient}>
               <Ionicons name="refresh" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Resetear Contraseña</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.helpText}>
+          <Text style={[styles.helpText, { color: theme.textSecondary }]}>
             Solo administradores pueden resetear contraseñas de otros usuarios.
           </Text>
-        </View>
+        </SpringCard>
 
         {/* Notificaciones */}
-        <View style={styles.section}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="notifications" size={22} color="#8B0000" style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Notificaciones</Text>
-          </View>
-          
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{notificationCount}</Text>
-              <Text style={styles.statLabel}>Programadas</Text>
-            </View>
+            <LinearGradient
+              colors={isDark ? ['#0891B2', '#0E7490'] : ['#06B6D4', '#0891B2']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="notifications" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Notificaciones</Text>
           </View>
 
-          <TouchableOpacity style={styles.actionButton} onPress={testNotification}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => {
+              hapticMedium();
+              testNotification();
+            }}
+          >
             <LinearGradient colors={['#34C759', '#28A745']} style={styles.buttonGradient}>
               <Ionicons name="flask" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Enviar Notificación de Prueba</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={viewScheduledNotifications}>
-            <View style={styles.buttonOutline}>
-              <Ionicons name="list-outline" size={20} color="#5856D6" style={{ marginRight: 8 }} />
-              <Text style={styles.buttonTextOutline}>Ver Notificaciones Programadas</Text>
-            </View>
+          <TouchableOpacity 
+            style={[styles.expandButton, { backgroundColor: theme.surface, borderColor: theme.border }]} 
+            onPress={() => {
+              hapticLight();
+              viewScheduledNotifications();
+            }}
+          >
+            <Ionicons name="list-outline" size={20} color={theme.primary} style={{ marginRight: 8 }} />
+            <Text style={[styles.expandButtonText, { color: theme.primary }]}>Ver Programadas ({notificationCount})</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton} onPress={clearAllNotifications}>
-            <View style={[styles.buttonOutline, styles.buttonDanger]}>
-              <Ionicons name="trash-outline" size={20} color="#8B0000" style={ { marginRight: 8 }} />
-              <Text style={[styles.buttonTextOutline, styles.buttonTextDanger]}>Cancelar Todas</Text>
-            </View>
+          <TouchableOpacity 
+            style={[styles.expandButton, { backgroundColor: isDark ? '#450A0A' : '#FEE2E2', borderColor: isDark ? '#7F1D1D' : '#DC2626' }]} 
+            onPress={() => {
+              hapticMedium();
+              clearAllNotifications();
+            }}
+          >
+            <Ionicons name="trash-outline" size={20} color={isDark ? '#F87171' : '#DC2626'} style={{ marginRight: 8 }} />
+            <Text style={[styles.expandButtonText, { color: isDark ? '#F87171' : '#DC2626' }]}>Cancelar Todas</Text>
           </TouchableOpacity>
-        </View>
+        </SpringCard>
 
         {/* Reportes */}
-        <View style={styles.section}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="bar-chart" size={22} color="#8B0000" style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Reportes</Text>
+            <LinearGradient
+              colors={isDark ? ['#4C1D95', '#5B21B6'] : ['#8B5CF6', '#7C3AED']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="bar-chart" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Reportes</Text>
           </View>
 
-          <TouchableOpacity style={styles.actionButton} onPress={exportReport}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => {
+              hapticMedium();
+              exportReport();
+            }}
+          >
             <LinearGradient colors={['#007AFF', '#0051D5']} style={styles.buttonGradient}>
               <Ionicons name="document-text" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Exportar Reporte</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.helpText}>
+          <Text style={[styles.helpText, { color: theme.textSecondary }]}>
             Los reportes se exportan en formato CSV (compatible con Excel).
           </Text>
-        </View>
+        </SpringCard>
 
         {/* Información de la App */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acerca de</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Versión</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+          <View style={styles.sectionHeader}>
+            <LinearGradient
+              colors={isDark ? ['#374151', '#1F2937'] : ['#6B7280', '#4B5563']}
+              style={styles.iconCircle}
+            >
+              <Ionicons name="information-circle" size={24} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Información</Text>
           </View>
           
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Firebase Auth</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Versión</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>1.0.0</Text>
+          </View>
+          
+          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Firebase Auth</Text>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
               <Text style={styles.statusText}>Activo</Text>
             </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Firestore Sync</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Firestore Sync</Text>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
               <Text style={styles.statusText}>Conectado</Text>
             </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Modo Oscuro</Text>
+          <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Modo Oscuro</Text>
             <TouchableOpacity
               style={[styles.themeToggle, isDark && styles.themeToggleActive]}
-              onPress={toggleTheme}
+              onPress={() => {
+                hapticMedium();
+                toggleTheme();
+              }}
             >
               <View style={[styles.themeToggleCircle, isDark && styles.themeToggleCircleActive]}>
                 <Ionicons 
@@ -594,7 +727,7 @@ export default function AdminScreen({ navigation, onLogout }) {
               </View>
             </TouchableOpacity>
           </View>
-        </View>
+        </SpringCard>
       </ScrollView>
     </View>
   );
@@ -602,19 +735,18 @@ export default function AdminScreen({ navigation, onLogout }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA'
+    flex: 1
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 64,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    shadowColor: '#8B0000',
+    paddingBottom: 28,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: 20,
     elevation: 12
   },
   headerTop: {
@@ -622,15 +754,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
     gap: 12
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 4
   },
   logoutButton: {
     width: 44,
@@ -641,50 +764,101 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   heading: {
-    fontSize: 42,
+    fontSize: 36,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1.5,
-    marginBottom: 8
+    letterSpacing: -1,
+    marginBottom: 4
   },
   subheading: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#FFFFFF',
     opacity: 0.9,
     fontWeight: '500'
   },
   content: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 100
   },
-  section: {
-    marginBottom: 32
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 12
+  },
+  statCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginTop: 8,
+    marginBottom: 2
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.9,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  sectionCard: {
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 20,
+    gap: 12
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1A1A1A',
-    letterSpacing: -0.5
+    letterSpacing: -0.5,
+    flex: 1
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFAF0',
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     paddingHorizontal: 16,
-    borderWidth: 2,
-    borderColor: '#F5DEB3',
+    borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
   inputIcon: {
     marginRight: 12
@@ -692,115 +866,157 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 16,
-    fontSize: 16,
-    color: '#1A1A1A',
+    fontSize: 15,
     fontWeight: '500'
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginBottom: 16
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFAF0',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#F5DEB3'
-  },
-  statNumber: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#8B0000',
-    marginBottom: 4
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#8E8E93',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
   },
   roleSelector: {
     flexDirection: 'row',
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#F2F2F7'
+    gap: 8
   },
   roleButton: {
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#F2F2F7'
+    borderRadius: 10
   },
   roleButtonActive: {
-    backgroundColor: '#8B0000'
+    backgroundColor: '#9F2241'
   },
   roleButtonText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#8E8E93'
+    fontWeight: '600'
   },
   roleButtonTextActive: {
-    color: '#FFFFFF'
+    color: '#FFFFFF',
+    fontWeight: '700'
   },
   actionButton: {
     marginBottom: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden'
   },
   buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16
+    padding: 16,
+    borderRadius: 16
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700'
   },
-  buttonOutline: {
+  expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#5856D6',
-    borderRadius: 14
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 12
   },
-  buttonDanger: {
-    borderColor: '#8B0000',
-    backgroundColor: '#FFEBEE'
-  },
-  buttonTextOutline: {
-    color: '#5856D6',
-    fontSize: 16,
+  expandButtonText: {
+    fontSize: 15,
     fontWeight: '700'
   },
-  buttonTextDanger: {
-    color: '#8B0000'
+  userListContainer: {
+    marginTop: 8
+  },
+  userCard: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    alignItems: 'center'
+  },
+  userInfo: {
+    flex: 1,
+    marginRight: 12
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 10
+  },
+  userAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1
+  },
+  userRoleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  userRoleText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  userEmail: {
+    fontSize: 13,
+    marginBottom: 4
+  },
+  userDate: {
+    fontSize: 12
+  },
+  statusButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  statusButtonInactive: {
+    backgroundColor: '#6B7280'
+  },
+  statusButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  helpText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginTop: 4,
+    lineHeight: 18,
+    opacity: 0.7
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0'
+    borderBottomWidth: 1
   },
   infoLabel: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#6E6E73'
+    fontWeight: '600'
   },
   infoValue: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A'
+    fontWeight: '700'
   },
   statusBadge: {
     flexDirection: 'row',
@@ -822,106 +1038,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#047857'
   },
-  logoutButtonLarge: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginTop: 16,
-    shadowColor: '#8B0000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8
-  },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5
-  },
-  helpText: {
-    fontSize: 13,
-    color: '#8E8E93',
-    fontStyle: 'italic',
-    marginTop: 8,
-    lineHeight: 18
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  userListContainer: {
-    marginTop: 12
-  },
-  userCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  userInfo: {
-    flex: 1
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    gap: 8
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    flex: 1
-  },
-  userRoleBadge: {
-    backgroundColor: '#5856D6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8
-  },
-  userRoleBadgeAdmin: {
-    backgroundColor: '#8B0000'
-  },
-  userRoleText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase'
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#6E6E73',
-    marginBottom: 4
-  },
-  userDate: {
-    fontSize: 12,
-    color: '#8E8E93'
-  },
-  statusButton: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8
-  },
-  statusButtonInactive: {
-    backgroundColor: '#8E8E93'
-  },
-  statusButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700'
-  },
   themeToggle: {
     width: 56,
     height: 32,
@@ -931,7 +1047,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   themeToggleActive: {
-    backgroundColor: '#8B0000'
+    backgroundColor: '#9F2241'
   },
   themeToggleCircle: {
     width: 26,

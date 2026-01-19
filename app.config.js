@@ -12,7 +12,7 @@ module.exports = {
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
-      backgroundColor: '#8B0000'
+      backgroundColor: '#9F2241'
     },
     assetBundlePatterns: [
       '**/*'
@@ -27,13 +27,17 @@ module.exports = {
       googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#8B0000'
+        backgroundColor: '#9F2241'
       },
       permissions: [
         'NOTIFICATIONS',
         'RECEIVE_BOOT_COMPLETED',
         'VIBRATE'
       ]
+    },
+    web: {
+      favicon: './assets/icon.png',
+      bundler: 'metro'
     },
     plugins: [
       'expo-notifications'

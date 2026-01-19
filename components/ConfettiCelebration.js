@@ -1,8 +1,10 @@
 // components/ConfettiCelebration.js
-// Componente de confetti para celebrar completar tareas
+// Componente de confetti para celebrar completar tareas - Compatible con web
 import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import ConfettiCannon from 'react-native-confetti-cannon';
+import { getConfettiCannon } from '../utils/platformComponents';
+
+const ConfettiCannon = getConfettiCannon();
 
 export default function ConfettiCelebration({ 
   trigger, 

@@ -95,7 +95,7 @@ const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [] }) =>
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={activeCount > 0 ? ['#8B0000', '#6B0000'] : ['#F3F4F6', '#E5E7EB']}
+          colors={activeCount > 0 ? ['#9F2241', '#7A1A32'] : ['#F3F4F6', '#E5E7EB']}
           style={styles.filterGradient}
         >
           <Ionicons
@@ -283,7 +283,7 @@ const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [] }) =>
                 onPress={applyFilters}
                 activeOpacity={0.8}
               >
-                <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.applyGradient}>
+                <LinearGradient colors={['#9F2241', '#7A1A32']} style={styles.applyGradient}>
                   <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   badgeText: {
-    color: '#8B0000',
+    color: '#9F2241',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
     flexShrink: 1
   },
   chipActive: {
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000',
+    backgroundColor: '#9F2241',
+    borderColor: '#9F2241',
   },
   chipText: {
     fontSize: 14,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   toggleActive: {
-    backgroundColor: '#8B0000',
+    backgroundColor: '#9F2241',
   },
   toggleThumb: {
     width: 28,

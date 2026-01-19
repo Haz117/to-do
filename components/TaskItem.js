@@ -1,22 +1,18 @@
 // components/TaskItem.js
-// Componente que muestra título, fecha límite, usuario asignado y un countdown en vivo.
-// Incluye swipe gestures para acciones rápidas y long-press menu
-// Propiedades:
-// - task: { id, title, description, dueAt (ISO/string/number), assignedTo }
-// - onPress: función al presionar el item
-// - onDelete: función para eliminar
-// - onToggleComplete: función para marcar como completada
-// - onDuplicate: función para duplicar
-// - onShare: función para compartir
-import React, { useEffect, useState, memo } from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, Animated } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+// TaskItem moderno con animaciones y glassmorphism - Compatible con web
+import React, { useEffect, useState, memo, useRef } from 'react';
+import { TouchableOpacity, View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../contexts/ThemeContext';
+import { hapticMedium } from '../utils/haptics';
+import { getSwipeable } from '../utils/platformComponents';
 import ContextMenu from './ContextMenu';
 import Avatar from './Avatar';
-import * as Haptics from 'expo-haptics';
 import PulsingDot from './PulsingDot';
-import { LinearGradient } from 'expo-linear-gradient';
+
+const Swipeable = getSwipeable();
+const { width } = Dimensions.get('window');
 
 function formatRemaining(ms) {
   if (ms <= 0) return 'Vencida';
@@ -38,12 +34,36 @@ const TaskItem = memo(function TaskItem({
   onShare,
   index = 0 
 }) {
+  const { theme } = useTheme();
   const [now, setNow] = useState(Date.now());
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   
+  // Animaciones
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  
   useEffect(() => {
-    // Actualiza cada 10 segundos para el countdown (optimización)
+    // Animación de entrada escalonada
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        delay: index * 50,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 7,
+        delay: index * 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [index]);
+  
+  useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(t);
   }, []);
@@ -51,110 +71,57 @@ const TaskItem = memo(function TaskItem({
   const due = new Date(task.dueAt).getTime();
   const remaining = due - now;
 
-  // Manejar long-press
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 4,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const handleLongPress = (event) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Calcular posición del menú
+    hapticMedium();
     event.nativeEvent.target.measure((fx, fy, width, height, px, py) => {
-      setMenuPosition({
-        x: px + 10,
-        y: py + height + 5
-      });
+      setMenuPosition({ x: px + 10, y: py + height + 5 });
       setShowContextMenu(true);
     });
   };
 
-  // Acciones del menú contextual
   const menuActions = [
-    {
-      icon: 'copy-outline',
-      label: 'Duplicar tarea',
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onDuplicate && onDuplicate(task);
-      }
-    },
-    {
-      icon: 'share-outline',
-      label: 'Compartir',
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onShare && onShare(task);
-      }
-    },
-    {
-      icon: 'pin-outline',
-      label: 'Fijar arriba',
-      onPress: () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        // TODO: Implementar fijar
-      }
-    },
-    {
-      icon: 'trash-outline',
-      label: 'Eliminar',
-      danger: true,
-      onPress: () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        onDelete && onDelete();
-      }
-    }
+    { icon: 'copy-outline', label: 'Duplicar tarea', onPress: () => { hapticMedium(); onDuplicate && onDuplicate(task); } },
+    { icon: 'share-outline', label: 'Compartir', onPress: () => { hapticMedium(); onShare && onShare(task); } },
+    { icon: 'trash-outline', label: 'Eliminar', danger: true, onPress: () => { hapticMedium(); onDelete && onDelete(); } }
   ];
 
-  // Renderizar acciones al deslizar a la derecha (completar)
   const renderRightActions = (progress, dragX) => {
-    const scale = dragX.interpolate({
-      inputRange: [-100, 0],
-      outputRange: [1, 0],
-      extrapolate: 'clamp'
-    });
-
+    const scale = dragX.interpolate({ inputRange: [-100, 0], outputRange: [1, 0], extrapolate: 'clamp' });
     return (
-      <TouchableOpacity
-        style={styles.completeAction}
-        onPress={() => onToggleComplete && onToggleComplete()}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={task.status === 'cerrada' ? ['#3B82F6', '#2563EB'] : ['#10B981', '#059669']}
-          style={styles.actionGradient}
-        >
+      <TouchableOpacity style={styles.completeAction} onPress={() => onToggleComplete && onToggleComplete()} activeOpacity={0.9}>
+        <LinearGradient colors={task.status === 'cerrada' ? [theme.info, theme.infoDark] : theme.gradientSuccess} style={styles.actionGradient}>
           <Animated.View style={[styles.actionContent, { transform: [{ scale }] }]}>
-            <Ionicons 
-              name={task.status === 'cerrada' ? 'refresh' : 'checkmark-circle'} 
-              size={28} 
-              color="#FFFFFF" 
-            />
-            <Text style={styles.actionText}>
-              {task.status === 'cerrada' ? 'Reabrir' : 'Completar'}
-            </Text>
+            <Ionicons name={task.status === 'cerrada' ? 'refresh' : 'checkmark-circle'} size={28} color="#FFF" />
+            <Text style={styles.actionText}>{task.status === 'cerrada' ? 'Reabrir' : 'Completar'}</Text>
           </Animated.View>
         </LinearGradient>
       </TouchableOpacity>
     );
   };
 
-  // Renderizar acciones al deslizar a la izquierda (eliminar)
   const renderLeftActions = (progress, dragX) => {
-    const scale = dragX.interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, 1],
-      extrapolate: 'clamp'
-    });
-
+    const scale = dragX.interpolate({ inputRange: [0, 100], outputRange: [0, 1], extrapolate: 'clamp' });
     return (
-      <TouchableOpacity
-        style={styles.deleteAction}
-        onPress={() => onDelete && onDelete()}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={['#EF4444', '#DC2626']}
-          style={styles.actionGradient}
-        >
+      <TouchableOpacity style={styles.deleteAction} onPress={() => onDelete && onDelete()} activeOpacity={0.9}>
+        <LinearGradient colors={theme.gradientError} style={styles.actionGradient}>
           <Animated.View style={[styles.actionContent, { transform: [{ scale }] }]}>
-            <Ionicons name="trash" size={28} color="#FFFFFF" />
+            <Ionicons name="trash" size={28} color="#FFF" />
             <Text style={styles.actionText}>Eliminar</Text>
           </Animated.View>
         </LinearGradient>
@@ -162,86 +129,66 @@ const TaskItem = memo(function TaskItem({
     );
   };
 
+  const getPriorityStyle = () => {
+    switch (task.priority) {
+      case 'alta': return { bg: theme.priorityHighBg, color: theme.priorityHigh };
+      case 'media': return { bg: theme.priorityMediumBg, color: theme.priorityMedium };
+      case 'baja': return { bg: theme.priorityLowBg, color: theme.priorityLow };
+      default: return { bg: theme.badgeBackground, color: theme.textSecondary };
+    }
+  };
+
+  const priorityStyle = getPriorityStyle();
+
   return (
     <>
-      <Swipeable
-        renderRightActions={renderRightActions}
-        renderLeftActions={renderLeftActions}
-        friction={1.5}
-        overshootFriction={8}
-        rightThreshold={30}
-        leftThreshold={30}
-      >
-        <TouchableOpacity 
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onPress && onPress(task);
-          }} 
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={[
-            styles.container,
-            task.status === 'cerrada' && styles.containerCompleted
-          ]}
-          activeOpacity={0.7}
-        >
-          <View style={styles.row}>
-            {/* Avatar del asignado */}
-            {task.assignedTo && (
-              <Avatar 
-                name={task.assignedTo} 
-                size={36}
-                style={styles.avatar}
-                showBorder
-              />
+      <Swipeable renderRightActions={renderRightActions} renderLeftActions={renderLeftActions} friction={1.5} overshootFriction={8}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: scaleAnim }] }}>
+          <TouchableOpacity 
+            onPress={() => { hapticMedium(); onPress && onPress(task); }} 
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onLongPress={handleLongPress}
+            delayLongPress={500}
+            style={[
+              styles.container,
+              { backgroundColor: theme.card, borderColor: theme.borderLight, shadowColor: theme.shadow },
+              task.status === 'cerrada' && { opacity: 0.7, backgroundColor: theme.backgroundTertiary }
+            ]}
+            activeOpacity={0.9}
+          >
+            <View style={styles.row}>
+              {task.assignedTo && <Avatar name={task.assignedTo} size={36} style={styles.avatar} showBorder />}
+              <Text style={[styles.title, { color: theme.text }, task.status === 'cerrada' && styles.titleCompleted]} numberOfLines={2}>
+                {task.title}
+              </Text>
+              <View style={styles.badgeContainer}>
+                {remaining <= 0 && task.status !== 'cerrada' && <PulsingDot size={8} color={theme.error} />}
+                <Text style={[styles.badge, { backgroundColor: remaining <= 0 ? theme.error : theme.info, color: '#FFF' }]}>
+                  {formatRemaining(remaining)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
+                {task.area || 'Sin área'} • {task.assignedTo || 'Sin asignar'}
+              </Text>
+              <Text style={[styles.metaSmall, { color: theme.textTertiary }]}>{new Date(task.dueAt).toLocaleDateString()}</Text>
+            </View>
+            {task.priority && (
+              <View style={styles.priorityRow}>
+                <Text style={[styles.priorityBadge, { backgroundColor: priorityStyle.bg, color: priorityStyle.color }]}>
+                  {task.priority.toUpperCase()}
+                </Text>
+                <Text style={[styles.statusText, { color: theme.textTertiary }]} numberOfLines={1}>
+                  {task.status === 'en_proceso' ? 'En proceso' : task.status === 'en_revision' ? 'En revisión' : task.status === 'cerrada' ? 'Completada' : 'Pendiente'}
+                </Text>
+              </View>
             )}
-            
-            <Text 
-              style={[
-                styles.title,
-                task.status === 'cerrada' && styles.titleCompleted,
-                task.assignedTo && { marginLeft: 8, flex: 1 }
-              ]}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {task.title}
-            </Text>
-            
-            {/* Badge con dot pulsante para vencidas */}
-            <View style={styles.badgeContainer}>
-              {remaining <= 0 && task.status !== 'cerrada' && (
-                <PulsingDot size={8} color="#FF3B30" style={styles.pulsingDot} />
-              )}
-              <Text style={[styles.badge, remaining <= 0 ? styles.badgeExpired : null]}>
-                {formatRemaining(remaining)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-              {task.area || 'Sin área'} • {task.assignedTo || 'Sin asignar'}
-            </Text>
-            <Text style={styles.metaSmall} numberOfLines={1}>{new Date(task.dueAt).toLocaleDateString()}</Text>
-          </View>
-          {task.priority && (
-            <View style={styles.priorityRow}>
-              <Text style={[styles.priorityBadge, task.priority === 'alta' && styles.priorityHigh, task.priority === 'media' && styles.priorityMedium]}>
-                {task.priority.toUpperCase()}
-              </Text>
-              <Text style={styles.statusText} numberOfLines={1} ellipsizeMode="tail">{task.status === 'en_proceso' ? 'En proceso' : task.status === 'en_revision' ? 'En revisión' : task.status === 'cerrada' ? 'Completada' : task.status || 'Pendiente'}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
       </Swipeable>
-
-      {/* Menú contextual */}
-      <ContextMenu 
-        visible={showContextMenu}
-        onClose={() => setShowContextMenu(false)}
-        position={menuPosition}
-        actions={menuActions}
-      />
+      <ContextMenu visible={showContextMenu} onClose={() => setShowContextMenu(false)} position={menuPosition} actions={menuActions} />
     </>
   );
 });
@@ -250,88 +197,74 @@ export default TaskItem;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    marginBottom: 14,
-    borderRadius: 18,
-    padding: 20,
-    shadowColor: '#8B0000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: '#F5DEB3'
+    marginBottom: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
   },
   row: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
+    marginBottom: 10,
     gap: 8
   },
   avatar: {
     marginRight: 8,
   },
   title: { 
-    fontSize: 17, 
-    fontWeight: '800', 
-    color: '#1A1A1A', 
+    fontSize: 16, 
+    fontWeight: '700', 
     flex: 1, 
     marginRight: 8,
-    letterSpacing: -0.4,
-    lineHeight: 24,
-    minWidth: '60%'
+    letterSpacing: -0.3,
+    lineHeight: 22,
+  },
+  titleCompleted: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
   badge: {
-    backgroundColor: '#5856D6',
-    color: '#FFFFFF',
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    fontSize: 12,
-    fontWeight: '900',
-    minWidth: 70,
-    maxWidth: 100,
+    paddingVertical: 5,
+    borderRadius: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    minWidth: 65,
     textAlign: 'center',
-    shadowColor: '#5856D6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
     letterSpacing: -0.2
   },
-  badgeExpired: { 
-    backgroundColor: '#FF3B30'
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
   },
   metaRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
-    marginBottom: 10,
-    flexWrap: 'wrap',
+    marginBottom: 8,
     alignItems: 'center',
     gap: 8
   },
   meta: { 
-    color: '#1A1A1A', 
-    fontSize: 14, 
-    fontWeight: '600',
+    fontSize: 13, 
+    fontWeight: '500',
     letterSpacing: 0.1,
     flex: 1,
-    flexShrink: 1,
-    marginRight: 8,
-    numberOfLines: 1
   },
   metaSmall: { 
-    color: '#6E6E73', 
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600'
   },
   priorityRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    flexWrap: 'wrap',
-    gap: 10
+    gap: 8
   },
   priorityBadge: { 
     fontSize: 10, 
@@ -339,27 +272,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, 
     paddingVertical: 4, 
     borderRadius: 6, 
-    backgroundColor: '#F2F2F7', 
-    color: '#6E6E73',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    alignSelf: 'flex-start'
-  },
-  priorityHigh: { 
-    backgroundColor: '#FFE4E1', 
-    color: '#8B0000'
-  },
-  priorityMedium: { 
-    backgroundColor: '#FFF8DC', 
-    color: '#DAA520'
   },
   statusText: { 
-    fontSize: 13, 
-    color: '#8E8E93', 
+    fontSize: 12, 
     fontWeight: '500',
     fontStyle: 'italic',
     flex: 1,
-    flexShrink: 1
   },
   completeAction: {
     justifyContent: 'center',
@@ -367,6 +287,7 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     borderRadius: 16,
     marginBottom: 12,
+    marginRight: 16,
     overflow: 'hidden'
   },
   deleteAction: {
@@ -375,41 +296,26 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     borderRadius: 16,
     marginBottom: 12,
+    marginLeft: 16,
     overflow: 'hidden'
   },
   actionGradient: {
     flex: 1,
     width: '100%',
     justifyContent: 'center',
-    paddingRight: 20,
+    paddingHorizontal: 20,
   },
   actionContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 80
+    width: 70
   },
   actionText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5
   },
-  containerCompleted: {
-    opacity: 0.6,
-    backgroundColor: '#F2F2F7'
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  pulsingDot: {
-    marginRight: 4
-  },
-  titleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#8E8E93'
-  }
 });

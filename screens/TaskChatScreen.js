@@ -121,7 +121,7 @@ export default function TaskChatScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.select({ios:'padding', android:undefined})}>
       <LinearGradient 
-        colors={['#8B0000', '#6B0000']} 
+        colors={['#9F2241', '#7A1A32']} 
         style={styles.headerBar}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   msgAuthor: { 
     fontWeight: '700', 
     marginBottom: 6, 
-    color: '#8B0000',
+    color: '#9F2241',
     fontSize: 14,
     letterSpacing: 0.2
   },
@@ -282,10 +282,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#8B0000',
+    backgroundColor: '#9F2241',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

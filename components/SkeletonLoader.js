@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   bentoWide: {
     flex: 1,
     minHeight: 110,
-    backgroundColor: '#E5E5EA',ñ
+    backgroundColor: '#E5E5EA',
     borderRadius: 28,
   },
   cardContainer: {

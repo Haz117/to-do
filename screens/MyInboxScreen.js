@@ -164,7 +164,7 @@ export default function MyInboxScreen({ navigation }) {
       />
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => markClosed(item)}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#8B0000" style={{ marginRight: 6 }} />
+          <Ionicons name="checkmark-circle-outline" size={18} color="#9F2241" style={{ marginRight: 6 }} />
           <Text style={styles.actionText}>Cerrar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => postponeOneDay(item)}>
@@ -181,7 +181,7 @@ export default function MyInboxScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#8B0000', '#6B0000']} style={styles.headerGradient}>
+      <LinearGradient colors={['#9F2241', '#7A1A32']} style={styles.headerGradient}>
         <View style={styles.header}>
           <View>
             <View style={styles.greetingContainer}>
@@ -192,7 +192,7 @@ export default function MyInboxScreen({ navigation }) {
           </View>
           <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
             <LinearGradient colors={['#FFFFFF', '#F8F9FA']} style={styles.addButtonGradient}>
-              <Ionicons name="add" size={32} color="#8B0000" />
+              <Ionicons name="add" size={32} color="#9F2241" />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -200,7 +200,7 @@ export default function MyInboxScreen({ navigation }) {
 
       <View style={styles.userSection}>
         <View style={styles.userLabelContainer}>
-          <Ionicons name="person-outline" size={16} color="#8B0000" style={{ marginRight: 6 }} />
+          <Ionicons name="person-outline" size={16} color="#9F2241" style={{ marginRight: 6 }} />
           <Text style={styles.userLabel}>MIS TAREAS ASIGNADAS</Text>
         </View>
         <Text style={styles.currentUserName} numberOfLines={1} ellipsizeMode="tail">
@@ -220,8 +220,8 @@ export default function MyInboxScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#8B0000"
-            colors={['#8B0000']}
+            tintColor="#9F2241"
+            colors={['#9F2241']}
           />
         }
         ListEmptyComponent={
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#8B0000',
+    shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   addButtonText: {
-    color: '#8B0000',
+    color: '#9F2241',
     fontSize: 32,
     fontWeight: '300',
     marginTop: -2
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   userLabel: {
     fontSize: 12,
-    color: '#8B0000',
+    color: '#9F2241',
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1
@@ -359,8 +359,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   actionBtnPrimary: {
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000'
+    backgroundColor: '#9F2241',
+    borderColor: '#9F2241'
   },
   actionText: {
     fontSize: 14,

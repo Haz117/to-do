@@ -7,9 +7,10 @@ import SearchBar from '../components/SearchBar';
 import AdvancedFilters from '../components/AdvancedFilters';
 import ThemeToggle from '../components/ThemeToggle';
 import EmptyState from '../components/EmptyState';
-import ConnectionIndicator from '../components/ConnectionIndicator';
 import ConfettiCelebration from '../components/ConfettiCelebration';
 import Toast from '../components/Toast';
+import ScrollToTop from '../components/ScrollToTop';
+import FloatingActionButton from '../components/FloatingActionButton';
 import AnimatedBadge from '../components/AnimatedBadge';
 import ShimmerEffect from '../components/ShimmerEffect';
 import SkeletonLoader from '../components/SkeletonLoader';
@@ -23,10 +24,6 @@ import { getCurrentSession, refreshSession } from '../services/authFirestore';
 
 export default function HomeScreen({ navigation }) {
   const { theme } = useTheme();
-  
-  // Debug: Verificar que HomeScreen se monta
-  console.log('🏠 HomeScreen montado - navigation:', !!navigation);
-  
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -498,21 +495,40 @@ export default function HomeScreen({ navigation }) {
         swipeToDismiss
       />
       
-      {/* Botón para crear tarea */}
+      {/* FAB con acciones rápidas */}
       {currentUser && (currentUser.role === 'admin' || currentUser.role === 'jefe') && (
-        <TouchableOpacity 
-          style={styles.fab}
-          onPress={() => navigation.navigate('TaskDetail')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#FF6B6B', '#FF8E53']}
-            style={styles.fabGradient}
-          >
-            <Ionicons name="add" size={28} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
+        <FloatingActionButton
+          mainIcon="add"
+          mainColor={['#FF6B6B', '#FF8E53']}
+          bottom={120}
+          actions={[
+            {
+              icon: 'document-text',
+              label: 'Nueva Tarea',
+              color: ['#6366F1', '#8B5CF6'],
+              onPress: () => navigation.navigate('TaskDetail'),
+            },
+            {
+              icon: 'calendar',
+              label: 'Ver Calendario',
+              color: ['#10B981', '#34D399'],
+              onPress: () => {}, // Se maneja en tabs
+            },
+            {
+              icon: 'stats-chart',
+              label: 'Reportes',
+              color: ['#F59E0B', '#FBBF24'],
+              onPress: () => {}, // Se maneja en tabs
+            },
+          ]}
+        />
       )}
+      
+      {/* ScrollToTop button */}
+      <ScrollToTop 
+        visible={showScrollTop}
+        onPress={scrollToTop}
+      />
       
       {/* Loading Indicator */}
       {savingProgress !== null && (
@@ -839,25 +855,5 @@ const createStyles = (theme) => StyleSheet.create({
     letterSpacing: -0.8,
     marginBottom: 16,
     marginTop: 12
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 90,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
   }
 });

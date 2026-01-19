@@ -78,7 +78,7 @@ export async function scheduleNotificationForTask(task, options = { minutesBefor
         },
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        color: '#8B0000',
+        color: '#9F2241',
       },
       trigger: triggerDate
     });
@@ -160,7 +160,7 @@ export async function notifyAssignment(task) {
         },
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        color: '#8B0000',
+        color: '#9F2241',
       },
       trigger: null // Notificación inmediata
     });

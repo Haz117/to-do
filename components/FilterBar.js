@@ -182,8 +182,8 @@ const styles = StyleSheet.create({
     marginRight: 4
   },
   chipActive: { 
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000',
+    backgroundColor: '#9F2241',
+    borderColor: '#9F2241',
     shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   chipOverdue: { 
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000'
+    backgroundColor: '#9F2241',
+    borderColor: '#9F2241'
   },
   chipText: { 
     fontSize: 13, 
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4
   },
   clearText: { 
-    color: '#8B0000', 
+    color: '#9F2241', 
     fontSize: 15, 
     fontWeight: '600',
     letterSpacing: 0.1

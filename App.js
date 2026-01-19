@@ -1,238 +1,204 @@
-// App.js
-// Punto de entrada: configura Navigation con Bottom Tabs, expo-notifications y permisos básicos.
-// Navegación principal por pestañas + Stack para modales (TaskDetail, TaskChat)
-
-// IMPORTANTE: Este import debe estar PRIMERO antes de cualquier otro
+// App.js - VERSIÓN COMPLETA CON TABS - Compatible con web
 import 'react-native-gesture-handler';
-
-import React, { useEffect, useState, useRef } from 'react';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import HomeScreen from './screens/HomeScreen';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { getGestureHandlerRootView } from './utils/platformComponents';
 import LoginScreen from './screens/LoginScreen';
-import TaskDetailScreen from './screens/TaskDetailScreen';
-import TaskChatScreen from './screens/TaskChatScreen';
-import MyInboxScreen from './screens/MyInboxScreen';
+import HomeScreen from './screens/HomeScreen';
 import KanbanScreen from './screens/KanbanScreen';
+import CalendarScreen from './screens/CalendarScreen';
 import ReportScreen from './screens/ReportScreen';
 import AdminScreen from './screens/AdminScreen';
-import CalendarScreen from './screens/CalendarScreen';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { getCurrentSession } from './services/authFirestore';
-import { ThemeProvider } from './contexts/ThemeContext';
-
-// Configurar handler de notificaciones
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+import MyInboxScreen from './screens/MyInboxScreen';
+import TaskDetailScreen from './screens/TaskDetailScreen';
+import TaskChatScreen from './screens/TaskChatScreen';
+import { getCurrentSession, logoutUser } from './services/authFirestore';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+const GestureHandlerRootView = getGestureHandlerRootView();
 
-// Componente de navegación por tabs personalizado
+// Tab Navigator con todas las pantallas
+function MainTabs({ onLogout }) {
+  const { theme, isDark } = useTheme();
+  const [currentUser, setCurrentUser] = useState(null);
 
-function CustomTabBar({ activeTab, setActiveTab, userRole, userName, onLogout }) {
-  const allTabs = [
-    { name: 'Tareas', icon: 'checkbox-outline', screen: 'Home' },
-    { name: 'Calendario', icon: 'calendar-outline', screen: 'Calendar' },
-    { name: 'Kanban', icon: 'grid-outline', screen: 'Kanban' },
-    { name: 'Reportes', icon: 'stats-chart-outline', screen: 'Report' },
-    { name: 'Admin', icon: 'settings-outline', screen: 'Admin' }
-  ];
+  useEffect(() => {
+    getCurrentSession().then((result) => {
+      if (result.success) {
+        setCurrentUser(result.session);
+      }
+    });
+  }, []);
 
-  // Filtrar tabs según rol:
-  // - Operativo: Solo Tareas, Calendario y Kanban
-  // - Jefe/Admin: Todos los tabs (Admin solo para admin)
-  let tabs = allTabs;
-  if (userRole === 'operativo') {
-    tabs = allTabs.filter(tab => ['Home', 'Calendar', 'Kanban'].includes(tab.screen));
-  } else if (userRole !== 'admin') {
-    tabs = allTabs.filter(tab => tab.screen !== 'Admin');
-  }
+  const isAdmin = currentUser?.role === 'admin';
+  const isJefeOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'jefe';
 
   return (
-    <View>
-      {/* Indicador de rol */}
-      {userRole && (
-        <View style={styles.roleIndicator}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={[styles.roleBadge, userRole === 'admin' && styles.roleBadgeAdmin]}>
+    <View style={{ flex: 1 }}>
+      {/* Header con usuario y botón de logout */}
+      {currentUser && (
+        <View style={styles.userHeader}>
+          <View style={styles.userInfo}>
+            <View style={[styles.roleBadge, currentUser.role === 'admin' && styles.roleBadgeAdmin]}>
               <Ionicons 
-                name={userRole === 'admin' ? 'shield-checkmark' : 'person'} 
-                size={14} 
+                name={currentUser.role === 'admin' ? 'shield-checkmark' : 'person'} 
+                size={12} 
                 color="#FFFFFF" 
                 style={{ marginRight: 4 }}
               />
               <Text style={styles.roleBadgeText}>
-                {userRole === 'admin' ? 'Admin' : userRole === 'jefe' ? 'Jefe' : 'Operativo'}
+                {currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'jefe' ? 'Jefe' : 'Operativo'}
               </Text>
             </View>
-            {userName && (
-              <Text style={styles.userNameText}>{userName}</Text>
-            )}
+            <Text style={styles.userName} numberOfLines={1}>{currentUser.displayName || currentUser.email}</Text>
           </View>
           <TouchableOpacity
-            onPress={onLogout}
-            style={styles.logoutButton}
+            onPress={() => {
+              Alert.alert(
+                'Cerrar Sesión',
+                '¿Estás seguro que deseas cerrar sesión?',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Salir',
+                    style: 'destructive',
+                    onPress: onLogout
+                  }
+                ]
+              );
+            }}
+            style={styles.logoutBtn}
           >
-            <Ionicons name="log-out-outline" size={20} color="#8B0000" />
+            <Ionicons name="log-out-outline" size={20} color="#9F2241" />
             <Text style={styles.logoutText}>Salir</Text>
           </TouchableOpacity>
         </View>
       )}
-      <View style={styles.tabBar}>
-      {tabs.map((tab) => (
-        <TouchableOpacity
-          key={tab.screen}
-          style={styles.tabItem}
-          onPress={() => setActiveTab(tab.screen)}
-        >
-          <Ionicons 
-            name={activeTab === tab.screen ? tab.icon.replace('-outline', '') : tab.icon} 
-            size={activeTab === tab.screen ? 28 : 24} 
-            color={activeTab === tab.screen ? '#8B0000' : '#8E8E93'} 
-            style={styles.tabIcon}
-          />
-          <Text style={[
-            styles.tabLabel,
-            activeTab === tab.screen && styles.tabLabelActive
-          ]}>
-            {tab.name}
-          </Text>
-        </TouchableOpacity>
-      ))}
-      </View>
-    </View>
-  );
-}
-
-// Navegador principal
-function MainNavigator({ navigation, onLogout }) {
-  const [activeTab, setActiveTab] = useState('Home');
-  const [userRole, setUserRole] = useState(null);
-  const [userName, setUserName] = useState(null);
-
-  useEffect(() => {
-    loadUserRole();
-  }, []);
-
-  const loadUserRole = async () => {
-    const result = await getCurrentSession();
-    if (result.success) {
-      setUserRole(result.session.role);
-      setUserName(result.session.displayName);
-    }
-  };
-
-  const renderScreen = () => {
-    const screenProps = { navigation, onLogout };
-    
-    switch (activeTab) {
-      case 'Home':
-        return <HomeScreen {...screenProps} />;
-      case 'Calendar':
-        return <CalendarScreen {...screenProps} />;
-      case 'Kanban':
-        return <KanbanScreen {...screenProps} />;
-      case 'MyInbox':
-        return <MyInboxScreen {...screenProps} />;
-      case 'Report':
-        return <ReportScreen {...screenProps} />;
-      case 'Admin':
-        return <AdminScreen {...screenProps} />;
-      default:
-        return <HomeScreen {...screenProps} />;
-    }
-  };
-
-  return (
-    <View style={{ flex: 1 }}>
-      {renderScreen()}
-      <CustomTabBar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        userRole={userRole} 
-        userName={userName} 
-        onLogout={onLogout}
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+            if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+            else if (route.name === 'Kanban') iconName = focused ? 'apps' : 'apps-outline';
+            else if (route.name === 'Calendar') iconName = focused ? 'calendar' : 'calendar-outline';
+            else if (route.name === 'Reports') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+            else if (route.name === 'Admin') iconName = focused ? 'settings' : 'settings-outline';
+            else if (route.name === 'Inbox') iconName = focused ? 'mail' : 'mail-outline';
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: theme.primary,
+          tabBarInactiveTintColor: theme.textSecondary,
+          tabBarStyle: {
+            backgroundColor: theme.card,
+            borderTopColor: theme.border,
+            borderTopWidth: 1,
+            height: 60,
+            paddingBottom: 8,
+            paddingTop: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+          },
+          // Animaciones entre tabs
+          tabBarHideOnKeyboard: true,
+          animation: 'fade',
+          animationDuration: 250,
+        })}
+      >
+      <Tab.Screen 
+        name="Home" 
+        options={{ 
+          title: 'Inicio',
+        }}
+      >
+        {(props) => <HomeScreen {...props} onLogout={onLogout} />}
+      </Tab.Screen>
+      
+      <Tab.Screen 
+        name="Kanban" 
+        options={{ title: 'Tablero' }} 
+        component={KanbanScreen} 
       />
+      
+      <Tab.Screen 
+        name="Calendar" 
+        options={{ title: 'Calendario' }} 
+        component={CalendarScreen} 
+      />
+      
+      <Tab.Screen 
+        name="Inbox" 
+        options={{ title: 'Bandeja' }} 
+        component={MyInboxScreen} 
+      />
+      
+      {isJefeOrAdmin && (
+        <Tab.Screen 
+          name="Reports" 
+          options={{ title: 'Reportes' }} 
+          component={ReportScreen} 
+        />
+      )}
+      
+      {isAdmin && (
+        <Tab.Screen 
+          name="Admin" 
+          options={{ title: 'Admin' }}
+        >
+          {(props) => <AdminScreen {...props} onLogout={onLogout} />}
+        </Tab.Screen>
+      )}
+    </Tab.Navigator>
     </View>
   );
 }
 
 export default function App() {
-  const navigationRef = useRef();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    const result = await getCurrentSession();
-    setIsAuthenticated(result.success);
-    setIsLoading(false);
-  };
-
-  const handleLogout = async () => {
-    const { logoutUser } = require('./services/authFirestore');
-    await logoutUser();
-    setIsAuthenticated(false);
-  };
-  
-  useEffect(() => {
-    (async () => {
-      // Pedir permiso para notificaciones (solo funciona en development build, no en Expo Go)
-      if (Device.isDevice) {
-        try {
-          const { status: existingStatus } = await Notifications.getPermissionsAsync();
-          let finalStatus = existingStatus;
-          if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-          }
-          if (finalStatus !== 'granted') {
-            console.log('[Notifications] Permisos de notificación denegados');
-          } else {
-            console.log('[Notifications] Permisos de notificación concedidos');
-          }
-        } catch (error) {
-          // Silenciar error en Expo Go donde push notifications no están disponibles
-          console.log('[Notifications] No disponibles en Expo Go');
+    let mounted = true;
+    
+    // Timeout de seguridad
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.log('⏱️ Timeout alcanzado');
+        setIsLoading(false);
+      }
+    }, 2000);
+    
+    getCurrentSession()
+      .then((result) => {
+        if (mounted) {
+          setIsAuthenticated(result.success);
+          setIsLoading(false);
+          clearTimeout(timeout);
         }
-      }
-    })();
-
-    // Listener para notificaciones recibidas cuando la app está en foreground
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('[Notifications] Recibida:', notification.request.content.title);
-    });
-
-    // Listener para cuando el usuario interactúa con una notificación
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data;
-      console.log('[Notifications] Usuario interactuó:', data);
-      
-      // Navegar a la tarea si se proporciona el ID
-      if (data.taskId && navigationRef.current) {
-        navigationRef.current.navigate('TaskDetail', { taskId: data.taskId });
-      }
-    });
-
+      })
+      .catch(() => {
+        if (mounted) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          clearTimeout(timeout);
+        }
+      });
+    
     return () => {
-      notificationListener.remove();
-      responseListener.remove();
+      mounted = false;
+      clearTimeout(timeout);
     };
   }, []);
-
+  
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -241,121 +207,130 @@ export default function App() {
       </View>
     );
   }
-
+  
   return (
     <ThemeProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator
-            screenOptions={{
+        <NavigationContainer>
+          <Stack.Navigator 
+            screenOptions={{ 
               headerShown: false,
-              // Transiciones nativas optimizadas
-              animation: 'default',
-              presentation: 'card',
-              contentStyle: { backgroundColor: '#FAFAFA' },
-              // Configuración de animación sutil
-              animationDuration: 250, // Rápido pero visible
-              gestureEnabled: true, // Swipe back habilitado
-              gestureDirection: 'horizontal',
-              // Optimización crítica
-              animationTypeForReplace: 'push',
-              // Customización de transición
-              customAnimationOnGesture: true,
-              fullScreenGestureEnabled: true,
+              animation: 'slide_from_right',
+              animationDuration: 250,
             }}
           >
             {!isAuthenticated ? (
               <Stack.Screen 
-                name="Login" 
-                options={{ 
-                  headerShown: false,
-                  animation: 'fade', // Fade-in suave para login
-                  animationDuration: 200,
-                  gestureEnabled: false // No swipe en login
-                }}
+                name="Login"
+                options={{ animation: 'fade' }}
               >
-                {(props) => <LoginScreen {...props} onLogin={() => setIsAuthenticated(true)} />}
+                {(props) => (
+                  <LoginScreen 
+                    {...props} 
+                    onLogin={() => setIsAuthenticated(true)} 
+                  />
+                )}
               </Stack.Screen>
             ) : (
               <>
                 <Stack.Screen 
                   name="Main"
-                  options={{ 
-                    headerShown: false,
-                    animation: 'fade',
-                    animationDuration: 200,
-                  }}
+                  options={{ animation: 'fade' }}
                 >
-                  {(props) => <MainNavigator {...props} onLogout={handleLogout} />}
+                  {(props) => (
+                    <MainTabs 
+                      {...props} 
+                      onLogout={async () => {
+                        console.log('🔴 Cerrando sesión...');
+                        const result = await logoutUser();
+                        console.log('✅ Resultado logout:', result);
+                        setIsAuthenticated(false);
+                        console.log('🔄 Estado autenticación actualizado a false');
+                      }} 
+                    />
+                  )}
                 </Stack.Screen>
                 <Stack.Screen 
                   name="TaskDetail" 
                   component={TaskDetailScreen}
                   options={{ 
                     presentation: 'card',
-                    animation: 'slide_from_right', // iOS style
-                    animationDuration: 250,
-                    gestureEnabled: true,
-                    gestureDirection: 'horizontal',
-                    fullScreenGestureEnabled: true,
+                    animation: 'slide_from_right'
                   }}
                 />
                 <Stack.Screen 
                   name="TaskChat" 
                   component={TaskChatScreen}
                   options={{ 
-                    presentation: 'modal', // Modal style para chat
-                    animation: 'slide_from_bottom',
-                    animationDuration: 300, // Un poco más lento para modal
-                    gestureEnabled: true,
-                    gestureDirection: 'vertical', // Swipe down para cerrar
+                    presentation: 'modal',
+                    animation: 'slide_from_bottom'
                   }}
                 />
-            </>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-      <Toast />
-    </GestureHandlerRootView>
+              </>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+        <Toast />
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  roleIndicator: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA'
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#9F2241',
+    fontWeight: '600'
+  },
+  userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)'
+    paddingVertical: 10,
+    paddingTop: 45,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA'
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#5856D6',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8
   },
   roleBadgeAdmin: {
-    backgroundColor: '#8B0000'
+    backgroundColor: '#9F2241'
   },
   roleBadgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.3
+    textTransform: 'uppercase'
   },
-  userNameText: {
-    fontSize: 13,
-    color: '#6E6E73',
+  userName: {
+    fontSize: 14,
+    color: '#1C1C1E',
     fontWeight: '600',
-    marginLeft: 8
+    flex: 1
   },
-  logoutButton: {
+  logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFE5E5',
@@ -366,54 +341,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 12,
-    color: '#8B0000',
-    fontWeight: '700',
-    letterSpacing: 0.3
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(20px)',
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-    height: 85,
-    paddingBottom: 20,
-    paddingTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4
-  },
-  tabIcon: {
-    marginBottom: 3
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: '#8E8E93',
-    fontWeight: '600',
-    letterSpacing: 0.2
-  },
-  tabLabelActive: {
-    color: '#8B0000',
+    color: '#9F2241',
     fontWeight: '700'
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA'
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#8B0000',
-    fontWeight: '600'
   }
 });

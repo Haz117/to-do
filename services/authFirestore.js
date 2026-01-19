@@ -118,11 +118,20 @@ export const getCurrentSession = async () => {
   try {
     const sessionData = await AsyncStorage.getItem('userSession');
     if (sessionData) {
-      return { success: true, session: JSON.parse(sessionData) };
+      const session = JSON.parse(sessionData);
+      console.log('✅ Sesión encontrada:', session.email);
+      return { success: true, session };
     }
+    console.log('ℹ️ No hay sesión activa');
     return { success: false, error: 'No hay sesión activa' };
   } catch (error) {
-    console.error('Error en getCurrentSession:', error);
+    console.error('❌ Error en getCurrentSession:', error);
+    // Si hay un error al parsear o leer, limpiamos la sesión corrupta
+    try {
+      await AsyncStorage.removeItem('userSession');
+    } catch (cleanupError) {
+      console.error('Error limpiando sesión corrupta:', cleanupError);
+    }
     return { success: false, error: error.message };
   }
 };

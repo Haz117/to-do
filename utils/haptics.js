@@ -1,8 +1,12 @@
 // utils/haptics.js
-// Centralizador de haptic feedback
+// Centralizador de haptic feedback con soporte web
+import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
+const isWeb = Platform.OS === 'web';
+
 export const hapticLight = () => {
+  if (isWeb) return;
   try {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   } catch (e) {
@@ -11,6 +15,7 @@ export const hapticLight = () => {
 };
 
 export const hapticMedium = () => {
+  if (isWeb) return;
   try {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   } catch (e) {
@@ -19,6 +24,7 @@ export const hapticMedium = () => {
 };
 
 export const hapticHeavy = () => {
+  if (isWeb) return;
   try {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
   } catch (e) {
@@ -27,6 +33,7 @@ export const hapticHeavy = () => {
 };
 
 export const hapticSuccess = () => {
+  if (isWeb) return;
   try {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   } catch (e) {
@@ -35,6 +42,7 @@ export const hapticSuccess = () => {
 };
 
 export const hapticWarning = () => {
+  if (isWeb) return;
   try {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   } catch (e) {
@@ -43,6 +51,7 @@ export const hapticWarning = () => {
 };
 
 export const hapticError = () => {
+  if (isWeb) return;
   try {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   } catch (e) {
@@ -51,6 +60,7 @@ export const hapticError = () => {
 };
 
 export const hapticSelection = () => {
+  if (isWeb) return;
   try {
     Haptics.selectionAsync();
   } catch (e) {
