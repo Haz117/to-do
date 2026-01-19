@@ -2,7 +2,7 @@
 // Tablero Kanban con columnas por estado. Implementa Drag & Drop para cambiar estado de tareas.
 // Estados: pendiente, en_proceso, en_revision, cerrada - Compatible con web
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, RefreshControl, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, RefreshControl, Animated, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getGestureHandlerRootView } from '../utils/platformComponents';
 // Temporarily disabled Animated imports that may cause issues
@@ -224,7 +224,7 @@ export default function KanbanScreen({ navigation }) {
     const completionRate = byStatus.length > 0 ? (filtered.length / byStatus.length) * 100 : 0;
 
     return (
-      <View key={status.key} style={[styles.column, { backgroundColor: theme.surface }]}>
+      <View key={status.key} style={[styles.column, { backgroundColor: theme.surface, width: columnWidth }]}>
         <View style={[styles.columnHeader, { backgroundColor: status.color + '20' }]}>
           <View style={styles.columnTitleContainer}>
             <View style={[styles.columnIconCircle, { backgroundColor: status.color }]}>
@@ -248,6 +248,13 @@ export default function KanbanScreen({ navigation }) {
   };
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  // Calcular ancho de columna responsive
+  const screenWidth = Dimensions.get('window').width;
+  const isWeb = Platform.OS === 'web';
+  const columnWidth = isWeb 
+    ? Math.max(350, (screenWidth - 80) / 4) // En web: 4 columnas o mínimo 350px
+    : Math.max(300, screenWidth * 0.85); // En móvil: 85% del ancho o mínimo 300px
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -398,16 +405,18 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16
   },
-  board: { paddingHorizontal: 16, paddingVertical: 20 },
+  board: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 20,
+    flexGrow: 1
+  },
   column: { 
-    width: 300, 
     marginRight: 16,
     borderRadius: 20,
     backgroundColor: theme.card,
     shadowColor: isDark ? theme.primary : '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.3  { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.3 : 0.1,
     shadowRadius: 12,
     elevation: 4
   },
