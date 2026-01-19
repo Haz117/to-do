@@ -12,8 +12,10 @@ import { scheduleNotificationForTask, cancelNotification } from '../services/not
 import { getCurrentSession } from '../services/authFirestore';
 import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function MyInboxScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -178,9 +180,11 @@ export default function MyInboxScreen({ navigation }) {
     </View>
   );
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.container}>
-      <View style={[styles.headerGradient, { backgroundColor: '#9F2241' }]}>
+      <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : theme.primary }]}>
         <View style={styles.header}>
           <View>
             <View style={styles.greetingContainer}>
@@ -235,10 +239,10 @@ export default function MyInboxScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, isDark) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8F9FA'
+    backgroundColor: theme.background
   },
   headerGradient: {
     borderBottomLeftRadius: 30,

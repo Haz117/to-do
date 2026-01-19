@@ -62,10 +62,10 @@ export const ThemeProvider = ({ children }) => {
 
   const theme = {
     // ========== COLORES PRINCIPALES ==========
-    primary: isDark ? '#FF6B9D' : '#9F2241',
-    primaryLight: isDark ? '#FF8FB7' : '#C72C54',
-    primaryDark: isDark ? '#E0578A' : '#7A1A32',
-    primaryAlpha: isDark ? 'rgba(255, 107, 157, 0.15)' : 'rgba(159, 34, 65, 0.15)',
+    primary: isDark ? '#B8314F' : '#9F2241',
+    primaryLight: isDark ? '#C75064' : '#C72C54',
+    primaryDark: isDark ? '#9F2241' : '#7A1A32',
+    primaryAlpha: isDark ? 'rgba(184, 49, 79, 0.15)' : 'rgba(159, 34, 65, 0.15)',
     
     // Colores secundarios
     secondary: isDark ? '#6B7FFF' : '#5B7BFF',

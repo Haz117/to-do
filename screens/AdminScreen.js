@@ -310,6 +310,11 @@ export default function AdminScreen({ navigation, onLogout }) {
                       if (onLogout) {
                         onLogout();
                       }
+                      // Asegurar que navegue al login
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Login' }],
+                      });
                     }
                   }
                 ]

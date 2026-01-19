@@ -230,6 +230,7 @@ export default function CalendarScreen({ navigation }) {
   );
 
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -366,15 +367,15 @@ export default function CalendarScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, isDark) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8F9FA'
+    backgroundColor: theme.background
   },
   headerGradient: {
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#9F2241',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
