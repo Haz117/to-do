@@ -469,13 +469,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   card: { 
     margin: 12,
     padding: 16,
+    borderRadius: 20,
     backgroundColor: theme.surface,
     borderWidth: 1.5,
     borderColor: theme.border,
     shadowColor: isDark ? theme.primary : '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: isDark ? 0.2  { width: 0, height: 3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: isDark ? 0.2 : 0.12,
     shadowRadius: 10,
     elevation: 4
   },
