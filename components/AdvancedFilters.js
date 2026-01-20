@@ -363,9 +363,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255,255,255,0.2)',
     maxWidth: '48%',
     flexShrink: 1
   },
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#E5E7EB',
     textAlign: 'center',
     flexShrink: 1
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     padding: 2,
   },
   toggleActive: {
@@ -423,19 +423,21 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   resetButton: {
     flex: 1,
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   resetButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#6B7280',
+    color: '#E5E7EB',
   },
   applyButton: {
     flex: 2,

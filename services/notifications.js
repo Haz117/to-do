@@ -18,6 +18,12 @@ Notifications.setNotificationHandler({
 
 // Pide permisos si es necesario. Devuelve true si se concedieron.
 export async function ensurePermissions() {
+  // En web no hay notificaciones nativas
+  if (Platform.OS === 'web') {
+    console.log('Las notificaciones no están disponibles en web');
+    return false;
+  }
+  
   if (!Device.isDevice) {
     console.log('Las notificaciones solo funcionan en dispositivos físicos');
     return false;
@@ -58,6 +64,11 @@ export async function ensurePermissions() {
 // Programa una notificación antes de la fecha límite (optimizado)
 // Devuelve el id de la notificación programada o null si no se programó.
 export async function scheduleNotificationForTask(task, options = { minutesBefore: 10 }) {
+  // En web no programar notificaciones
+  if (Platform.OS === 'web') {
+    return null;
+  }
+  
   try {
     const due = typeof task.dueAt === 'number' ? new Date(task.dueAt) : new Date(task.dueAt);
     const triggerDate = new Date(due.getTime() - options.minutesBefore * 60 * 1000);
@@ -93,6 +104,11 @@ export async function scheduleNotificationForTask(task, options = { minutesBefor
 // Programa recordatorios diarios cada 24 horas para tareas no cerradas
 // Devuelve array de IDs de notificaciones programadas
 export async function scheduleDailyReminders(task, maxReminders = 3) {
+  // En web no programar notificaciones
+  if (Platform.OS === 'web') {
+    return [];
+  }
+  
   try {
     const granted = await ensurePermissions();
     if (!granted) {
@@ -147,6 +163,11 @@ export async function scheduleDailyReminders(task, maxReminders = 3) {
 
 // Notificación al asignar tarea (Local optimizada)
 export async function notifyAssignment(task) {
+  // En web no enviar notificaciones
+  if (Platform.OS === 'web') {
+    return null;
+  }
+  
   try {
     const localNotifId = await Notifications.scheduleNotificationAsync({
       content: {
@@ -173,6 +194,11 @@ export async function notifyAssignment(task) {
 }
 
 export async function cancelNotification(notificationId) {
+  // En web no hay notificaciones que cancelar
+  if (Platform.OS === 'web') {
+    return;
+  }
+  
   try {
     if (!notificationId) {
       console.log('No se proporcionó ID de notificación para cancelar');
@@ -187,6 +213,11 @@ export async function cancelNotification(notificationId) {
 
 // Cancelar múltiples notificaciones
 export async function cancelNotifications(notificationIds = []) {
+  // En web no hay notificaciones que cancelar
+  if (Platform.OS === 'web') {
+    return;
+  }
+  
   try {
     if (!notificationIds || notificationIds.length === 0) {
       console.log('No hay notificaciones para cancelar');
@@ -201,6 +232,11 @@ export async function cancelNotifications(notificationIds = []) {
 
 // Obtener todas las notificaciones programadas (útil para debugging)
 export async function getAllScheduledNotifications() {
+  // En web no hay notificaciones
+  if (Platform.OS === 'web') {
+    return [];
+  }
+  
   try {
     const notifications = await Notifications.getAllScheduledNotificationsAsync();
     console.log(`Notificaciones programadas: ${notifications.length}`);
@@ -216,6 +252,11 @@ export async function getAllScheduledNotifications() {
 
 // Cancelar TODAS las notificaciones programadas
 export async function cancelAllNotifications() {
+  // En web no hay notificaciones que cancelar
+  if (Platform.OS === 'web') {
+    return;
+  }
+  
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
     console.log('Todas las notificaciones canceladas');

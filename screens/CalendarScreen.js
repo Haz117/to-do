@@ -561,16 +561,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   legend: {
     marginTop: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#9F2241'
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#9F2241'
   },
   legendTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: theme.text,
     marginBottom: 12,
     letterSpacing: 0.3
   },
@@ -586,7 +586,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   legendText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6E6E73'
+    color: theme.textSecondary
   },
   // Modal styles
   modalOverlay: {
@@ -595,7 +595,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.surface,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 24,
@@ -619,7 +619,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#1A1A1A',
+    color: theme.text,
     letterSpacing: -0.5,
     textTransform: 'capitalize',
     marginBottom: 4
@@ -627,18 +627,18 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   modalSubtitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8E8E93'
+    color: theme.textSecondary
   },
   modalScroll: {
     maxHeight: 500
   },
   modalTaskCard: {
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
     padding: 16,
     borderRadius: 14,
     marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3',
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3',
     shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -669,7 +669,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   modalTaskTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: theme.text,
     flex: 1,
     letterSpacing: -0.3,
     lineHeight: 22
@@ -686,7 +686,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   modalTaskMetaText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6E6E73'
+    color: theme.textSecondary
   },
   modalTaskStatus: {
     alignSelf: 'flex-start'

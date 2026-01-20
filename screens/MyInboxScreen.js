@@ -302,19 +302,19 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     marginTop: -2
   },
   userSection: {
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
     marginHorizontal: 20,
     marginTop: 12,
     marginBottom: 20,
     padding: 20,
     borderRadius: 16,
-    shadowColor: '#DAA520',
+    shadowColor: isDark ? '#000' : '#DAA520',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 3,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
   userLabelContainer: {
     flexDirection: 'row',
@@ -331,13 +331,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   currentUserName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: theme.text,
     marginBottom: 6,
     flexShrink: 1
   },
   currentUserHint: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     fontWeight: '500',
     flexShrink: 1
   },
@@ -351,13 +351,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0',
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#F5DEB3',
+    borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3',
     flexDirection: 'row',
     justifyContent: 'center'
   },
@@ -368,7 +368,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   actionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: theme.text,
     letterSpacing: 0.2,
     flexShrink: 1
   },
@@ -380,13 +380,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   emptyText: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: theme.text,
     marginBottom: 12,
     letterSpacing: -0.8
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     fontWeight: '500'

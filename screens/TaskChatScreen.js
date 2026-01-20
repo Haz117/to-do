@@ -4,10 +4,10 @@
 // Funcionalidad mínima: lista de mensajes en tiempo real + enviar mensaje de texto.
 
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, getServerTimestamp } from '../firebase';
 import { getCurrentSession } from '../services/authFirestore';
 import { notifyNewComment } from '../services/fcm';
@@ -91,30 +91,22 @@ export default function TaskChatScreen({ route, navigation }) {
         createdAt: getServerTimestamp()
       });
       
-      // 2. Obtener información de la tarea para notificar (OPCIONAL - por ahora deshabilitado)
-      // El chat funcionará sin sistema de notificaciones push por comentarios
-      // Los usuarios verán los mensajes cuando abran el chat
-      
-      // TODO: Implementar notificaciones cuando tengas el sistema de usuarios completo
-      // try {
-      //   const taskDoc = await getDoc(doc(db, 'tasks', taskId));
-      //   if (taskDoc.exists()) {
-      //     const task = { id: taskDoc.id, ...taskDoc.data() };
-      //     
-      //     // Notificar al responsable de la tarea si no es quien comentó
-      //     if (task.assignedTo && task.assignedTo !== currentUser) {
-      //       await notifyNewComment(task.assignedTo, task, currentUser);
-      //     }
-      //   }
-      // } catch (notifError) {
-      //   console.warn('Error enviando notificación de comentario:', notifError);
-      // }
+      // 2. Actualizar lastMessageAt en la tarea para ordenar por actividad
+      try {
+        await updateDoc(doc(db, 'tasks', taskId), {
+          lastMessageAt: getServerTimestamp(),
+          lastMessageBy: currentUser || 'Usuario'
+        });
+      } catch (updateError) {
+        console.warn('Error actualizando timestamp del mensaje:', updateError);
+      }
       
       setText('');
       // scroll opcional
       setTimeout(() => flatRef.current?.scrollToEnd?.({ animated: true }), 200);
     } catch (e) {
       console.warn('Error enviando mensaje', e);
+      Alert.alert('Error', 'No se pudo enviar el mensaje. Intenta de nuevo.');
     }
   };
 

@@ -1,7 +1,7 @@
 // screens/AdminScreen.js
 // Pantalla de configuración y administración
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ensurePermissions, getAllScheduledNotifications, cancelAllNotifications } from '../services/notifications';
 import { generateTaskReport, generateMonthlyReport } from '../services/reports';
@@ -255,17 +255,19 @@ export default function AdminScreen({ navigation, onLogout }) {
           text: 'Todas las Tareas (CSV)',
           onPress: async () => {
             try {
+              console.log('📄 Iniciando exportación de reporte...');
               const result = await generateTaskReport();
+              console.log('✅ Reporte generado:', result);
               Alert.alert(
-                'Reporte Generado', 
-                'El archivo CSV ha sido generado.\n\nNOTA: La descarga de archivos tiene limitaciones en Expo Go. En producción el archivo se guardará en la carpeta de Descargas.'
+                '✅ Reporte Generado', 
+                `El archivo CSV ha sido generado exitosamente.${Platform.OS === 'web' ? '\n\nEl archivo se descargó automáticamente.' : '\n\nEl archivo se compartió exitosamente.'}`
               );
             } catch (error) {
+              console.error('❌ Error exportando:', error);
               Alert.alert(
-                'Información', 
-                'La exportación de reportes está implementada pero tiene limitaciones en Expo Go.\n\nEn un build de producción, el archivo CSV se guardará en la carpeta de Descargas del dispositivo.'
+                'Error al Exportar', 
+                `No se pudo generar el reporte: ${error.message}\n\nPor favor verifica que haya tareas en el sistema.`
               );
-              console.log('[Export] Error (esperado en Expo Go):', error.message);
             }
           }
         },
@@ -274,9 +276,11 @@ export default function AdminScreen({ navigation, onLogout }) {
           onPress: async () => {
             const now = new Date();
             try {
+              console.log('📊 Generando estadísticas mensuales...');
               await generateMonthlyReport(now.getFullYear(), now.getMonth() + 1);
-              Alert.alert('Reporte Generado', 'Las estadísticas han sido exportadas');
+              Alert.alert('✅ Reporte Generado', 'Las estadísticas han sido exportadas');
             } catch (error) {
+              console.error('❌ Error en estadísticas:', error);
               Alert.alert('Error', error.message);
             }
           }
@@ -306,15 +310,9 @@ export default function AdminScreen({ navigation, onLogout }) {
                     text: 'Cerrar Sesión',
                     style: 'destructive',
                     onPress: async () => {
-                      await logoutUser();
                       if (onLogout) {
-                        onLogout();
+                        await onLogout();
                       }
-                      // Asegurar que navegue al login
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Login' }],
-                      });
                     }
                   }
                 ]

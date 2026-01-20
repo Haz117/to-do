@@ -1,8 +1,9 @@
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getUserProfile } from './roles';
+import { getCurrentSession } from './authFirestore';
 
 /**
  * Generar reporte de tareas en formato CSV (compatible con Excel)
@@ -11,20 +12,20 @@ import { getUserProfile } from './roles';
  */
 export const generateTaskReport = async (filters = {}) => {
   try {
-    // Obtener perfil del usuario
-    const userProfile = await getUserProfile();
-    if (!userProfile) {
+    // En web, usar descarga HTML
+    if (Platform.OS === 'web') {
+      return await generateWebReport(filters);
+    }
+    
+    // Obtener sesión del usuario
+    const session = await getCurrentSession();
+    if (!session.success) {
       throw new Error('Usuario no autenticado');
     }
 
-    // Construir consulta según filtros y permisos
+    // Construir consulta según filtros
     let q = collection(db, 'tasks');
     const constraints = [];
-
-    // Si no es admin, solo ver tareas con acceso
-    if (userProfile.role !== 'admin') {
-      constraints.push(where('userAccess', 'array-contains', userProfile.id));
-    }
 
     // Filtros adicionales
     if (filters.status) {
@@ -33,12 +34,15 @@ export const generateTaskReport = async (filters = {}) => {
     if (filters.priority) {
       constraints.push(where('priority', '==', filters.priority));
     }
-    if (filters.department) {
-      constraints.push(where('department', '==', filters.department));
+    if (filters.area) {
+      constraints.push(where('area', '==', filters.area));
     }
 
     constraints.push(orderBy('createdAt', 'desc'));
-    q = query(q, ...constraints);
+    
+    if (constraints.length > 0) {
+      q = query(q, ...constraints);
+    }
 
     // Obtener tareas
     const snapshot = await getDocs(q);
@@ -74,6 +78,62 @@ export const generateTaskReport = async (filters = {}) => {
 };
 
 /**
+ * Generar reporte para web usando descarga de blob
+ */
+async function generateWebReport(filters = {}) {
+  try {
+    // Construir consulta
+    let q = collection(db, 'tasks');
+    const constraints = [];
+
+    if (filters.status) {
+      constraints.push(where('status', '==', filters.status));
+    }
+    if (filters.priority) {
+      constraints.push(where('priority', '==', filters.priority));
+    }
+    if (filters.area) {
+      constraints.push(where('area', '==', filters.area));
+    }
+
+    constraints.push(orderBy('createdAt', 'desc'));
+    
+    if (constraints.length > 0) {
+      q = query(q, ...constraints);
+    }
+
+    // Obtener tareas
+    const snapshot = await getDocs(q);
+    const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (tasks.length === 0) {
+      throw new Error('No hay tareas para exportar');
+    }
+
+    // Generar CSV
+    const csv = generateCSV(tasks);
+    
+    // Crear blob y descargar en web
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const fileName = `reporte_tareas_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    return fileName;
+  } catch (error) {
+    console.error('Error generando reporte web:', error);
+    throw error;
+  }
+}
+
+/**
  * Convertir array de tareas a formato CSV
  */
 function generateCSV(tasks) {
@@ -84,12 +144,10 @@ function generateCSV(tasks) {
     'Descripción',
     'Estado',
     'Prioridad',
-    'Departamento',
-    'Creado Por',
+    'Área',
+    'Asignado a',
     'Fecha Creación',
-    'Fecha Límite',
-    'Fecha Completado',
-    'Etiquetas'
+    'Fecha Vencimiento'
   ];
 
   // Convertir cada tarea a fila CSV
@@ -100,12 +158,10 @@ function generateCSV(tasks) {
       escapeCSV(task.description || ''),
       translateStatus(task.status),
       translatePriority(task.priority),
-      translateDepartment(task.department || ''),
-      task.createdByName || '',
+      task.area || '',
+      task.assignedTo || '',
       formatDate(task.createdAt),
-      formatDate(task.deadline),
-      formatDate(task.completedAt),
-      (task.tags || []).join('; ')
+      formatDate(task.dueAt)
     ].map(field => `"${field}"`).join(',');
   });
 
@@ -121,8 +177,8 @@ function generateCSV(tasks) {
  */
 export const generateMonthlyReport = async (year, month) => {
   try {
-    const userProfile = await getUserProfile();
-    if (!userProfile) {
+    const session = await getCurrentSession();
+    if (!session.success) {
       throw new Error('Usuario no autenticado');
     }
 
@@ -137,8 +193,8 @@ export const generateMonthlyReport = async (year, month) => {
       where('createdAt', '<=', endDate.toISOString())
     ];
 
-    if (userProfile.role !== 'admin') {
-      constraints.push(where('userAccess', 'array-contains', userProfile.id));
+    if (session.session.role !== 'admin') {
+      constraints.push(where('userAccess', 'array-contains', session.session.userId));
     }
 
     q = query(q, ...constraints);
@@ -288,26 +344,31 @@ function escapeCSV(str) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('es-MX');
+  try {
+    const date = typeof dateStr === 'number' ? new Date(dateStr) : new Date(dateStr);
+    return date.toLocaleDateString('es-MX');
+  } catch (e) {
+    return '';
+  }
 }
 
 function translateStatus(status) {
   const translations = {
-    'pending': 'Pendiente',
-    'in-progress': 'En Progreso',
-    'completed': 'Completada'
+    'pendiente': 'Pendiente',
+    'en_proceso': 'En Proceso',
+    'en_revision': 'En Revisión',
+    'cerrada': 'Cerrada'
   };
-  return translations[status] || status;
+  return translations[status] || status || 'Pendiente';
 }
 
 function translatePriority(priority) {
   const translations = {
-    'high': 'Alta',
-    'medium': 'Media',
-    'low': 'Baja'
+    'alta': 'Alta',
+    'media': 'Media',
+    'baja': 'Baja'
   };
-  return translations[priority] || priority;
+  return translations[priority] || priority || 'Media';
 }
 
 function translateDepartment(dept) {

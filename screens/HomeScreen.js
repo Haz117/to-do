@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, TouchableOpacity, RefreshControl, Animated, Platform, StatusBar } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import TaskItem from '../components/TaskItem';
 import SearchBar from '../components/SearchBar';
@@ -15,6 +16,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import LoadingIndicator from '../components/LoadingIndicator';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import SyncIndicator from '../components/SyncIndicator';
 import { useTheme } from '../contexts/ThemeContext';
 import { subscribeToTasks, deleteTask as deleteTaskFirebase, updateTask, createTask } from '../services/tasks';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
@@ -22,9 +24,6 @@ import { getCurrentSession, refreshSession } from '../services/authFirestore';
 
 export default function HomeScreen({ navigation }) {
   const { theme } = useTheme();
-  
-  // Debug: Verificar que HomeScreen se monta
-  console.log('🏠 HomeScreen montado - navigation:', !!navigation);
   
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('');
@@ -84,9 +83,9 @@ export default function HomeScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
-    let unsubscribe;
-    
-    subscribeToTasks((updatedTasks) => {
+    console.log('🔄 HomeScreen: Suscribiéndose a tareas...');
+    const unsubscribe = subscribeToTasks((updatedTasks) => {
+      console.log('📦 Tareas recibidas:', updatedTasks.length);
       setTasks(updatedTasks);
       setIsLoading(false);
       
@@ -96,12 +95,11 @@ export default function HomeScreen({ navigation }) {
         duration: 400,
         useNativeDriver: true,
       }).start();
-    }).then((unsub) => {
-      unsubscribe = unsub;
     });
 
     // Limpiar suscripción al desmontar
     return () => {
+      console.log('🧹 HomeScreen: Limpiando suscripción');
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
       }
@@ -209,32 +207,38 @@ export default function HomeScreen({ navigation }) {
     hapticMedium();
     navigation.navigate('TaskDetail', { 
       task: {
-        ...task,
-        id: undefined,
         title: `${task.title} (copia)`,
+        description: task.description || '',
         status: 'pendiente',
-        createdAt: undefined
+        priority: task.priority || 'media',
+        area: task.area || '',
+        department: task.department || '',
+        assignedTo: task.assignedTo || '',
+        dueAt: task.dueAt || new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        id: `temp-${Date.now()}`
       }
     });
-    setToastMessage('Editando copia de la tarea');
+    setToastMessage('✏️ Editando copia de la tarea');
     setToastType('info');
     setToastVisible(true);
   }, [navigation]);
 
-  const shareTask = useCallback((task) => {
+  const shareTask = useCallback(async (task) => {
     hapticLight();
-    const shareText = `Tarea: ${task.title}\nVence: ${new Date(task.dueAt).toLocaleDateString()}\nAsignado: ${task.assignedTo || 'Sin asignar'}\nÁrea: ${task.area || 'Sin área'}`;
+    const shareText = `📋 Tarea: ${task.title}\n📅 Vence: ${new Date(task.dueAt).toLocaleDateString()}\n👤 Asignado: ${task.assignedTo || 'Sin asignar'}\n🏢 Área: ${task.area || 'Sin área'}\n⚡ Prioridad: ${task.priority || 'media'}\n📊 Estado: ${task.status || 'pendiente'}`;
     
-    setToastMessage('Funcionalidad de compartir próximamente');
-    setToastType('info');
-    setToastAction({
-      label: 'Copiar',
-      onPress: () => {
-        // TODO: Implementar copiar al portapapeles
-        console.log('Compartir:', shareText);
-      }
-    });
-    setToastVisible(true);
+    try {
+      await Clipboard.setStringAsync(shareText);
+      setToastMessage('✅ Tarea copiada al portapapeles');
+      setToastType('success');
+      setToastVisible(true);
+    } catch (error) {
+      console.error('Error copiando al portapapeles:', error);
+      setToastMessage('❌ Error al copiar');
+      setToastType('error');
+      setToastVisible(true);
+    }
   }, []);
 
   // Aplicar filtros con memoización
@@ -478,6 +482,9 @@ export default function HomeScreen({ navigation }) {
       
       {/* Confetti celebration */}
       <ConfettiCelebration trigger={showConfetti} />
+      
+      {/* Sync Indicator */}
+      <SyncIndicator />
       
       {/* Toast mejorado */}
       <Toast 

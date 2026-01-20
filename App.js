@@ -1,6 +1,6 @@
 // App.js - VERSIÓN COMPLETA CON TABS - Compatible con web
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -18,11 +18,16 @@ import AdminScreen from './screens/AdminScreen';
 import MyInboxScreen from './screens/MyInboxScreen';
 import TaskDetailScreen from './screens/TaskDetailScreen';
 import TaskChatScreen from './screens/TaskChatScreen';
+import DashboardScreen from './screens/DashboardScreen';
 import { getCurrentSession, logoutUser } from './services/authFirestore';
+import { startConnectivityMonitoring } from './services/offlineQueue';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const GestureHandlerRootView = getGestureHandlerRootView();
+
+// Referencia global de navegación
+let globalNavigationRef = null;
 
 // Tab Navigator con todas las pantallas
 function MainTabs({ onLogout }) {
@@ -61,18 +66,17 @@ function MainTabs({ onLogout }) {
           </View>
           <TouchableOpacity
             onPress={() => {
-              Alert.alert(
-                'Cerrar Sesión',
-                '¿Estás seguro que deseas cerrar sesión?',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Salir',
-                    style: 'destructive',
-                    onPress: onLogout
-                  }
-                ]
-              );
+              console.log('🔴 BOTÓN SALIR PRESIONADO');
+              console.log('🔴 onLogout existe?', typeof onLogout);
+              
+              if (!onLogout) {
+                console.error('❌ ERROR: onLogout no está definido!');
+                alert('Error: No se puede cerrar sesión');
+                return;
+              }
+              
+              console.log('✅ Llamando onLogout directamente...');
+              onLogout();
             }}
             style={styles.logoutBtn}
           >
@@ -89,6 +93,7 @@ function MainTabs({ onLogout }) {
             if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
             else if (route.name === 'Kanban') iconName = focused ? 'apps' : 'apps-outline';
             else if (route.name === 'Calendar') iconName = focused ? 'calendar' : 'calendar-outline';
+            else if (route.name === 'Dashboard') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
             else if (route.name === 'Reports') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
             else if (route.name === 'Admin') iconName = focused ? 'settings' : 'settings-outline';
             else if (route.name === 'Inbox') iconName = focused ? 'mail' : 'mail-outline';
@@ -143,6 +148,14 @@ function MainTabs({ onLogout }) {
       
       {isJefeOrAdmin && (
         <Tab.Screen 
+          name="Dashboard" 
+          options={{ title: 'Dashboard' }} 
+          component={DashboardScreen} 
+        />
+      )}
+      
+      {isJefeOrAdmin && (
+        <Tab.Screen 
           name="Reports" 
           options={{ title: 'Reportes' }} 
           component={ReportScreen} 
@@ -165,9 +178,47 @@ function MainTabs({ onLogout }) {
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  const navigationRef = useRef(null);
+  
+  // Función de logout que maneja todo el proceso
+  const handleLogout = async () => {
+    try {
+      console.log('🔴 LOGOUT: Iniciando proceso de cierre de sesión');
+      
+      // Limpiar sesión de AsyncStorage
+      await logoutUser();
+      console.log('✅ LOGOUT: Sesión eliminada de AsyncStorage');
+      
+      // Forzar actualización completa
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      setForceUpdate(prev => prev + 1);
+      
+      console.log('✅ LOGOUT: Estado actualizado, regresando a Login');
+      
+      // Toast de confirmación
+      Toast.show({
+        type: 'success',
+        text1: 'Sesión cerrada',
+        text2: 'Has cerrado sesión exitosamente',
+        position: 'top'
+      });
+      
+    } catch (error) {
+      console.error('❌ LOGOUT ERROR:', error);
+      // Forzar logout incluso con error
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      setForceUpdate(prev => prev + 1);
+    }
+  };
   
   useEffect(() => {
     let mounted = true;
+    
+    // Iniciar monitoreo de conectividad para sincronización offline
+    const unsubscribeConnectivity = startConnectivityMonitoring();
     
     // Timeout de seguridad
     const timeout = setTimeout(() => {
@@ -196,6 +247,7 @@ export default function App() {
     return () => {
       mounted = false;
       clearTimeout(timeout);
+      if (unsubscribeConnectivity) unsubscribeConnectivity();
     };
   }, []);
   
@@ -211,7 +263,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef} key={`navigation-${forceUpdate}`}>
           <Stack.Navigator 
             screenOptions={{ 
               headerShown: false,
@@ -227,7 +279,11 @@ export default function App() {
                 {(props) => (
                   <LoginScreen 
                     {...props} 
-                    onLogin={() => setIsAuthenticated(true)} 
+                    onLogin={() => {
+                      console.log('✅ LOGIN: Autenticación exitosa');
+                      setIsAuthenticated(true);
+                      setForceUpdate(prev => prev + 1);
+                    }} 
                   />
                 )}
               </Stack.Screen>
@@ -239,14 +295,8 @@ export default function App() {
                 >
                   {(props) => (
                     <MainTabs 
-                      {...props} 
-                      onLogout={async () => {
-                        console.log('🔴 Cerrando sesión...');
-                        const result = await logoutUser();
-                        console.log('✅ Resultado logout:', result);
-                        setIsAuthenticated(false);
-                        console.log('🔄 Estado autenticación actualizado a false');
-                      }} 
+                      {...props}
+                      onLogout={handleLogout}
                     />
                   )}
                 </Stack.Screen>

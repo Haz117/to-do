@@ -180,79 +180,57 @@ export default function KanbanScreen({ navigation }) {
           hapticLight();
           openDetail(item);
         }}
-        onLongPress={() => {
-          hapticMedium();
-          setContextMenu({ visible: true, task: item, position: { x: 0, y: 0 } });
-        }}
         style={[
           styles.card,
           { backgroundColor: theme.cardBackground, borderColor: theme.border },
-          draggingTask?.id === item.id && styles.cardDragging,
-          compactView && { paddingVertical: 8, paddingHorizontal: 12 }
+          draggingTask?.id === item.id && styles.cardDragging
         ]}
       >
-        {/* Header con badges - Solo en vista expandida */}
-        {!compactView && (
-          <View style={styles.cardTopRow}>
-            <View style={[
-              styles.priorityChip,
-              item.priority === 'alta' && { backgroundColor: '#DC2626' },
-              item.priority === 'media' && { backgroundColor: '#F59E0B' },
-              item.priority === 'baja' && { backgroundColor: '#10B981' }
-            ]}>
-              <Ionicons 
-                name={item.priority === 'alta' ? 'flash' : item.priority === 'media' ? 'warning' : 'checkmark-circle'} 
-                size={12} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.priorityChipText}>
-                {item.priority === 'alta' ? 'URGENTE' : item.priority === 'media' ? 'MEDIA' : 'BAJA'}
-              </Text>
-            </View>
-            
-            {isOverdue && (
-              <View style={styles.overdueChip}>
-                <Ionicons name="time" size={12} color="#FFFFFF" />
-                <Text style={styles.overdueChipText}>VENCIDA</Text>
-              </View>
-            )}
+        {/* Header con badges */}
+        <View style={styles.cardTopRow}>
+          <View style={[
+            styles.priorityChip,
+            item.priority === 'alta' && { backgroundColor: '#DC2626' },
+            item.priority === 'media' && { backgroundColor: '#F59E0B' },
+            item.priority === 'baja' && { backgroundColor: '#10B981' }
+          ]}>
+            <Ionicons 
+              name={item.priority === 'alta' ? 'flash' : item.priority === 'media' ? 'warning' : 'checkmark-circle'} 
+              size={12} 
+              color="#FFFFFF" 
+            />
+            <Text style={styles.priorityChipText}>
+              {item.priority === 'alta' ? 'URGENTE' : item.priority === 'media' ? 'MEDIA' : 'BAJA'}
+            </Text>
           </View>
-        )}
-
-        {/* Título con indicador de prioridad en vista compacta */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {compactView && (
-            <View style={[styles.compactPriorityDot, { backgroundColor: priorityColor }]} />
-          )}
-          <Text 
-            style={[styles.cardTitle, { color: theme.text }]} 
-            numberOfLines={compactView ? 1 : 3}
-          >
-            {item.title}
-          </Text>
-          {compactView && isOverdue && (
-            <Ionicons name="alert-circle" size={16} color="#EF4444" />
+          
+          {isOverdue && (
+            <View style={styles.overdueChip}>
+              <Ionicons name="time" size={12} color="#FFFFFF" />
+              <Text style={styles.overdueChipText}>VENCIDA</Text>
+            </View>
           )}
         </View>
+
+        {/* Título */}
+        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={3}>{item.title}</Text>
         
-        {/* Meta información - Solo en vista expandida */}
-        {!compactView && (
-          <View style={styles.cardInfoGrid}>
-            <View style={[styles.cardInfoItem, { backgroundColor: theme.surface }]}>
-              <Ionicons name="person" size={14} color={status.color} />
-              <Text style={[styles.cardInfoText, { color: theme.textSecondary }]} numberOfLines={1}>
-                {item.assignedTo || 'Sin asignar'}
-              </Text>
-            </View>
-            
-            <View style={[styles.cardInfoItem, { backgroundColor: theme.surface }]}>
-              <Ionicons name="calendar-outline" size={14} color={status.color} />
-              <Text style={[styles.cardInfoText, { color: theme.textSecondary }]}>
-                {new Date(item.dueAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-              </Text>
-            </View>
+        {/* Meta información con iconos mejorados */}
+        <View style={styles.cardInfoGrid}>
+          <View style={[styles.cardInfoItem, { backgroundColor: theme.surface }]}>
+            <Ionicons name="person" size={14} color={status.color} />
+            <Text style={[styles.cardInfoText, { color: theme.textSecondary }]} numberOfLines={1}>
+              {item.assignedTo || 'Sin asignar'}
+            </Text>
           </View>
-        )}
+          
+          <View style={[styles.cardInfoItem, { backgroundColor: theme.surface }]}>
+            <Ionicons name="calendar-outline" size={14} color={status.color} />
+            <Text style={[styles.cardInfoText, { color: theme.textSecondary }]}>
+              {new Date(item.dueAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+            </Text>
+          </View>
+        </View>
       </SpringCard>
     );
   };
@@ -795,11 +773,6 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 0.5
-  },
-  compactPriorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4
   },
   overdueChip: {
     flexDirection: 'row',

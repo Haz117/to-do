@@ -14,7 +14,6 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { loadTasks as loadLocal, saveTasks as saveLocal } from '../storage';
 import { getCurrentSession } from './authFirestore';
 
 const COLLECTION_NAME = 'tasks';

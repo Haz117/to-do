@@ -71,7 +71,18 @@ export default function App() {
             </Stack.Screen>
           ) : (
             <Stack.Screen name="Home">
-              {(props) => <HomeScreen {...props} onLogout={() => setIsAuthenticated(false)} />}
+              {(props) => (
+                <HomeScreen 
+                  {...props} 
+                  onLogout={async () => {
+                    setIsAuthenticated(false);
+                    props.navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Login' }],
+                    });
+                  }} 
+                />
+              )}
             </Stack.Screen>
           )}
         </Stack.Navigator>

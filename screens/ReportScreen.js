@@ -252,9 +252,9 @@ export default function ReportScreen({ navigation }) {
             >
               <View style={styles.bentoContentPadding}>
                 <View style={styles.bentoHeaderRow}>
-                  <Ionicons name="pie-chart" size={20} color="#1A1A1A" />
-                  <Text style={[styles.bentoTitle, { color: '#1A1A1A', flex: 1, marginLeft: 8 }]}>Por Estado</Text>
-                  <Ionicons name="expand" size={16} color="#8E8E93" />
+                  <Ionicons name="pie-chart" size={20} color={theme.text} />
+                  <Text style={[styles.bentoTitle, { flex: 1, marginLeft: 8 }]}>Por Estado</Text>
+                  <Ionicons name="expand" size={16} color={theme.textSecondary} />
                 </View>
                 <View style={styles.statusBarsCompact}>
                   {STATUSES.slice(0, 3).map(status => {
@@ -293,9 +293,9 @@ export default function ReportScreen({ navigation }) {
             >
               <View style={styles.bentoContentPadding}>
                 <View style={styles.bentoHeaderRow}>
-                  <Ionicons name="business" size={20} color="#1A1A1A" />
-                  <Text style={[styles.bentoTitle, { color: '#1A1A1A', flex: 1, marginLeft: 8 }]}>Top Áreas</Text>
-                  <Ionicons name="expand" size={16} color="#8E8E93" />
+                  <Ionicons name="business" size={20} color={theme.text} />
+                  <Text style={[styles.bentoTitle, { flex: 1, marginLeft: 8 }]}>Top Áreas</Text>
+                  <Ionicons name="expand" size={16} color={theme.textSecondary} />
                 </View>
                 <View style={styles.topAreasCompact}>
                   {AREAS.slice(0, 3).map(area => {
@@ -560,19 +560,19 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   summaryNumber: { fontSize: 32, fontWeight: '800', color: '#fff', letterSpacing: -1, marginBottom: 4 },
   summaryLabel: { fontSize: 13, color: '#fff', fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
   areaCard: { 
-    backgroundColor: '#FFFAF0', 
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
     padding: 20, 
     borderRadius: 16, 
     marginBottom: 16, 
-    shadowColor: '#DAA520',
+    shadowColor: isDark ? '#000' : '#DAA520',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 3,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
-  areaTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: '#1A1A1A', letterSpacing: -0.3 },
+  areaTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: theme.text, letterSpacing: -0.3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 12 },
   statItem: { alignItems: 'center', marginRight: 8, marginBottom: 8 },
   statBadge: { 
@@ -588,11 +588,11 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3
   },
-  statNumber: { fontSize: 20, fontWeight: '900', color: '#1A1A1A', letterSpacing: -0.5, marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#1A1A1A', textAlign: 'center', fontWeight: '700', letterSpacing: 0.5 },
-  totalText: { fontSize: 16, fontWeight: '700', color: '#6E6E73', marginTop: 12, letterSpacing: 0.2 },
+  statNumber: { fontSize: 20, fontWeight: '900', color: theme.text, letterSpacing: -0.5, marginBottom: 4 },
+  statLabel: { fontSize: 12, color: theme.text, textAlign: 'center', fontWeight: '700', letterSpacing: 0.5 },
+  totalText: { fontSize: 16, fontWeight: '700', color: theme.textSecondary, marginTop: 12, letterSpacing: 0.2 },
   taskCard: { 
-    backgroundColor: '#FFFAF0', 
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
     padding: 16, 
     borderRadius: 14, 
     marginBottom: 12, 
@@ -604,7 +604,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
   taskHeader: { marginBottom: 10 },
   taskTitleContainer: {
@@ -622,7 +622,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   taskPriorityHigh: {
     backgroundColor: '#9F2241'
   },
-  taskTitle: { fontSize: 17, fontWeight: '700', flex: 1, color: '#1A1A1A', letterSpacing: -0.3 },
+  taskTitle: { fontSize: 17, fontWeight: '700', flex: 1, color: theme.text, letterSpacing: -0.3 },
   taskMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -660,16 +660,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   bentoHalf: {
     flex: 1,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
     borderWidth: 2,
-    borderColor: '#F5DEB3',
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3',
     minHeight: 140
   },
   bentoWide: {
     flex: 1,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
     borderWidth: 2,
-    borderColor: '#F5DEB3',
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3',
     minHeight: 120
   },
   bentoContentPadding: {
@@ -694,7 +694,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   bentoTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: isDark ? theme.text : '#1A1A1A',
     letterSpacing: 0.3
   },
   bentoHugeNumber: {
@@ -753,7 +753,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   statusCountCompact: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1A1A'
+    color: theme.text
   },
   topAreasCompact: {
     gap: 10,
@@ -763,16 +763,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
     padding: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F0F0F0'
+    borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0'
   },
   topAreaNameCompact: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: theme.text,
     flex: 1
   },
   topAreaBadgeCompact: {

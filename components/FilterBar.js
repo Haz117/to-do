@@ -2,8 +2,10 @@
 // Barra de filtros y búsqueda reutilizable. Permite filtrar por área, responsable, prioridad, vencidas y buscar por título.
 import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 const FilterBar = memo(function FilterBar({ onFilterChange }) {
+  const { theme, isDark } = useTheme();
   const [searchText, setSearchText] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedResponsible, setSelectedResponsible] = useState('');
@@ -76,26 +78,59 @@ const FilterBar = memo(function FilterBar({ onFilterChange }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? theme.surface : '#FAFAFA' }]}>
       {/* Búsqueda */}
       <TextInput
         placeholder="Buscar por título..."
+        placeholderTextColor={isDark ? '#999' : '#666'}
         value={searchText}
         onChangeText={handleSearchChange}
-        style={styles.searchInput}
+        style={[
+          styles.searchInput,
+          {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0',
+            color: theme.text,
+            borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3'
+          }
+        ]}
       />
 
       {/* Filtros por área */}
       <View style={styles.section}>
-        <Text style={styles.label}>Área:</Text>
+        <Text style={[styles.label, { color: isDark ? '#AAA' : '#6E6E73' }]}>ÁREA:</Text>
         <View style={styles.chipRow}>
           {areas.map(area => (
             <TouchableOpacity
               key={area}
               onPress={() => toggleArea(area)}
-              style={[styles.chip, selectedArea === area && styles.chipActive]}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: selectedArea === area
+                    ? '#9F2241'
+                    : isDark
+                    ? 'rgba(255,255,255,0.1)'
+                    : '#FFFAF0',
+                  borderColor: selectedArea === area
+                    ? '#9F2241'
+                    : isDark
+                    ? 'rgba(255,255,255,0.2)'
+                    : '#F5DEB3'
+                },
+                selectedArea === area && styles.chipActive
+              ]}
             >
-              <Text style={[styles.chipText, selectedArea === area && styles.chipTextActive]}>{area}</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color: selectedArea === area ? '#FFF' : theme.text
+                  },
+                  selectedArea === area && styles.chipTextActive
+                ]}
+              >
+                {area}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -103,24 +138,72 @@ const FilterBar = memo(function FilterBar({ onFilterChange }) {
 
       {/* Filtros por prioridad y vencidas */}
       <View style={styles.section}>
-        <Text style={styles.label}>Prioridad:</Text>
+        <Text style={[styles.label, { color: isDark ? '#AAA' : '#6E6E73' }]}>PRIORIDAD:</Text>
         <View style={styles.chipRow}>
           {priorities.map(priority => (
             <TouchableOpacity
               key={priority}
               onPress={() => togglePriority(priority)}
-              style={[styles.chip, selectedPriority === priority && styles.chipActive]}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: selectedPriority === priority
+                    ? '#9F2241'
+                    : isDark
+                    ? 'rgba(255,255,255,0.1)'
+                    : '#FFFAF0',
+                  borderColor: selectedPriority === priority
+                    ? '#9F2241'
+                    : isDark
+                    ? 'rgba(255,255,255,0.2)'
+                    : '#F5DEB3'
+                },
+                selectedPriority === priority && styles.chipActive
+              ]}
             >
-              <Text style={[styles.chipText, selectedPriority === priority && styles.chipTextActive]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color: selectedPriority === priority ? '#FFF' : theme.text
+                  },
+                  selectedPriority === priority && styles.chipTextActive
+                ]}
+              >
                 {priority.charAt(0).toUpperCase() + priority.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
           <TouchableOpacity
             onPress={toggleOverdue}
-            style={[styles.chip, showOverdue && styles.chipOverdue]}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: showOverdue
+                  ? '#9F2241'
+                  : isDark
+                  ? 'rgba(255,255,255,0.1)'
+                  : '#FFFAF0',
+                borderColor: showOverdue
+                  ? '#9F2241'
+                  : isDark
+                  ? 'rgba(255,255,255,0.2)'
+                  : '#F5DEB3'
+              },
+              showOverdue && styles.chipOverdue
+            ]}
           >
-            <Text style={[styles.chipText, showOverdue && styles.chipTextActive]}>Vencidas</Text>
+            <Text
+              style={[
+                styles.chipText,
+                {
+                  color: showOverdue ? '#FFF' : theme.text
+                },
+                showOverdue && styles.chipTextActive
+              ]}
+            >
+              Vencidas
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -137,16 +220,13 @@ export default FilterBar;
 
 const styles = StyleSheet.create({
   container: { 
-    backgroundColor: '#FAFAFA', 
     padding: 20,
     paddingBottom: 16
   },
   searchInput: { 
     padding: 14, 
-    backgroundColor: '#FFFAF0', 
     borderRadius: 12, 
     marginBottom: 16,
-    color: '#1A1A1A',
     fontSize: 16,
     shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 1 },
@@ -154,12 +234,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
   },
   section: { marginBottom: 16 },
   label: { 
     fontSize: 12, 
-    color: '#6E6E73', 
     marginBottom: 10, 
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -174,34 +252,25 @@ const styles = StyleSheet.create({
   chip: { 
     paddingHorizontal: 12, 
     paddingVertical: 7, 
-    backgroundColor: '#FFFAF0', 
     borderRadius: 18, 
     borderWidth: 1.5,
-    borderColor: '#F5DEB3',
     marginBottom: 8,
     marginRight: 4
   },
   chipActive: { 
-    backgroundColor: '#9F2241',
-    borderColor: '#9F2241',
     shadowColor: '#DAA520',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2
   },
-  chipOverdue: { 
-    backgroundColor: '#9F2241',
-    borderColor: '#9F2241'
-  },
+  chipOverdue: {},
   chipText: { 
     fontSize: 13, 
-    color: '#1A1A1A', 
     fontWeight: '600',
     letterSpacing: 0.1
   },
   chipTextActive: { 
-    color: '#fff', 
     fontWeight: '700'
   },
   clearBtn: { 

@@ -11,6 +11,7 @@ import Toast from '../components/Toast';
 import ShakeInput from '../components/ShakeInput';
 import LoadingIndicator from '../components/LoadingIndicator';
 import PressableButton from '../components/PressableButton';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Importar DateTimePicker solo en móvil
 let DateTimePicker;
@@ -19,6 +20,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function TaskDetailScreen({ route, navigation }) {
+  const { theme, isDark } = useTheme();
   // Si route.params.task está presente, estamos editando; si no, creamos nueva
   const editingTask = route.params?.task || null;
 
@@ -403,6 +405,8 @@ export default function TaskDetailScreen({ route, navigation }) {
     );
   };
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.container}>
       <View style={[styles.headerBar, { backgroundColor: '#9F2241' }]}>
@@ -658,10 +662,10 @@ export default function TaskDetailScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme, isDark) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8F9FA'
+    backgroundColor: theme.background
   },
   headerBar: {
     flexDirection: 'row',
@@ -710,7 +714,7 @@ const styles = StyleSheet.create({
   label: { 
     marginTop: 20, 
     marginBottom: 8,
-    color: '#1A1A1A', 
+    color: isDark ? '#AAA' : '#1A1A1A', 
     fontWeight: '800', 
     fontSize: 12,
     textTransform: 'uppercase',
@@ -718,9 +722,9 @@ const styles = StyleSheet.create({
   },
   input: { 
     padding: 16, 
-    backgroundColor: '#FFFFFF', 
+    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFFFF', 
     borderRadius: 14,
-    color: '#1A1A1A',
+    color: theme.text,
     fontSize: 16,
     fontWeight: '600',
     shadowColor: '#9F2241',
@@ -790,10 +794,10 @@ const styles = StyleSheet.create({
   optionBtn: { 
     paddingHorizontal: 16, 
     paddingVertical: 12, 
-    backgroundColor: '#FFFAF0', 
+    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0', 
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#F5DEB3',
+    borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3',
     shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -818,7 +822,7 @@ const styles = StyleSheet.create({
   },
   optionText: { 
     fontSize: 15, 
-    color: '#1A1A1A', 
+    color: theme.text, 
     fontWeight: '700',
     letterSpacing: 0.1,
     textAlign: 'center',
@@ -851,18 +855,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   chatButton: {
-    backgroundColor: '#FFFAF0',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0',
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: '#DAA520',
+    shadowColor: isDark ? '#000' : '#DAA520',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1.5,
-    borderColor: '#F5DEB3'
+    borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3'
   },
   chatButtonText: {
     color: '#9F2241',
