@@ -9,16 +9,16 @@ Sistema completo de gestión de tareas con roles, permisos y sincronización en 
 ## 📱 **DESCARGA LA APP**
 
 ### 🌐 **App Web (Disponible ahora)**
-Accede desde cualquier navegador: **https://tu-proyecto.vercel.app**
+Accede desde cualquier navegador: **https://to-do-iota-opal.vercel.app**
 
-### 📲 **App Android (APK)**
-Descarga e instala en tu celular: **[Página de Descarga](public/index.html)**
+### 📲 **App PWA (Instalar como App)**
+1. Abre https://to-do-iota-opal.vercel.app en Chrome/Edge
+2. Haz clic en el icono de instalar en la barra de direcciones
+3. O en iOS Safari: Compartir → Agregar a pantalla de inicio
 
 ### 🔐 **Credenciales de Prueba:**
 ```
 👑 Admin:     admin@todo.com / admin123
-👨‍💼 Jefe:      jefe.juridica@todo.com / jefe123  
-👷 Operativo: operativo.juridica@todo.com / oper123
 ```
 
 ---
@@ -99,168 +99,148 @@ FIREBASE_MEASUREMENT_ID=tu_measurement_id
 3️⃣ Instalar versiones compatibles
 npx expo install --fix
 
-🏃 Ejecutar la App
-🔹 Modo desarrollo
+## 🏃 Ejecutar la App
+
+### 🔹 Desarrollo Local
+```bash
 npm start
+```
+O usa comandos directos:
+- **Web:** `npx expo start --web` (localhost:8081)
+- **Android/iOS:** `npx expo start` y escanea QR con Expo Go
 
+### 🔹 Deploy a Vercel (Producción Web)
+```bash
+git add .
+git commit -m "tu mensaje"
+git push
 
-o
+# Luego en Vercel dashboard: Deploy manualmente desde el commit deseado
+```
 
-npx expo start
-
-🔹 Opciones de ejecución
-
-Android: Presiona a o ejecuta npm run android
-
-iOS: Presiona i o ejecuta npm run ios
-
-Web: Presiona w o ejecuta npm run web
-
-Dispositivo físico: Escanea el código QR con Expo Go
-
-📁 Estructura del Proyecto
+## 📁 Estructura del Proyecto
 ```
 TODO/
-├── components/          # Componentes reutilizables
-│   ├── FilterBar.js
-│   └── TaskItem.js
+├── components/          # Componentes UI reutilizables
+│   ├── AnimatedBadge.js, SpringCard.js, ConfettiCelebration.js
+│   ├── ConnectionIndicator.js   # Indicador de conectividad
+│   ├── FilterBar.js, SearchBar.js
+│   └── TaskItem.js              # Item de tarea con animaciones
 ├── screens/             # Pantallas principales
-│   ├── AdminScreen.js       # Configuración y administración
+│   ├── AdminScreen.js       # Panel de administración
+│   ├── CalendarScreen.js    # Vista de calendario
 │   ├── HomeScreen.js        # Vista principal de tareas
-│   ├── KanbanScreen.js      # Vista tipo Kanban
+│   ├── KanbanScreen.js      # Tablero Kanban drag & drop
 │   ├── LoginScreen.js       # Autenticación
-│   ├── MyInboxScreen.js     # Bandeja personal
-│   ├── ReportScreen.js      # Reportes y estadísticas
+│   ├── MyInboxScreen.js     # Mi Bandeja
+│   ├── ReportScreen.js      # Reportes y analytics
 │   ├── TaskChatScreen.js    # Chat por tarea
 │   └── TaskDetailScreen.js  # Crear/editar tareas
-├── services/            # Lógica de negocio y utilidades
-│   ├── auth.js             # Autenticación con Firebase Auth
+├── services/            # Lógica de negocio
+│   ├── authFirestore.js    # Autenticación con Firebase Auth
+│   ├── tasks.js            # CRUD de tareas (tiempo real con onSnapshot)
+│   ├── analytics.js        # Métricas y estadísticas
+│   ├── offlineQueue.js     # Sistema de cola para modo offline
 │   ├── fcm.js              # Push notifications (FCM)
-│   ├── notifications.js    # Gestión de notificaciones locales
-│   ├── people.js           # [DEPRECATED] Migrado a roles.js
-│   ├── reports.js          # Generación de reportes
 │   ├── roles.js            # Gestión de roles y usuarios
-│   ├── signatures.js       # Sistema de firmas digitales
-│   └── tasks.js            # CRUD de tareas con Firestore
-├── App.js               # Punto de entrada principal
+│   └── reports.js          # Generación de reportes CSV
+├── contexts/
+│   └── ThemeContext.js     # Provider de tema claro/oscuro
 ├── firebase.js          # Configuración de Firebase
-├── storage.js           # [FALLBACK] Almacenamiento local
-└── app.config.js        # Configuración de Expo
+├── app.config.js        # Configuración de Expo
+└── vercel.json          # Configuración deploy Vercel
 ```
 
-🔥 Configurar Firestore
+## 🔥 Configurar Firebase
 
-En Firebase Console, crea una colección llamada tasks con esta estructura:
+1. **Crear proyecto en Firebase Console**
+2. **Habilitar servicios:**
+   - Authentication (Email/Password)
+   - Firestore Database
+   - Realtime Database (para .info/connected)
+   - Cloud Messaging (FCM) para notificaciones
 
-{
-  title: string,
-  description: string,
-  status: string,      // 'todo', 'in-progress', 'done'
-  priority: string,    // 'low', 'medium', 'high'
-  dueDate: timestamp,
-  assignedTo: string,
-  createdAt: timestamp,
-  updatedAt: timestamp
-}
+3. **Configurar Firestore Rules** (firestore.rules ya incluido en el proyecto)
+4. **Crear índices compuestos** (ver CREAR_INDICE_FIREBASE.md)
 
-⚠️ Solución de Problemas
-🧩 Versiones incompatibles
+### Estructura de Colecciones:
+```
+tasks/                    # Tareas
+  ├── {taskId}
+  │   ├── title: string
+  │   ├── status: 'pendiente' | 'en_proceso' | 'en_revision' | 'cerrada'
+  │   ├── priority: 'baja' | 'media' | 'alta'
+  │   ├── assignedTo: string (email)
+  │   ├── area: string
+  │   ├── createdAt: Timestamp
+  │   └── messages/        # Subcollection para chat
+  └── ...
+
+users/                    # Usuarios
+  ├── {userId}
+  │   ├── email: string
+  │   ├── role: 'admin' | 'jefe' | 'operativo'
+  │   ├── department: string
+  │   └── name: string
+  └── ...
+```
+
+## ⚠️ Solución de Problemas
+
+### 🧩 Versiones incompatibles
+```bash
 npx expo install --fix
+```
 
-🚫 Error de Metro Bundler
+### 🚫 Error de Metro Bundler
+```bash
 npx expo start -c
+```
 
-🗑️ Problemas con node_modules
+### 🗑️ Problemas con node_modules
+```bash
 Remove-Item -Recurse -Force node_modules
 Remove-Item -Force package-lock.json
 npm install --legacy-peer-deps
+```
 
-📄 Licencia
+### 🌐 Error en Web (LinearGradient)
+✅ **Ya resuelto**: Todos los LinearGradient fueron eliminados por compatibilidad web
+
+### 🎨 Modo oscuro muy brillante
+✅ **Ya resuelto**: Color primary cambiado de #FF6B9D a #B8314F en modo oscuro
+
+---
+
+## 📄 Licencia
 
 ISC License
 
 ---
 
-## 🔄 Changelog - Noviembre 2025
+## 🎉 Últimas Actualizaciones - Enero 2026
 
-### ✅ Correcciones y Mejoras
+### ✅ Mejoras de UX/UI
+- 🎨 **Modo oscuro refinado**: Color primary suavizado (#B8314F) para mejor legibilidad
+- 📱 **Kanban responsive**: Columnas se adaptan al ancho de pantalla (min 350px en web)
+- 🖥️ **Compatibilidad web total**: Eliminados LinearGradient de todos los componentes
+- 🌙 **Adaptación completa**: CalendarScreen, MyInboxScreen, ReportScreen, KanbanScreen en dark mode
 
-**Inicialización de Firebase**
-- ✅ Corregido error "No Firebase App '[DEFAULT]' has been created"
-- ✅ Firebase Auth ahora se inicializa correctamente con la instancia de app
+### ✅ Optimizaciones de Performance
+- ⚡ **React.memo** agregado a SpringCard, ConfettiCelebration, ProgressBadge
+- 🔄 **Tiempo real optimizado**: subscribeToTasks usa onSnapshot (sin límites innecesarios)
+- 💾 **Sistema offline robusto**: offlineQueue.js con AsyncStorage y NetInfo
+- 🎭 **Animaciones optimizadas**: FadeInView con memo reduce re-renders
 
-**Limpieza de Código**
-- ✅ Removida dependencia no usada: `@react-navigation/bottom-tabs`
-- ✅ Eliminado archivo obsoleto: `services/user.js`
-- ✅ Marcados archivos legacy: `storage.js`, `people.js`
-
-**Migración a Firebase Auth**
-- ✅ `MyInboxScreen` ahora usa `getCurrentUserName()` de Firebase Auth
-- ✅ `TaskChatScreen` migrado a Firebase Auth
-- ✅ `AdminScreen` simplificado, eliminadas funciones duplicadas
-- ✅ `ReportScreen` ahora usa `subscribeToTasks()` para datos en tiempo real
-- ✅ `TaskDetailScreen` migrado de `people.js` a `roles.js` (Firebase Auth)
-
-**Nuevas Funciones**
-- ✅ `getAllUsersNames()` en `roles.js` - Obtiene usuarios activos de Firebase
-- ✅ Sistema centralizado de autenticación
-- ✅ Sincronización en tiempo real en todas las pantallas
-
-### 🎯 Arquitectura Mejorada
-
-**Antes:**
-- Sistema mixto: AsyncStorage + Firebase
-- Usuario como string en localStorage
-- Código duplicado en múltiples pantallas
-
-**Ahora:**
-- Firebase como fuente única de verdad
-- Sistema de roles y permisos robusto
-- Usuario autenticado desde Firebase Auth
-- Updates en tiempo real con Firestore
-- Código limpio y mantenible
+### 🎯 Arquitectura
+- Firebase Auth como fuente única de verdad
+- Sistema de roles: admin/jefe/operativo con permisos específicos
+- Sincronización en tiempo real con Firestore
+- PWA listo para instalar desde navegador
 
 ---
 
-👥 Autor
-
-Hazel Jared Almaraz
-
-⚡ Instrucciones Rápidas
-
-Crea un nuevo proyecto Expo:
-
-npx create-expo-app MyTodoApp
-cd MyTodoApp
-
-
-Copia los archivos en la raíz del proyecto.
-
-Instala las dependencias necesarias:
-
-npm install firebase @react-navigation/native @react-navigation/stack @react-native-async-storage/async-storage
-expo install expo-notifications react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context
-
-
-Agrega tu configuración de Firebase en firebase.js.
-
-Ejecuta la app:
-
-npx expo start
-
-🔐 Variables de Entorno
-
-He creado un archivo .env con tus credenciales.
-
-Recomendaciones:
-
-Añade .env a tu .gitignore para no subirlo al repositorio.
-
-Para que Expo inyecte las variables en tiempo de ejecución, app.config.js usa dotenv.
-
-Instala dotenv como dependencia de desarrollo:
-
-npm install dotenv --save-dev
+👥 **Autor:** Hazel Jared Almaraz
 
 
 firebase.js lee la configuración desde Constants.manifest.extra (inyectado por Expo) o process.env como respaldo.
