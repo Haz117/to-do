@@ -14,6 +14,7 @@ import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { scheduleOverdueTasksNotification } from '../services/notifications';
+import OverdueAlert from '../components/OverdueAlert';
 
 export default function MyInboxScreen({ navigation }) {
   const { theme, isDark } = useTheme();
@@ -191,20 +192,13 @@ export default function MyInboxScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Banner de advertencia para tareas vencidas */}
-      {overdueCount > 0 && (
-        <View style={[styles.overdueAlert, { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#DC2626' }]}>
-          <Ionicons name="warning" size={24} color="#DC2626" />
-          <View style={styles.alertTextContainer}>
-            <Text style={[styles.alertTitle, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>
-              ⚠️ {overdueCount} {overdueCount === 1 ? 'tarea vencida' : 'tareas vencidas'}
-            </Text>
-            <Text style={[styles.alertSubtitle, { color: isDark ? '#FEE2E2' : '#991B1B' }]}>
-              {overdueCount === 1 ? 'Requiere atención inmediata' : 'Requieren atención inmediata'}
-            </Text>
-          </View>
-        </View>
-      )}
+      {/* Alerta de tareas vencidas */}
+      <OverdueAlert 
+        tasks={filtered} 
+        currentUserEmail={currentUser?.email}
+        role={currentUser?.role}
+      />
+      
       <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : theme.primary }]}>
         <View style={styles.header}>
           <View>
@@ -417,34 +411,6 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    fontWeight: '500'
-  },
-  overdueAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 12,
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  alertTextContainer: {
-    flex: 1
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2
-  },
-  alertSubtitle: {
-    fontSize: 13,
     fontWeight: '500'
   }
 });

@@ -324,6 +324,13 @@ export default function AdminScreen({ navigation, onLogout }) {
         </View>
       </View>
 
+      {/* Alerta de tareas vencidas */}
+      <OverdueAlert 
+        tasks={[]} 
+        currentUserEmail={currentUser?.email}
+        role={currentUser?.role}
+      />
+
       <ScrollView 
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

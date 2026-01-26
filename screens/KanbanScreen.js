@@ -17,6 +17,7 @@ import EmptyState from '../components/EmptyState';
 import ShimmerEffect from '../components/ShimmerEffect';
 import SpringCard from '../components/SpringCard';
 import BottomSheet from '../components/BottomSheet';
+import OverdueAlert from '../components/OverdueAlert';
 
 const GestureHandlerRootView = getGestureHandlerRootView();
 import CircularProgress from '../components/CircularProgress';
@@ -40,6 +41,7 @@ export default function KanbanScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [filters, setFilters] = useState({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
   const [refreshing, setRefreshing] = useState(false);
   const [draggingTask, setDraggingTask] = useState(null);
@@ -93,6 +95,7 @@ export default function KanbanScreen({ navigation }) {
     getCurrentSession().then(result => {
       if (result.success) {
         setCurrentUserRole(result.session.role);
+        setCurrentUser(result.session);
       }
     });
   }, []);
@@ -435,6 +438,14 @@ export default function KanbanScreen({ navigation }) {
             </View>
           </View>
         </View>
+
+        {/* Alerta de tareas vencidas */}
+        <OverdueAlert 
+          tasks={tasks} 
+          currentUserEmail={currentUser?.email}
+          role={currentUser?.role}
+        />
+        
         <FilterBar onFilterChange={setFilters} />
         <ScrollView 
           horizontal 

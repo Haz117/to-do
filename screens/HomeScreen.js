@@ -14,6 +14,7 @@ import Toast from '../components/Toast';
 import AnimatedBadge from '../components/AnimatedBadge';
 import ShimmerEffect from '../components/ShimmerEffect';
 import SkeletonLoader from '../components/SkeletonLoader';
+import OverdueAlert from '../components/OverdueAlert';
 import LoadingIndicator from '../components/LoadingIndicator';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -507,6 +508,13 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </View>
+
+      {/* Alerta de tareas vencidas */}
+      <OverdueAlert 
+        tasks={tasks} 
+        currentUserEmail={currentUser?.email}
+        role={currentUser?.role}
+      />
 
       {/* Search Bar */}
       <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />

@@ -12,6 +12,8 @@ import { subscribeToTasks } from '../services/tasks';
 import { hapticLight, hapticMedium } from '../utils/haptics';
 import { useTheme } from '../contexts/ThemeContext';
 import Toast from '../components/Toast';
+import OverdueAlert from '../components/OverdueAlert';
+import { getCurrentSession } from '../services/authFirestore';
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -25,10 +27,18 @@ export default function CalendarScreen({ navigation }) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
     let unsubscribe;
+    
+    // Cargar usuario actual
+    getCurrentSession().then(result => {
+      if (result.success) {
+        setCurrentUser(result.session);
+      }
+    });
     
     subscribeToTasks((updatedTasks) => {
       setTasks(updatedTasks);
@@ -257,6 +267,13 @@ export default function CalendarScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Alerta de tareas vencidas */}
+      <OverdueAlert 
+        tasks={tasks} 
+        currentUserEmail={currentUser?.email}
+        role={currentUser?.role}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Controles de mes */}

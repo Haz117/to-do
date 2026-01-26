@@ -246,8 +246,15 @@ export default function ReportScreen({ navigation }) {
           </View>
         </View>
       </View>
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+
+      {/* Alerta de tareas vencidas */}
+      <OverdueAlert 
+        tasks={data} 
+        currentUserEmail={currentUser?.email}
+        role={currentUser?.role}
+      />
+
+      <ScrollViewcontentContainerStyle={styles.scrollContent}>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</Text>
 
         {/* BENTO GRID - Dashboard de Métricas */}
