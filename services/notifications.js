@@ -256,6 +256,7 @@ export async function scheduleOverdueTasksNotification(overdueTasks) {
 /**
  * Programa notificaciones múltiples al día para tareas vencidas
  * Horarios: 9 AM, 2 PM, 6 PM
+ * OPTIMIZADO: Solo programa 3 notificaciones máximo por día
  */
 export async function scheduleMultipleDailyOverdueNotifications(overdueTasks) {
   // En web no programar notificaciones
@@ -273,12 +274,15 @@ export async function scheduleMultipleDailyOverdueNotifications(overdueTasks) {
       return [];
     }
 
-    // Cancelar notificaciones previas de vencidas
+    // NO cancelar todas las notificaciones, solo limpiar las viejas de tipo overdue
+    // Esto es más eficiente que iterar todas
     const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-    for (const notif of allScheduled) {
-      if (notif.content.data?.type === 'overdue_daily' || notif.content.data?.type === 'overdue_multiple') {
-        await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-      }
+    const overduesToCancel = allScheduled
+      .filter(n => n.content.data?.type === 'overdue_daily' || n.content.data?.type === 'overdue_multiple')
+      .slice(0, 20); // Limitar a 20 para evitar lag
+    
+    for (const notif of overduesToCancel) {
+      await Notifications.cancelScheduledNotificationAsync(notif.identifier);
     }
 
     const count = overdueTasks.length;

@@ -37,42 +37,57 @@ function MainTabs({ onLogout }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [overdueCount, setOverdueCount] = useState(0);
 
+  // Obtener sesión actual solo una vez al montar
   useEffect(() => {
+    let mounted = true;
     getCurrentSession().then((result) => {
-      if (result.success) {
+      if (result.success && mounted) {
         setCurrentUser(result.session);
       }
     });
+    return () => { mounted = false; };
+  }, []);
 
-    // Suscribirse a tareas para actualizar contador de vencidas
-    const unsubscribe = require('./services/tasks').subscribeToTasks((tasks) => {
-      if (currentUser) {
-        let userOverdue = [];
-        if (currentUser.role === 'admin') {
-          userOverdue = tasks.filter(t => t.dueAt < Date.now() && t.status !== 'cerrada');
-        } else {
-          userOverdue = tasks.filter(t => 
-            t.dueAt < Date.now() && 
-            t.status !== 'cerrada' && 
-            t.assignedTo === currentUser.email
-          );
-        }
-        setOverdueCount(userOverdue.length);
-        
-        // Actualizar badge de app
-        if (typeof require !== 'undefined') {
-          const Notifications = require('expo-notifications');
-          Notifications.default?.setBadgeCountAsync(userOverdue.length).catch(() => {});
-        }
+  // Suscribirse a tareas solo cuando currentUser esté disponible
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let mounted = true;
+    const { subscribeToTasks } = require('./services/tasks');
+    
+    const unsubscribe = subscribeToTasks((tasks) => {
+      if (!mounted) return;
+      
+      let userOverdue = [];
+      if (currentUser.role === 'admin') {
+        userOverdue = tasks.filter(t => t.dueAt < Date.now() && t.status !== 'cerrada');
+      } else {
+        userOverdue = tasks.filter(t => 
+          t.dueAt < Date.now() && 
+          t.status !== 'cerrada' && 
+          t.assignedTo === currentUser.email
+        );
+      }
+      
+      const newCount = userOverdue.length;
+      setOverdueCount(newCount);
+      
+      // Actualizar badge de app (solo si cambió)
+      try {
+        const Notifications = require('expo-notifications');
+        Notifications.default?.setBadgeCountAsync(newCount).catch(() => {});
+      } catch (error) {
+        // Ignorar si no está disponible
       }
     });
 
     return () => {
-      if (unsubscribe && typeof unsubscribe.then === 'function') {
-        unsubscribe.then(unsub => unsub && unsub());
+      mounted = false;
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
       }
     };
-  }, [currentUser]);
+  }, [currentUser?.email, currentUser?.role]);
 
   const isAdmin = currentUser?.role === 'admin';
   const isJefeOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'jefe';

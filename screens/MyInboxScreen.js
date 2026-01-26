@@ -1,7 +1,7 @@
 // screens/MyInboxScreen.js
 // "Mi bandeja" - lista de tareas asignadas al usuario actual, ordenadas por fecha de vencimiento.
 // Acciones rápidas: marcar cerrada y posponer 1 día. Abre detalle y chat.
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TaskItem from '../components/TaskItem';
@@ -76,15 +76,25 @@ export default function MyInboxScreen({ navigation }) {
   const overdueTasks = filtered.filter(task => task.dueAt < Date.now() && task.status !== 'cerrada');
   const overdueCount = overdueTasks.length;
 
-  // Programar notificación diaria de tareas vencidas
+  // Ref para evitar programar notificaciones múltiples veces
+  const lastScheduledRef = useRef(null);
+
+  // Programar notificación diaria de tareas vencidas (solo una vez al día)
   useEffect(() => {
     if (overdueCount > 0) {
-      // Notificación diaria a las 9 AM
-      scheduleOverdueTasksNotification(overdueTasks);
-      // Notificaciones múltiples (9 AM, 2 PM, 6 PM)
-      scheduleMultipleDailyOverdueNotifications(overdueTasks);
+      const today = new Date().toDateString();
+      
+      // Solo programar si no se ha hecho hoy
+      if (lastScheduledRef.current !== today) {
+        // Notificación diaria a las 9 AM
+        scheduleOverdueTasksNotification(overdueTasks);
+        // Notificaciones múltiples (9 AM, 2 PM, 6 PM)
+        scheduleMultipleDailyOverdueNotifications(overdueTasks);
+        
+        lastScheduledRef.current = today;
+      }
     }
-  }, [overdueCount]);
+  }, [overdueCount > 0]); // Solo cuando cambia de 0 a >0 o viceversa
 
   const markClosed = async (task) => {
     try {

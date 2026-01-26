@@ -254,7 +254,7 @@ export default function ReportScreen({ navigation }) {
         role={currentUser?.role}
       />
 
-      <ScrollViewcontentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</Text>
 
         {/* BENTO GRID - Dashboard de Métricas */}

@@ -119,18 +119,31 @@ export default function KanbanScreen({ navigation }) {
     ]).start();
   }, []);
 
-  // Suscribirse a cambios en tiempo real
+  // Suscribirse a cambios en tiempo real con debounce
   useEffect(() => {
     let unsubscribe;
+    let mounted = true;
+    let timeoutId;
     
     subscribeToTasks((updatedTasks) => {
-      console.log('[Kanban] Tareas recibidas:', updatedTasks.length, updatedTasks);
-      setTasks(updatedTasks);
+      if (!mounted) return;
+      
+      // Debounce para evitar updates muy frecuentes
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        if (mounted) {
+          setTasks(updatedTasks);
+        }
+      }, 300);
     }).then((unsub) => {
-      unsubscribe = unsub;
+      if (mounted) {
+        unsubscribe = unsub;
+      }
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
       }
@@ -1127,20 +1140,19 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: theme.border,
     shadowColor: isDark ? theme.primary : '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: isDark ? 0.2 : 0.12,
-    shadowRadius: 10,
-    elevation: 4,
-    transition: 'all 0.3s ease'
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.15 : 0.08,
+    shadowRadius: 6,
+    elevation: 2
   },
   cardDragging: {
     opacity: 0.95,
-    transform: [{ scale: 1.08 }, { rotate: '2deg' }],
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-    borderWidth: 3,
+    transform: [{ scale: 1.05 }],
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    borderWidth: 2,
     borderColor: theme.primary
   },
   cardTopRow: {
