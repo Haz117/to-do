@@ -6,11 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { subscribeToTasks } from '../services/tasks';
 import { exportTasksToCSV, exportStatsToCSV } from '../services/export';
 import { calculateProductivityStreak, calculateAverageCompletionTime, formatAverageTime } from '../services/productivity';
+import { getActivityHeatmap, getWeeklyProductivityChart, getEstimatedVsRealTime } from '../services/productivityAdvanced';
+import { getFocusTimeStats } from '../services/pomodoro';
 import { getCurrentSession } from '../services/authFirestore';
-import { PieChart, BarChart } from 'react-native-chart-kit';
+import { PieChart, BarChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../contexts/ThemeContext';
 import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
+import Heatmap from '../components/Heatmap';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -32,6 +35,11 @@ export default function ReportScreen({ navigation }) {
   const [productivity, setProductivity] = useState({ currentStreak: 0, longestStreak: 0, averageTime: 0 });
   const [isExporting, setIsExporting] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [estimatedVsReal, setEstimatedVsReal] = useState(null);
+  const [pomodoroStats, setPomodoroStats] = useState(null);
+  const [loadingAdvanced, setLoadingAdvanced] = useState(true);
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
@@ -43,12 +51,42 @@ export default function ReportScreen({ navigation }) {
       unsubscribe = unsub;
     });
 
+    // Cargar sesión del usuario
+    getCurrentSession().then(result => {
+      if (result.success) {
+        setCurrentUser(result.session);
+        loadAdvancedMetrics(result.session.email);
+      }
+    });
+
     return () => {
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
       }
     };
   }, []);
+  
+  // Cargar métricas avanzadas
+  const loadAdvancedMetrics = async (userEmail) => {
+    setLoadingAdvanced(true);
+    try {
+      const [heatmap, weekly, estimated, pomodoro] = await Promise.all([
+        getActivityHeatmap(userEmail, 90),
+        getWeeklyProductivityChart(userEmail),
+        getEstimatedVsRealTime(userEmail),
+        getFocusTimeStats(userEmail, 30)
+      ]);
+      
+      setHeatmapData(heatmap);
+      setWeeklyData(weekly);
+      setEstimatedVsReal(estimated);
+      setPomodoroStats(pomodoro);
+    } catch (error) {
+      console.error('Error cargando métricas avanzadas:', error);
+    } finally {
+      setLoadingAdvanced(false);
+    }
+  };
 
   // Agrupar por área
   const groupByArea = () => {
@@ -347,6 +385,156 @@ export default function ReportScreen({ navigation }) {
               <Text style={styles.sectionTitle}>Tareas Vencidas</Text>
             </View>
             {overdueTasks.map(renderTaskItem)}
+          </View>
+        )}
+
+        {/* Heatmap de Actividad */}
+        {!loadingAdvanced && heatmapData.length > 0 && (
+          <View style={styles.section}>
+            <Heatmap 
+              data={heatmapData}
+              onDayPress={(day) => {
+                if (day.count > 0) {
+                  setToastMessage(`${day.date}: ${day.count} tarea${day.count > 1 ? 's' : ''} completada${day.count > 1 ? 's' : ''}`);
+                  setToastType('info');
+                  setToastVisible(true);
+                }
+              }}
+            />
+          </View>
+        )}
+        
+        {/* Productividad Semanal */}
+        {!loadingAdvanced && weeklyData.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="trending-up" size={24} color={theme.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Productividad Semanal</Text>
+            </View>
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={{
+                  labels: weeklyData.slice(-8).map(w => `S${w.week.split('-W')[1]}`),
+                  datasets: [
+                    {
+                      data: weeklyData.slice(-8).map(w => w.tasksCompleted),
+                      color: (opacity = 1) => `rgba(52, 211, 153, ${opacity})`,
+                      strokeWidth: 3
+                    },
+                    {
+                      data: weeklyData.slice(-8).map(w => w.tasksCreated),
+                      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                      strokeWidth: 2
+                    }
+                  ],
+                  legend: ['Completadas', 'Creadas']
+                }}
+                width={screenWidth - 40}
+                height={220}
+                chartConfig={{
+                  ...chartConfig,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                  labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity * 0.7})` : `rgba(0, 0, 0, ${opacity * 0.7})`,
+                  backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
+                  backgroundGradientFrom: isDark ? '#1A1A1A' : '#FFFFFF',
+                  backgroundGradientTo: isDark ? '#262626' : '#F8F9FA',
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                  }
+                }}
+                bezier
+                style={styles.chart}
+              />
+            </View>
+          </View>
+        )}
+        
+        {/* Estadísticas de Pomodoro */}
+        {!loadingAdvanced && pomodoroStats && pomodoroStats.totalSessions > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="timer" size={24} color="#EF4444" style={{ marginRight: 8 }} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Focus Time</Text>
+            </View>
+            <View style={styles.pomodoroStatsGrid}>
+              <View style={[styles.pomodoroStatCard, { backgroundColor: theme.surface }]}>
+                <Ionicons name="timer-outline" size={32} color="#EF4444" />
+                <Text style={[styles.pomodoroStatValue, { color: theme.text }]}>
+                  {pomodoroStats.totalSessions}
+                </Text>
+                <Text style={[styles.pomodoroStatLabel, { color: theme.textSecondary }]}>
+                  Sesiones
+                </Text>
+              </View>
+              <View style={[styles.pomodoroStatCard, { backgroundColor: theme.surface }]}>
+                <Ionicons name="time-outline" size={32} color="#10B981" />
+                <Text style={[styles.pomodoroStatValue, { color: theme.text }]}>
+                  {Math.round(pomodoroStats.totalFocusTime / 60 * 10) / 10}h
+                </Text>
+                <Text style={[styles.pomodoroStatLabel, { color: theme.textSecondary }]}>
+                  Focus Time
+                </Text>
+              </View>
+              <View style={[styles.pomodoroStatCard, { backgroundColor: theme.surface }]}>
+                <Ionicons name="checkmark-circle-outline" size={32} color="#3B82F6" />
+                <Text style={[styles.pomodoroStatValue, { color: theme.text }]}>
+                  {pomodoroStats.completionRate}%
+                </Text>
+                <Text style={[styles.pomodoroStatLabel, { color: theme.textSecondary }]}>
+                  Completadas
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+        
+        {/* Tiempo Estimado vs Real */}
+        {!loadingAdvanced && estimatedVsReal && estimatedVsReal.totalTasks > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="speedometer" size={24} color="#F59E0B" style={{ marginRight: 8 }} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Precisión de Estimaciones</Text>
+            </View>
+            <View style={[styles.estimationCard, { backgroundColor: theme.surface }]}>
+              <View style={styles.estimationRow}>
+                <View style={styles.estimationItem}>
+                  <Text style={[styles.estimationLabel, { color: theme.textSecondary }]}>
+                    Promedio Estimado
+                  </Text>
+                  <Text style={[styles.estimationValue, { color: theme.text }]}>
+                    {estimatedVsReal.avgEstimated}h
+                  </Text>
+                </View>
+                <Ionicons name="arrow-forward" size={24} color={theme.textSecondary} />
+                <View style={styles.estimationItem}>
+                  <Text style={[styles.estimationLabel, { color: theme.textSecondary }]}>
+                    Promedio Real
+                  </Text>
+                  <Text style={[styles.estimationValue, { color: theme.text }]}>
+                    {estimatedVsReal.avgReal}h
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.accuracyBar}>
+                <View 
+                  style={[
+                    styles.accuracyFill, 
+                    { 
+                      width: `${estimatedVsReal.accuracy}%`,
+                      backgroundColor: estimatedVsReal.accuracy >= 80 ? '#10B981' : estimatedVsReal.accuracy >= 60 ? '#F59E0B' : '#EF4444'
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={[styles.accuracyText, { color: theme.text }]}>
+                Precisión: {estimatedVsReal.accuracy}%
+              </Text>
+              <Text style={[styles.accuracySubtext, { color: theme.textSecondary }]}>
+                Basado en {estimatedVsReal.totalTasks} tarea{estimatedVsReal.totalTasks > 1 ? 's' : ''} completada{estimatedVsReal.totalTasks > 1 ? 's' : ''}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -978,5 +1166,93 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#6E6E73'
+  },
+  chartContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden'
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16
+  },
+  pomodoroStatsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16
+  },
+  pomodoroStatCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3
+  },
+  pomodoroStatValue: {
+    fontSize: 28,
+    fontWeight: '800'
+  },
+  pomodoroStatLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  },
+  estimationCard: {
+    padding: 24,
+    borderRadius: 20,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3
+  },
+  estimationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  estimationItem: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  estimationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 8
+  },
+  estimationValue: {
+    fontSize: 32,
+    fontWeight: '800'
+  },
+  accuracyBar: {
+    height: 12,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 12
+  },
+  accuracyFill: {
+    height: '100%',
+    borderRadius: 6
+  },
+  accuracyText: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 4
+  },
+  accuracySubtext: {
+    fontSize: 13,
+    textAlign: 'center'
   }
 });

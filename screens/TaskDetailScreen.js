@@ -1,7 +1,7 @@
 // screens/TaskDetailScreen.js
 // Formulario para crear o editar una tarea. Incluye DateTimePicker y programación de notificación.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Button, TextInput, Platform, Alert, TouchableOpacity, ScrollView, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Button, TextInput, Platform, Alert, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createTask, updateTask, deleteTask } from '../services/tasks';
 import { getAllUsersNames } from '../services/roles';
@@ -11,7 +11,10 @@ import Toast from '../components/Toast';
 import ShakeInput from '../components/ShakeInput';
 import LoadingIndicator from '../components/LoadingIndicator';
 import PressableButton from '../components/PressableButton';
+import PomodoroTimer from '../components/PomodoroTimer';
+import TagInput from '../components/TagInput';
 import { useTheme } from '../contexts/ThemeContext';
+import { savePomodoroSession } from '../services/pomodoro';
 
 // Importar DateTimePicker solo en móvil
 let DateTimePicker;
@@ -47,6 +50,11 @@ export default function TaskDetailScreen({ route, navigation }) {
   const [toastType, setToastType] = useState('success');
   const [saveProgress, setSaveProgress] = useState(null);
   
+  // Pomodoro & Tags state
+  const [showPomodoroModal, setShowPomodoroModal] = useState(false);
+  const [tags, setTags] = useState(editingTask?.tags || []);
+  const [estimatedHours, setEstimatedHours] = useState(editingTask?.estimatedHours?.toString() || '');
+  
   // Refs para inputs
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
@@ -78,7 +86,17 @@ export default function TaskDetailScreen({ route, navigation }) {
   };
 
   useEffect(() => {
-    navigation.setOptions({ title: editingTask ? 'Editar tarea' : 'Crear tarea' });
+    navigation.setOptions({ 
+      title: editingTask ? 'Editar tarea' : 'Crear tarea',
+      headerRight: () => editingTask ? (
+        <TouchableOpacity 
+          onPress={() => setShowPomodoroModal(true)}
+          style={{ marginRight: 15 }}
+        >
+          <Ionicons name="timer" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      ) : null
+    });
     loadUserNames();
     checkPermissions();
     
@@ -88,7 +106,7 @@ export default function TaskDetailScreen({ route, navigation }) {
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [editingTask, fadeAnim]);
+  }, [editingTask, fadeAnim, theme]);
 
   const loadUserNames = useCallback(async () => {
     const names = await getAllUsersNames();
@@ -300,7 +318,9 @@ export default function TaskDetailScreen({ route, navigation }) {
         dueAt: dueAt.getTime(),
         isRecurring,
         recurrencePattern: isRecurring ? recurrencePattern : null,
-        lastRecurrenceCreated: isRecurring ? dueAt.getTime() : null
+        lastRecurrenceCreated: isRecurring ? dueAt.getTime() : null,
+        tags,
+        estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null
       };
 
       let taskId;
@@ -515,6 +535,25 @@ export default function TaskDetailScreen({ route, navigation }) {
             ))}
           </View>
 
+          <Text style={styles.label}>TIEMPO ESTIMADO (HORAS)</Text>
+          <TextInput
+            value={estimatedHours}
+            onChangeText={setEstimatedHours}
+            placeholder="Ej: 2.5"
+            placeholderTextColor="#C7C7CC"
+            keyboardType="numeric"
+            style={[styles.input, { color: theme.text }]}
+            editable={canEdit}
+          />
+
+          <Text style={styles.label}>ETIQUETAS</Text>
+          <TagInput
+            tags={tags}
+            onTagsChange={setTags}
+            placeholder="Agregar etiquetas..."
+            maxTags={10}
+          />
+
           <Text style={styles.label}>ESTADO</Text>
           <View style={styles.pickerRow}>
             {statuses.map(s => (
@@ -684,6 +723,50 @@ export default function TaskDetailScreen({ route, navigation }) {
         type={toastType}
         onHide={() => setToastVisible(false)}
       />
+      
+      {/* Pomodoro Modal */}
+      {editingTask && (
+        <Modal
+          visible={showPomodoroModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowPomodoroModal(false)}
+        >
+          <View style={[styles.pomodoroModal, { backgroundColor: theme.background }]}>
+            <View style={styles.pomodoroHeader}>
+              <Text style={[styles.pomodoroTitle, { color: theme.text }]}>Sesión de Trabajo</Text>
+              <TouchableOpacity onPress={() => setShowPomodoroModal(false)}>
+                <Ionicons name="close" size={28} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.pomodoroContent}>
+              <PomodoroTimer
+                taskId={editingTask.id}
+                taskTitle={title}
+                onSessionComplete={async (session) => {
+                  try {
+                    const user = await getCurrentSession();
+                    if (user.success) {
+                      await savePomodoroSession({ 
+                        ...session, 
+                        userEmail: user.session.email 
+                      });
+                      setToastMessage('✅ Sesión Pomodoro completada!');
+                      setToastType('success');
+                      setToastVisible(true);
+                    }
+                  } catch (error) {
+                    setToastMessage('Error al guardar sesión');
+                    setToastType('error');
+                    setToastVisible(true);
+                  }
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
       
       {saveProgress !== null && (
         <View style={{
@@ -993,5 +1076,25 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     borderColor: '#9F2241',
     color: '#1A1A1A',
     fontWeight: '600',
+  },
+  pomodoroModal: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 20
+  },
+  pomodoroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  pomodoroTitle: {
+    fontSize: 24,
+    fontWeight: '800'
+  },
+  pomodoroContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   }
 });

@@ -157,7 +157,9 @@ export async function createTask(task) {
       department: task.department || '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      dueAt: Timestamp.fromMillis(task.dueAt)
+      dueAt: Timestamp.fromMillis(task.dueAt),
+      tags: task.tags || [],
+      estimatedHours: task.estimatedHours || null
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), taskData);

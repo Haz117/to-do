@@ -11,11 +11,23 @@ import { hapticMedium, hapticLight } from '../utils/feedback';
  * @param {function} onApplyFilters - Callback when filters are applied
  * @param {array} areas - Available areas to filter
  * @param {array} users - Available users to filter
+ * @param {array} tasks - All tasks (to extract tags)
  */
-const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [] }) => {
+const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [], tasks = [] }) => {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters);
+
+  // Extract unique tags from all tasks
+  const allTags = React.useMemo(() => {
+    const tagSet = new Set();
+    tasks.forEach(task => {
+      if (task.tags && Array.isArray(task.tags)) {
+        task.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [tasks]);
 
   const openModal = useCallback(() => {
     hapticLight();
@@ -41,6 +53,7 @@ const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [] }) =>
       responsible: [],
       priorities: [],
       statuses: [],
+      tags: [],
       overdue: false,
       dateRange: null,
     };
@@ -264,6 +277,37 @@ const AdvancedFilters = ({ filters, onApplyFilters, areas = [], users = [] }) =>
                   </View>
                 </TouchableOpacity>
               </View>
+
+              {/* Tags */}
+              {allTags.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Etiquetas</Text>
+                  <View style={styles.chipContainer}>
+                    {allTags.map((tag) => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[
+                          styles.chip,
+                          (tempFilters.tags || []).includes(tag) && styles.chipActive,
+                        ]}
+                        onPress={() => toggleArrayFilter('tags', tag)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            (tempFilters.tags || []).includes(tag) && styles.chipTextActive,
+                          ]}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          #{tag}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalActions}>

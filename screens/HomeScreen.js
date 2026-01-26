@@ -36,6 +36,7 @@ export default function HomeScreen({ navigation }) {
     responsible: [],
     priorities: [],
     statuses: [],
+    tags: [],
     overdue: false,
   });
   const [currentUser, setCurrentUser] = useState(null);
@@ -353,13 +354,14 @@ export default function HomeScreen({ navigation }) {
   // Aplicar filtros con memoización
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Search text filter (title, description, assignedTo)
+      // Search text filter (title, description, assignedTo, tags)
       if (searchText) {
         const search = searchText.toLowerCase();
         const matchTitle = task.title?.toLowerCase().includes(search);
         const matchDescription = task.description?.toLowerCase().includes(search);
         const matchAssigned = task.assignedTo?.toLowerCase().includes(search);
-        if (!matchTitle && !matchDescription && !matchAssigned) return false;
+        const matchTags = task.tags?.some(tag => tag.toLowerCase().includes(search));
+        if (!matchTitle && !matchDescription && !matchAssigned && !matchTags) return false;
       }
       
       // Advanced filters
@@ -374,6 +376,12 @@ export default function HomeScreen({ navigation }) {
       
       // Filter by statuses (multi-select)
       if (advancedFilters.statuses.length > 0 && !advancedFilters.statuses.includes(task.status)) return false;
+      
+      // Filter by tags (multi-select)
+      if (advancedFilters.tags && advancedFilters.tags.length > 0) {
+        const hasMatchingTag = advancedFilters.tags.some(filterTag => task.tags?.includes(filterTag));
+        if (!hasMatchingTag) return false;
+      }
       
       // Filter by overdue
       if (advancedFilters.overdue && task.dueAt >= Date.now()) return false;
@@ -493,6 +501,7 @@ export default function HomeScreen({ navigation }) {
               onApplyFilters={handleApplyFilters}
               areas={uniqueAreas}
               users={uniqueUsers}
+              tasks={tasks}
             />
             <ThemeToggle size={22} />
           </View>
