@@ -545,133 +545,131 @@ export default function KanbanScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Alerta de tareas vencidas */}
+        {/* Alerta de tareas vencidas - Compacta */}
         <OverdueAlert 
           tasks={tasks} 
           currentUserEmail={currentUser?.email}
           role={currentUser?.role}
         />
         
-        {/* Chips de filtro rápido mejorados */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.quickFiltersContainer}
-        >
-          {/* Filtro: Todas */}
-          <TouchableOpacity
-            onPress={() => {
-              setFilters({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
-              hapticLight();
-            }}
-            style={[
-              styles.quickFilterChip,
-              { 
-                backgroundColor: !filters.area && !filters.priority && !filters.overdue ? theme.primary : theme.surface,
-                borderColor: !filters.area && !filters.priority && !filters.overdue ? theme.primary : theme.border
-              }
-            ]}
+        {/* Barra unificada: Filtros rápidos + Búsqueda */}
+        <View style={[styles.unifiedFilterBar, { backgroundColor: theme.surface }]}>
+          {/* Chips de filtro rápido horizontal */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.quickFiltersRow}
           >
-            <Ionicons 
-              name="grid-outline" 
-              size={16} 
-              color={!filters.area && !filters.priority && !filters.overdue ? '#FFFFFF' : theme.text} 
-            />
-            <Text style={[
-              styles.quickFilterText, 
-              { color: !filters.area && !filters.priority && !filters.overdue ? '#FFFFFF' : theme.text }
-            ]}>
-              Todas ({tasks.length})
-            </Text>
-          </TouchableOpacity>
+            {/* Filtro: Vencidas */}
+            {tasks.filter(t => t.dueAt < Date.now() && t.status !== 'cerrada').length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setFilters({ ...filters, overdue: !filters.overdue });
+                  hapticLight();
+                }}
+                style={[
+                  styles.quickFilterChip,
+                  { 
+                    backgroundColor: filters.overdue ? '#DC2626' : theme.cardBackground,
+                    borderColor: filters.overdue ? '#DC2626' : theme.border
+                  }
+                ]}
+              >
+                <Ionicons 
+                  name="alert-circle" 
+                  size={14} 
+                  color={filters.overdue ? '#FFFFFF' : '#DC2626'} 
+                />
+                <Text style={[
+                  styles.quickFilterText, 
+                  { color: filters.overdue ? '#FFFFFF' : '#DC2626' }
+                ]}>
+                  Vencidas ({tasks.filter(t => t.dueAt < Date.now() && t.status !== 'cerrada').length})
+                </Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Filtro: Vencidas */}
-          <TouchableOpacity
-            onPress={() => {
-              setFilters({ ...filters, overdue: !filters.overdue });
-              hapticLight();
-            }}
-            style={[
-              styles.quickFilterChip,
-              { 
-                backgroundColor: filters.overdue ? '#DC2626' : theme.surface,
-                borderColor: filters.overdue ? '#DC2626' : theme.border
-              }
-            ]}
-          >
-            <Ionicons 
-              name="alert-circle" 
-              size={16} 
-              color={filters.overdue ? '#FFFFFF' : '#DC2626'} 
-            />
-            <Text style={[
-              styles.quickFilterText, 
-              { color: filters.overdue ? '#FFFFFF' : '#DC2626' }
-            ]}>
-              Vencidas ({tasks.filter(t => t.dueAt < Date.now() && t.status !== 'cerrada').length})
-            </Text>
-          </TouchableOpacity>
+            {/* Filtro: Alta Prioridad */}
+            {tasks.filter(t => t.priority === 'alta').length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setFilters({ ...filters, priority: filters.priority === 'alta' ? '' : 'alta' });
+                  hapticLight();
+                }}
+                style={[
+                  styles.quickFilterChip,
+                  { 
+                    backgroundColor: filters.priority === 'alta' ? '#EF4444' : theme.cardBackground,
+                    borderColor: filters.priority === 'alta' ? '#EF4444' : theme.border
+                  }
+                ]}
+              >
+                <Ionicons 
+                  name="flash" 
+                  size={14} 
+                  color={filters.priority === 'alta' ? '#FFFFFF' : '#EF4444'} 
+                />
+                <Text style={[
+                  styles.quickFilterText, 
+                  { color: filters.priority === 'alta' ? '#FFFFFF' : '#EF4444' }
+                ]}>
+                  Urgente ({tasks.filter(t => t.priority === 'alta').length})
+                </Text>
+              </TouchableOpacity>
+            )}
 
-          {/* Filtro: Alta Prioridad */}
-          <TouchableOpacity
-            onPress={() => {
-              setFilters({ ...filters, priority: filters.priority === 'alta' ? '' : 'alta' });
-              hapticLight();
-            }}
-            style={[
-              styles.quickFilterChip,
-              { 
-                backgroundColor: filters.priority === 'alta' ? '#EF4444' : theme.surface,
-                borderColor: filters.priority === 'alta' ? '#EF4444' : theme.border
-              }
-            ]}
-          >
-            <Ionicons 
-              name="flash" 
-              size={16} 
-              color={filters.priority === 'alta' ? '#FFFFFF' : '#EF4444'} 
-            />
-            <Text style={[
-              styles.quickFilterText, 
-              { color: filters.priority === 'alta' ? '#FFFFFF' : '#EF4444' }
-            ]}>
-              Urgente ({tasks.filter(t => t.priority === 'alta').length})
-            </Text>
-          </TouchableOpacity>
-
-          {/* Filtro: Mis tareas */}
-          {currentUser && (
-            <TouchableOpacity
-              onPress={() => {
-                setFilters({ 
-                  ...filters, 
-                  responsible: filters.responsible === currentUser.email ? '' : currentUser.email 
-                });
-                hapticLight();
-              }}
-              style={[
-                styles.quickFilterChip,
-                { 
-                  backgroundColor: filters.responsible === currentUser.email ? '#2196F3' : theme.surface,
-                  borderColor: filters.responsible === currentUser.email ? '#2196F3' : theme.border
-                }
-              ]}
-            >
-              <Ionicons 
-                name="person" 
-                size={16} 
-                color={filters.responsible === currentUser.email ? '#FFFFFF' : '#2196F3'} 
-              />
-              <Text style={[
-                styles.quickFilterText, 
-                { color: filters.responsible === currentUser.email ? '#FFFFFF' : '#2196F3' }
-              ]}>
-                Mis tareas ({tasks.filter(t => t.assignedTo === currentUser.email).length})
-              </Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+            {/* Filtro: Mis tareas */}
+            {currentUser && (
+              <TouchableOpacity
+                onPress={() => {
+                  setFilters({ 
+                    ...filters, 
+                    responsible: filters.responsible === currentUser.email ? '' : currentUser.email 
+                  });
+                  hapticLight();
+                }}
+                style={[
+                  styles.quickFilterChip,
+                  { 
+                    backgroundColor: filters.responsible === currentUser.email ? theme.primary : theme.cardBackground,
+                    borderColor: filters.responsible === currentUser.email ? theme.primary : theme.border
+                  }
+                ]}
+              >
+                <Ionicons 
+                  name="person" 
+                  size={14} 
+                  color={filters.responsible === currentUser.email ? '#FFFFFF' : theme.primary} 
+                />
+                <Text style={[
+                  styles.quickFilterText, 
+                  { color: filters.responsible === currentUser.email ? '#FFFFFF' : theme.primary }
+                ]}>
+                  Mis tareas
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* Botón limpiar filtros si hay alguno activo */}
+            {(filters.overdue || filters.priority || filters.responsible) && (
+              <TouchableOpacity
+                onPress={() => {
+                  setFilters({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
+                  hapticLight();
+                }}
+                style={[
+                  styles.clearFilterButton,
+                  { backgroundColor: theme.border }
+                ]}
+              >
+                <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
+                <Text style={[styles.clearFilterText, { color: theme.textSecondary }]}>Limpiar</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </View>
         
+        {/* FilterBar solo para búsqueda avanzada - oculto por defecto */}
         <FilterBar onFilterChange={setFilters} />
         <ScrollView 
           horizontal 
@@ -822,16 +820,16 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     backgroundColor: theme.background
   },
   headerGradient: {
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 12
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10
   },
   header: {
     flexDirection: 'row',
@@ -1101,31 +1099,47 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     fontSize: 11,
     fontWeight: '600'
   },
-  quickFiltersContainer: {
+  unifiedFilterBar: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  quickFiltersRow: {
+    flexDirection: 'row',
     gap: 8,
-    flexDirection: 'row'
+    paddingVertical: 4,
   },
   quickFilterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 2,
-    marginRight: 8,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   quickFilterText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.3
+    letterSpacing: 0.2,
+  },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  clearFilterText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   columnCountText: {
     fontSize: 14,
@@ -1233,19 +1247,19 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
   },
   dragIndicator: {
     position: 'absolute',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    marginHorizontal: 20,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    marginHorizontal: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
     borderWidth: 2,
     borderColor: theme.primary
   },
@@ -1256,12 +1270,12 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     letterSpacing: 0.3
   },
   statsContainer: {
-    padding: 16,
+    padding: 12,
   },
   statItem: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 12,
   },
   statHeader: {
     flexDirection: 'row',
@@ -1283,7 +1297,7 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   statCount: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: theme.text,
   },

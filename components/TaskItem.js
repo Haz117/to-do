@@ -221,22 +221,22 @@ export default TaskItem;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    padding: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    marginBottom: 10,
+    marginHorizontal: 12,
+    borderRadius: 14,
+    padding: 12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
     borderWidth: 1,
   },
   row: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 8
+    marginBottom: 8,
+    gap: 6
   },
   avatar: {
     marginRight: 8,

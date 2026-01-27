@@ -620,26 +620,42 @@ export default function TaskDetailScreen({ route, navigation }) {
             </>
           )}
           
-          {/* Sección de Recurrencia */}
+          {/* Sección de Recurrencia - Mejorada */}
           <View style={[styles.formSection, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="repeat" size={20} color={theme.primary} />
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Repetir Tarea</Text>
-            </View>
-            
-            <View style={styles.toggleRow}>
-              <Text style={[styles.toggleLabel, { color: theme.textSecondary }]}>Tarea recurrente</Text>
-              <TouchableOpacity
-                onPress={() => setIsRecurring(!isRecurring)}
-                style={[styles.toggle, isRecurring && styles.toggleActive, { backgroundColor: isRecurring ? theme.primary : theme.border }]}
-                disabled={!canEdit}
-              >
-                <View style={[styles.toggleThumb, isRecurring && styles.toggleThumbActive]} />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity 
+              onPress={() => setIsRecurring(!isRecurring)}
+              disabled={!canEdit}
+              style={[styles.recurrenceHeader, { backgroundColor: isRecurring ? theme.primary + '10' : 'transparent' }]}
+            >
+              <View style={styles.sectionHeader}>
+                <Ionicons name="repeat" size={22} color={isRecurring ? theme.primary : theme.textSecondary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Tarea Recurrente</Text>
+                  <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+                    {isRecurring 
+                      ? recurrencePattern === 'daily' ? 'Se repite cada día' 
+                        : recurrencePattern === 'weekly' ? 'Se repite cada semana'
+                        : 'Se repite cada mes'
+                      : 'Activar para repetir automáticamente'}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={[
+                styles.toggleSwitch, 
+                { backgroundColor: isRecurring ? theme.primary : theme.border }
+              ]}>
+                <View style={[
+                  styles.toggleThumb, 
+                  isRecurring && styles.toggleThumbActive,
+                  { backgroundColor: '#FFFFFF' }
+                ]} />
+              </View>
+            </TouchableOpacity>
             
             {isRecurring && (
               <View style={styles.recurrenceOptions}>
+                <Text style={[styles.recurrenceLabel, { color: theme.textSecondary }]}>Frecuencia:</Text>
                 {['daily', 'weekly', 'monthly'].map((pattern) => (
                   <TouchableOpacity
                     key={pattern}
@@ -647,21 +663,38 @@ export default function TaskDetailScreen({ route, navigation }) {
                     style={[
                       styles.recurrenceOption,
                       { backgroundColor: theme.surface, borderColor: theme.border },
-                      recurrencePattern === pattern && { borderColor: theme.primary, backgroundColor: theme.primary + '15' }
+                      recurrencePattern === pattern && { 
+                        borderColor: theme.primary, 
+                        backgroundColor: theme.primary + '15',
+                        borderWidth: 2
+                      }
                     ]}
                     disabled={!canEdit}
                   >
                     <Ionicons 
                       name={pattern === 'daily' ? 'today' : pattern === 'weekly' ? 'calendar' : 'calendar-number'} 
-                      size={20} 
+                      size={24} 
                       color={recurrencePattern === pattern ? theme.primary : theme.textSecondary} 
                     />
-                    <Text style={[
-                      styles.recurrenceOptionText,
-                      { color: recurrencePattern === pattern ? theme.primary : theme.text }
-                    ]}>
-                      {pattern === 'daily' ? 'Diaria' : pattern === 'weekly' ? 'Semanal' : 'Mensual'}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        styles.recurrenceOptionText,
+                        { color: recurrencePattern === pattern ? theme.primary : theme.text }
+                      ]}>
+                        {pattern === 'daily' ? 'Diaria' : pattern === 'weekly' ? 'Semanal' : 'Mensual'}
+                      </Text>
+                      <Text style={[
+                        styles.recurrenceOptionDesc,
+                        { color: theme.textSecondary }
+                      ]}>
+                        {pattern === 'daily' ? 'Se repite cada día' 
+                          : pattern === 'weekly' ? 'Se repite cada 7 días'
+                          : 'Se repite cada mes'}
+                      </Text>
+                    </View>
+                    {recurrencePattern === pattern && (
+                      <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -807,16 +840,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6
   },
   closeButton: {
     width: 40,
@@ -839,17 +872,17 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     alignItems: 'center'
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5
   },
   scrollContent: {
-    padding: 24
+    padding: 16
   },
   label: { 
-    marginTop: 20, 
-    marginBottom: 8,
+    marginTop: 14, 
+    marginBottom: 6,
     color: isDark ? '#AAA' : '#1A1A1A', 
     fontWeight: '800', 
     fontSize: 12,
@@ -857,20 +890,20 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: 1
   },
   input: { 
-    padding: 16, 
+    padding: 12, 
     backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFFFF', 
-    borderRadius: 14,
+    borderRadius: 12,
     color: theme.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 2,
     borderColor: '#F5DEB3',
-    minHeight: 52
+    minHeight: 48
   },
   dateButton: {
     borderRadius: 16,
@@ -884,7 +917,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   dateButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    padding: 14,
     gap: 14
   },
   dateIconContainer: {
@@ -978,6 +1011,27 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  recurrenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  toggleSwitch: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    padding: 3,
+    justifyContent: 'center',
+  },
   toggle: {
     width: 50,
     height: 28,
@@ -1003,24 +1057,36 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     alignSelf: 'flex-end',
   },
   recurrenceOptions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  recurrenceLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   recurrenceOption: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
   },
   recurrenceOptionText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recurrenceOptionDesc: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
   },
   saveButton: {
     backgroundColor: '#9F2241',
@@ -1079,8 +1145,8 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   pomodoroModal: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20
+    paddingTop: 48,
+    paddingHorizontal: 16
   },
   pomodoroHeader: {
     flexDirection: 'row',

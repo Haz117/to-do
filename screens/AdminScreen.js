@@ -1,7 +1,7 @@
 // screens/AdminScreen.js
 // Pantalla de configuración y administración
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Animated, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Animated, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ensurePermissions, getAllScheduledNotifications, cancelAllNotifications } from '../services/notifications';
 import { generateTaskReport, generateMonthlyReport } from '../services/reports';
@@ -11,7 +11,9 @@ import * as Notifications from 'expo-notifications';
 import { getCurrentSession, logoutUser, isAdmin } from '../services/authFirestore';
 import { useTheme } from '../contexts/ThemeContext';
 import SpringCard from '../components/SpringCard';
+import OverdueAlert from '../components/OverdueAlert';
 import { hapticMedium, hapticLight } from '../utils/haptics';
+import { subscribeToTasks } from '../services/tasks';
 
 export default function AdminScreen({ navigation, onLogout }) {
   const { isDark, toggleTheme, theme } = useTheme();
@@ -26,12 +28,34 @@ export default function AdminScreen({ navigation, onLogout }) {
   const [showUserList, setShowUserList] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showUrgentModal, setShowUrgentModal] = useState(false);
+  const [urgentTasks, setUrgentTasks] = useState([]);
   
   useEffect(() => {
     loadNotificationCount();
     loadCurrentUser();
     loadAllUsers();
+    loadUrgentTasks();
   }, []);
+
+  const loadUrgentTasks = async () => {
+    const unsubscribe = await subscribeToTasks((tasks) => {
+      const now = Date.now();
+      const sixHours = 6 * 60 * 60 * 1000;
+      const urgent = tasks.filter(task => {
+        if (task.status === 'cerrada') return false;
+        const due = new Date(task.dueAt).getTime();
+        const timeLeft = due - now;
+        return timeLeft > 0 && timeLeft < sixHours;
+      });
+      
+      if (urgent.length > 0) {
+        setUrgentTasks(urgent);
+        setTimeout(() => setShowUrgentModal(true), 1500);
+      }
+    });
+    return unsubscribe;
+  };
 
   const loadCurrentUser = async () => {
     const result = await getCurrentSession();
@@ -291,6 +315,88 @@ export default function AdminScreen({ navigation, onLogout }) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Modal de Tareas Urgentes */}
+      <Modal
+        visible={showUrgentModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowUrgentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.urgentModalContent, { backgroundColor: theme.card }]}>
+            <View style={styles.urgentModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="warning" size={32} color="#FF3B30" style={{ marginRight: 12 }} />
+                <View>
+                  <Text style={[styles.urgentModalTitle, { color: theme.text }]}>⚠️ ¡Alerta Urgente!</Text>
+                  <Text style={[styles.urgentModalSubtitle, { color: theme.textSecondary }]}>
+                    Tareas críticas próximas a vencer
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowUrgentModal(false)}>
+                <Ionicons name="close-circle" size={32} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.urgentModalScroll}>
+              {urgentTasks.map((task) => {
+                const timeLeft = new Date(task.dueAt).getTime() - Date.now();
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                
+                return (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.urgentTaskCard, { 
+                      backgroundColor: theme.surface,
+                      borderColor: hoursLeft < 2 ? '#FF3B30' : '#FF9500'
+                    }]}
+                    onPress={() => {
+                      setShowUrgentModal(false);
+                      navigation.navigate('Home');
+                    }}
+                  >
+                    <View style={styles.urgentTaskHeader}>
+                      <Ionicons 
+                        name={hoursLeft < 2 ? "alert-circle" : "time"} 
+                        size={28} 
+                        color={hoursLeft < 2 ? '#FF3B30' : '#FF9500'} 
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.urgentTaskTitle, { color: theme.text }]} numberOfLines={2}>
+                          {task.title}
+                        </Text>
+                        <Text style={[styles.urgentTaskArea, { color: theme.textSecondary }]}>
+                          📍 {task.area} • 👤 {task.assignedTo}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.urgentTaskTimer, { 
+                      backgroundColor: hoursLeft < 2 ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 149, 0, 0.15)' 
+                    }]}>
+                      <Ionicons name="hourglass" size={18} color={hoursLeft < 2 ? '#FF3B30' : '#FF9500'} />
+                      <Text style={[styles.urgentTaskTime, { 
+                        color: hoursLeft < 2 ? '#FF3B30' : '#FF9500' 
+                      }]}>
+                        ⏰ {hoursLeft}h {minutesLeft}m restantes
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.urgentModalFooter}>
+              <TouchableOpacity 
+                style={[styles.urgentModalButton, { backgroundColor: '#FF3B30' }]}
+                onPress={() => setShowUrgentModal(false)}
+              >
+                <Text style={styles.urgentModalButtonText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={[styles.header, { backgroundColor: isDark ? '#1A1A1A' : '#9F2241' }]}>
         <View style={styles.headerTop}>
           <View style={{ flex: 1 }}>
@@ -357,7 +463,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </View>
 
         {/* Crear Usuario */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#8B4789' }]}>
               <Ionicons name="person-add" size={24} color="#FFFFFF" />
@@ -365,11 +471,11 @@ export default function AdminScreen({ navigation, onLogout }) {
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Crear Usuario</Text>
           </View>
           
-          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
-            <Ionicons name="person-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: isDark ? '#1A1A1D' : '#F9FAFB', borderColor: theme.border }]}>
+            <Ionicons name="person-outline" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} style={styles.inputIcon} />
             <TextInput
               placeholder="Nombre del usuario"
-              placeholderTextColor={theme.placeholder}
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={userName}
               onChangeText={setUserName}
               style={[styles.input, { color: theme.text }]}
@@ -377,11 +483,11 @@ export default function AdminScreen({ navigation, onLogout }) {
             />
           </View>
           
-          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
-            <Ionicons name="mail-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: (isDark ? '#1A1A1D' : '#F9FAFB'), borderColor: theme.border }]}>
+            <Ionicons name="mail-outline" size={20} color={(isDark ? '#9CA3AF' : '#6B7280')} style={styles.inputIcon} />
             <TextInput
               placeholder="Email"
-              placeholderTextColor={theme.placeholder}
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={userEmail}
               onChangeText={setUserEmail}
               style={[styles.input, { color: theme.text }]}
@@ -390,11 +496,11 @@ export default function AdminScreen({ navigation, onLogout }) {
             />
           </View>
 
-          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
-            <Ionicons name="lock-closed-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: (isDark ? '#1A1A1D' : '#F9FAFB'), borderColor: theme.border }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={(isDark ? '#9CA3AF' : '#6B7280')} style={styles.inputIcon} />
             <TextInput
               placeholder="Contraseña"
-              placeholderTextColor={theme.placeholder}
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
               value={userPassword}
               onChangeText={setUserPassword}
               style={[styles.input, { color: theme.text }]}
@@ -459,7 +565,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </SpringCard>
 
         {/* Lista de Usuarios */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#3B82F6' }]}>
               <Ionicons name="people" size={24} color="#FFFFFF" />
@@ -546,7 +652,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </SpringCard>
 
         {/* Recuperación de Contraseña */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#F59E0B' }]}>
               <Ionicons name="key" size={24} color="#FFFFFF" />
@@ -554,11 +660,11 @@ export default function AdminScreen({ navigation, onLogout }) {
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Resetear Contraseña</Text>
           </View>
 
-          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
-            <Ionicons name="mail-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: (isDark ? '#1A1A1D' : '#F9FAFB'), borderColor: theme.border }]}>
+            <Ionicons name="mail-outline" size={20} color={(isDark ? '#9CA3AF' : '#6B7280')} style={styles.inputIcon} />
             <TextInput
               placeholder="Email del usuario"
-              placeholderTextColor={theme.placeholder}
+              placeholderTextColor={(isDark ? '#6B7280' : '#9CA3AF')}
               value={resetEmail}
               onChangeText={setResetEmail}
               style={[styles.input, { color: theme.text }]}
@@ -567,11 +673,11 @@ export default function AdminScreen({ navigation, onLogout }) {
             />
           </View>
 
-          <View style={[styles.inputContainer, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
-            <Ionicons name="lock-closed-outline" size={20} color={theme.iconColor} style={styles.inputIcon} />
+          <View style={[styles.inputContainer, { backgroundColor: (isDark ? '#1A1A1D' : '#F9FAFB'), borderColor: theme.border }]}>
+            <Ionicons name="lock-closed-outline" size={20} color={(isDark ? '#9CA3AF' : '#6B7280')} style={styles.inputIcon} />
             <TextInput
               placeholder="Nueva contraseña"
-              placeholderTextColor={theme.placeholder}
+              placeholderTextColor={(isDark ? '#6B7280' : '#9CA3AF')}
               value={newPassword}
               onChangeText={setNewPassword}
               style={[styles.input, { color: theme.text }]}
@@ -599,7 +705,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </SpringCard>
 
         {/* Notificaciones */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#06B6D4' }]}>
               <Ionicons name="notifications" size={24} color="#FFFFFF" />
@@ -644,7 +750,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </SpringCard>
 
         {/* Reportes */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#8B5CF6' }]}>
               <Ionicons name="bar-chart" size={24} color="#FFFFFF" />
@@ -671,7 +777,7 @@ export default function AdminScreen({ navigation, onLogout }) {
         </SpringCard>
 
         {/* Información de la App */}
-        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.cardBackground }]}>
+        <SpringCard style={[styles.sectionCard, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <View style={[styles.iconCircle, { backgroundColor: '#6B7280' }]}>
               <Ionicons name="information-circle" size={24} color="#FFFFFF" />
@@ -729,16 +835,16 @@ const styles = StyleSheet.create({
     flex: 1
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 28,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 12
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10
   },
   headerTop: {
     flexDirection: 'row',
@@ -768,32 +874,32 @@ const styles = StyleSheet.create({
     fontWeight: '500'
   },
   content: {
-    padding: 16,
-    paddingBottom: 100
+    padding: 12,
+    paddingBottom: 80
   },
   statsContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
-    gap: 12
+    marginBottom: 14,
+    gap: 10
   },
   statCard: {
     flex: 1,
-    padding: 20,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 120,
+    minHeight: 100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3
   },
   statNumber: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#FFFFFF',
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 2
   },
   statLabel: {
@@ -805,20 +911,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   sectionCard: {
-    padding: 20,
-    borderRadius: 24,
-    marginBottom: 16,
+    padding: 14,
+    borderRadius: 20,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 12
+    marginBottom: 14,
+    gap: 10
   },
   iconCircle: {
     width: 48,
@@ -833,9 +939,9 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
     flex: 1
   },
   inputContainer: {
@@ -856,7 +962,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 12,
     fontSize: 15,
     fontWeight: '500'
   },
@@ -893,8 +999,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderRadius: 16
+    padding: 12,
+    borderRadius: 14
   },
   buttonText: {
     color: '#FFFFFF',
@@ -919,14 +1025,14 @@ const styles = StyleSheet.create({
   },
   userCard: {
     flexDirection: 'row',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 2,
     alignItems: 'center'
   },
@@ -1055,5 +1161,103 @@ const styles = StyleSheet.create({
   },
   themeToggleCircleActive: {
     alignSelf: 'flex-end'
+  },
+  // Estilos del Modal de Tareas Urgentes
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  urgentModalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 20,
+    padding: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10
+  },
+  urgentModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 59, 48, 0.2)'
+  },
+  urgentModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.5
+  },
+  urgentModalSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+    fontWeight: '500'
+  },
+  urgentModalScroll: {
+    maxHeight: 400,
+    padding: 16
+  },
+  urgentTaskCard: {
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  urgentTaskHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12
+  },
+  urgentTaskTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20
+  },
+  urgentTaskArea: {
+    fontSize: 13,
+    marginTop: 4,
+    fontWeight: '500'
+  },
+  urgentTaskTimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 4
+  },
+  urgentTaskTime: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginLeft: 8
+  },
+  urgentModalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 59, 48, 0.2)'
+  },
+  urgentModalButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  urgentModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5
   }
 });
+
+
+
+

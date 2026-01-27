@@ -14,6 +14,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
 import Heatmap from '../components/Heatmap';
+import OverdueAlert from '../components/OverdueAlert';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -40,6 +41,15 @@ export default function ReportScreen({ navigation }) {
   const [estimatedVsReal, setEstimatedVsReal] = useState(null);
   const [pomodoroStats, setPomodoroStats] = useState(null);
   const [loadingAdvanced, setLoadingAdvanced] = useState(true);
+  const [personalStats, setPersonalStats] = useState({
+    completedToday: 0,
+    completedWeek: 0,
+    completedMonth: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    completionRate: 0,
+    onTimeRate: 0
+  });
 
   // Suscribirse a cambios en tiempo real de Firebase
   useEffect(() => {
@@ -140,6 +150,112 @@ export default function ReportScreen({ navigation }) {
   const criticalTasks = getCriticalTasks();
   const overdueTasks = getOverdueTasks();
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  // Calcular estadísticas personales
+  const calculatePersonalStats = () => {
+    if (!currentUser || tasks.length === 0) return;
+
+    const now = Date.now();
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
+
+    // Filtrar tareas del usuario actual
+    const userTasks = tasks.filter(t => 
+      t.assignedTo === currentUser.email || 
+      currentUser.role === 'admin'
+    );
+
+    // Tareas completadas en períodos
+    const completedToday = userTasks.filter(t => 
+      t.status === 'cerrada' && t.completedAt >= todayStart
+    ).length;
+    
+    const completedWeek = userTasks.filter(t => 
+      t.status === 'cerrada' && t.completedAt >= weekAgo
+    ).length;
+    
+    const completedMonth = userTasks.filter(t => 
+      t.status === 'cerrada' && t.completedAt >= monthAgo
+    ).length;
+
+    // Calcular racha de días productivos
+    const tasksByDay = {};
+    userTasks
+      .filter(t => t.status === 'cerrada' && t.completedAt)
+      .forEach(task => {
+        const date = new Date(task.completedAt);
+        const dayKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+        if (!tasksByDay[dayKey]) tasksByDay[dayKey] = [];
+        tasksByDay[dayKey].push(task);
+      });
+    
+    const days = Object.keys(tasksByDay).sort().reverse();
+    let currentStreak = 0;
+    const today = new Date();
+    
+    // Racha actual
+    for (let i = 0; i < days.length; i++) {
+      const expectedDate = new Date(today);
+      expectedDate.setDate(expectedDate.getDate() - i);
+      const expectedKey = `${expectedDate.getFullYear()}-${expectedDate.getMonth() + 1}-${expectedDate.getDate()}`;
+      
+      if (days[i] === expectedKey) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+    
+    // Racha más larga
+    let longestStreak = 0;
+    let tempStreak = 1;
+    for (let i = 1; i < days.length; i++) {
+      const prevDay = new Date(days[i - 1]);
+      const currentDay = new Date(days[i]);
+      const diffDays = Math.floor((prevDay - currentDay) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
+
+    // Tasa de cumplimiento
+    const completed = userTasks.filter(t => t.status === 'cerrada').length;
+    const completionRate = userTasks.length > 0 
+      ? (completed / userTasks.length * 100).toFixed(1) 
+      : 0;
+
+    // Tasa de cumplimiento a tiempo
+    const completedOnTime = userTasks.filter(t => 
+      t.status === 'cerrada' && 
+      t.completedAt && 
+      t.dueAt && 
+      t.completedAt <= t.dueAt
+    ).length;
+    const onTimeRate = completed > 0 
+      ? (completedOnTime / completed * 100).toFixed(1) 
+      : 0;
+
+    setPersonalStats({
+      completedToday,
+      completedWeek,
+      completedMonth,
+      currentStreak,
+      longestStreak,
+      completionRate: parseFloat(completionRate),
+      onTimeRate: parseFloat(onTimeRate)
+    });
+  };
+
+  // Actualizar estadísticas cuando cambien las tareas
+  React.useEffect(() => {
+    calculatePersonalStats();
+  }, [tasks, currentUser]);
 
   // Data para gráfica de pie (estados)
   const statusChartData = STATUSES.map(status => ({
@@ -249,13 +365,142 @@ export default function ReportScreen({ navigation }) {
 
       {/* Alerta de tareas vencidas */}
       <OverdueAlert 
-        tasks={data} 
+        tasks={tasks} 
         currentUserEmail={currentUser?.email}
         role={currentUser?.role}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</Text>
+
+        {/* ESTADÍSTICAS PERSONALES */}
+        <View style={styles.personalStatsSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="person-circle" size={28} color="#9F2241" />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={[styles.personalStatsTitle, { color: theme.text }]}>
+                Mi Desempeño Personal
+              </Text>
+              <Text style={[styles.personalStatsSubtitle, { color: theme.textSecondary }]}>
+                Estadísticas y progreso
+              </Text>
+            </View>
+          </View>
+
+          {/* Tarjetas de Estadísticas */}
+          <View style={styles.statsCardsGrid}>
+            {/* Racha de días productivos */}
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255, 149, 0, 0.15)' }]}>
+                <Text style={styles.statEmoji}>🔥</Text>
+              </View>
+              <Text style={[styles.statValue, { color: '#FF9500' }]}>
+                {personalStats.currentStreak}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.text }]}>Racha Actual</Text>
+              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
+                {personalStats.longestStreak > 0 && `Mejor: ${personalStats.longestStreak} días`}
+              </Text>
+            </View>
+
+            {/* Completadas Hoy */}
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(52, 199, 89, 0.15)' }]}>
+                <Ionicons name="checkmark-circle" size={28} color="#34C759" />
+              </View>
+              <Text style={[styles.statValue, { color: '#34C759' }]}>
+                {personalStats.completedToday}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.text }]}>Hoy</Text>
+              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
+                Completadas
+              </Text>
+            </View>
+
+            {/* Completadas Esta Semana */}
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(0, 122, 255, 0.15)' }]}>
+                <Ionicons name="calendar" size={28} color="#007AFF" />
+              </View>
+              <Text style={[styles.statValue, { color: '#007AFF' }]}>
+                {personalStats.completedWeek}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.text }]}>Esta Semana</Text>
+              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
+                Últimos 7 días
+              </Text>
+            </View>
+
+            {/* Completadas Este Mes */}
+            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
+              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(88, 86, 214, 0.15)' }]}>
+                <Ionicons name="bar-chart" size={28} color="#5856D6" />
+              </View>
+              <Text style={[styles.statValue, { color: '#5856D6' }]}>
+                {personalStats.completedMonth}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.text }]}>Este Mes</Text>
+              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
+                Últimos 30 días
+              </Text>
+            </View>
+
+            {/* Tasa de Completitud */}
+            <View style={[styles.statCard, styles.statCardWide, { backgroundColor: theme.card }]}>
+              <View style={styles.statCardWideContent}>
+                <View style={[styles.statIconCircle, { backgroundColor: 'rgba(175, 82, 222, 0.15)' }]}>
+                  <Ionicons name="pie-chart" size={28} color="#AF52DE" />
+                </View>
+                <View style={styles.statWideInfo}>
+                  <Text style={[styles.statValue, { color: '#AF52DE' }]}>
+                    {personalStats.completionRate}%
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.text }]}>Tasa de Completitud</Text>
+                  <View style={styles.progressBarContainer}>
+                    <View 
+                      style={[styles.progressBarFill, { 
+                        width: `${personalStats.completionRate}%`,
+                        backgroundColor: '#AF52DE'
+                      }]} 
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Cumplimiento a Tiempo */}
+            <View style={[styles.statCard, styles.statCardWide, { backgroundColor: theme.card }]}>
+              <View style={styles.statCardWideContent}>
+                <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255, 45, 85, 0.15)' }]}>
+                  <Ionicons name="timer" size={28} color="#FF2D55" />
+                </View>
+                <View style={styles.statWideInfo}>
+                  <Text style={[styles.statValue, { color: '#FF2D55' }]}>
+                    {personalStats.onTimeRate}%
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.text }]}>Cumplimiento a Tiempo</Text>
+                  <View style={styles.progressBarContainer}>
+                    <View 
+                      style={[styles.progressBarFill, { 
+                        width: `${personalStats.onTimeRate}%`,
+                        backgroundColor: '#FF2D55'
+                      }]} 
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Motivacional */}
+          {personalStats.currentStreak >= 3 && (
+            <View style={[styles.motivationalBanner, { backgroundColor: 'rgba(255, 149, 0, 0.1)' }]}>
+              <Text style={styles.motivationalText}>
+                🎉 ¡Increíble! Llevas {personalStats.currentStreak} días seguidos siendo productivo
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* BENTO GRID - Dashboard de Métricas */}
         <View style={styles.bentoGrid}>
@@ -392,6 +637,50 @@ export default function ReportScreen({ navigation }) {
               <Text style={styles.sectionTitle}>Tareas Vencidas</Text>
             </View>
             {overdueTasks.map(renderTaskItem)}
+          </View>
+        )}
+
+        {/* Gráfico de Tendencia Semanal */}
+        {personalStats.completedWeek > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleContainer}>
+              <Ionicons name="analytics" size={24} color="#5856D6" style={{ marginRight: 8 }} />
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Tendencia de Completitud</Text>
+            </View>
+            <View style={styles.chartContainer}>
+              <BarChart
+                data={{
+                  labels: ['Hoy', 'Semana', 'Mes'],
+                  datasets: [{
+                    data: [
+                      personalStats.completedToday || 1,
+                      personalStats.completedWeek || 1,
+                      personalStats.completedMonth || 1
+                    ]
+                  }]
+                }}
+                width={screenWidth - 48}
+                height={220}
+                chartConfig={{
+                  backgroundColor: theme.card,
+                  backgroundGradientFrom: theme.card,
+                  backgroundGradientTo: theme.card,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(88, 86, 214, ${opacity})`,
+                  labelColor: (opacity = 1) => theme.text,
+                  style: {
+                    borderRadius: 16
+                  },
+                  propsForLabels: {
+                    fontSize: 12,
+                    fontWeight: '600'
+                  }
+                }}
+                style={styles.chart}
+                showValuesOnTopOfBars={true}
+                fromZero={true}
+              />
+            </View>
           </View>
         )}
 
@@ -702,9 +991,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     elevation: 12
   },
   header: { 
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 28
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 20
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -719,13 +1008,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: 0.3
   },
   heading: { 
-    fontSize: 42, 
+    fontSize: 32, 
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1.5
+    letterSpacing: -1.2
   },
   scrollContent: {
-    padding: 20
+    padding: 12
   },
   subtitle: { 
     fontSize: 16, 
@@ -734,46 +1023,148 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     marginBottom: 24,
     letterSpacing: 0.2
   },
-  section: { marginBottom: 28 },
+  // Estilos de Estadísticas Personales
+  personalStatsSection: {
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(159, 34, 65, 0.05)'
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  personalStatsTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5
+  },
+  personalStatsSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 2
+  },
+  statsCardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12
+  },
+  statCard: {
+    width: (screenWidth - 72) / 2,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3
+  },
+  statCardWide: {
+    width: screenWidth - 56,
+    alignItems: 'stretch'
+  },
+  statCardWideContent: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  statWideInfo: {
+    flex: 1,
+    marginLeft: 16
+  },
+  statIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12
+  },
+  statEmoji: {
+    fontSize: 32
+  },
+  statValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1.5,
+    marginBottom: 4
+  },
+  statLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    marginBottom: 2
+  },
+  statSubLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.7
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 4,
+    marginTop: 8,
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4
+  },
+  motivationalBanner: {
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8
+  },
+  motivationalText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FF9500',
+    textAlign: 'center',
+    letterSpacing: 0.2
+  },
+  section: { marginBottom: 20 },
   sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 12
   },
   sectionTitle: { 
-    fontSize: 22, 
+    fontSize: 18, 
     fontWeight: '800', 
     color: '#1A1A1A',
-    letterSpacing: -0.5
+    letterSpacing: -0.4
   },
   summaryRow: { flexDirection: 'row', gap: 14 },
   summaryCard: { 
     flex: 1, 
-    padding: 20, 
-    borderRadius: 16, 
+    padding: 14, 
+    borderRadius: 14, 
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3
   },
-  summaryNumber: { fontSize: 32, fontWeight: '800', color: '#fff', letterSpacing: -1, marginBottom: 4 },
+  summaryNumber: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.8, marginBottom: 4 },
   summaryLabel: { fontSize: 13, color: '#fff', fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
   areaCard: { 
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
-    padding: 20, 
-    borderRadius: 16, 
-    marginBottom: 16, 
+    padding: 14, 
+    borderRadius: 14, 
+    marginBottom: 12, 
     shadowColor: isDark ? '#000' : '#DAA520',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
-  areaTitle: { fontSize: 22, fontWeight: '700', marginBottom: 16, color: theme.text, letterSpacing: -0.3 },
+  areaTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: theme.text, letterSpacing: -0.3 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 12 },
   statItem: { alignItems: 'center', marginRight: 8, marginBottom: 8 },
   statBadge: { 
@@ -789,20 +1180,20 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3
   },
-  statNumber: { fontSize: 20, fontWeight: '900', color: theme.text, letterSpacing: -0.5, marginBottom: 4 },
+  statNumber: { fontSize: 18, fontWeight: '900', color: theme.text, letterSpacing: -0.4, marginBottom: 4 },
   statLabel: { fontSize: 12, color: theme.text, textAlign: 'center', fontWeight: '700', letterSpacing: 0.5 },
   totalText: { fontSize: 16, fontWeight: '700', color: theme.textSecondary, marginTop: 12, letterSpacing: 0.2 },
   taskCard: { 
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
-    padding: 16, 
-    borderRadius: 14, 
-    marginBottom: 12, 
-    borderLeftWidth: 4, 
+    padding: 12, 
+    borderRadius: 12, 
+    marginBottom: 10, 
+    borderLeftWidth: 3, 
     borderLeftColor: '#9F2241',
     shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 2,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
@@ -834,16 +1225,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   taskDue: { fontSize: 14, color: '#8E8E93', fontWeight: '500', letterSpacing: 0.2 },
   // Bento Grid Styles
   bentoGrid: {
-    gap: 16,
-    marginBottom: 32
+    gap: 12,
+    marginBottom: 20
   },
   bentoRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16
+    gap: 12,
+    marginBottom: 12
   },
   bentoColumn: {
-    gap: 16,
+    gap: 12,
     flex: 1
   },
   bentoCard: {

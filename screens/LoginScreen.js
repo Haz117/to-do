@@ -204,8 +204,8 @@ const styles = StyleSheet.create({
   scroll: { 
     flexGrow: 1, 
     justifyContent: 'center', 
-    padding: 24, 
-    paddingTop: 60,
+    padding: 20, 
+    paddingTop: 48,
     minHeight: '100%'
   },
   content: { width: '100%', maxWidth: 400, alignSelf: 'center' },

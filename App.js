@@ -143,7 +143,7 @@ function MainTabs({ onLogout }) {
             else if (route.name === 'Dashboard') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
             else if (route.name === 'Reports') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
             else if (route.name === 'Admin') iconName = focused ? 'settings' : 'settings-outline';
-            else if (route.name === 'Inbox') iconName = focused ? 'mail' : 'mail-outline';
+            else if (route.name === 'Inbox') iconName = focused ? 'file-tray-full' : 'file-tray-outline';
             return <Ionicons name={iconName} size={size} color={color} />;
           },
           tabBarActiveTintColor: theme.primary,
@@ -152,13 +152,23 @@ function MainTabs({ onLogout }) {
             backgroundColor: theme.card,
             borderTopColor: theme.border,
             borderTopWidth: 1,
-            height: 60,
-            paddingBottom: 8,
-            paddingTop: 8,
+            height: 65,
+            paddingBottom: 10,
+            paddingTop: 10,
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
+            fontSize: 11,
+            fontWeight: '700',
+            marginTop: 4,
+            letterSpacing: 0.3,
+          },
+          tabBarIconStyle: {
+            marginTop: 2,
           },
           // Animaciones entre tabs
           tabBarHideOnKeyboard: true,
@@ -192,7 +202,18 @@ function MainTabs({ onLogout }) {
         options={{ 
           title: 'Bandeja',
           tabBarBadge: overdueCount > 0 ? overdueCount : undefined,
-          tabBarBadgeStyle: { backgroundColor: '#DC2626', color: '#FFFFFF' }
+          tabBarBadgeStyle: { 
+            backgroundColor: '#DC2626',
+            color: '#FFFFFF',
+            fontSize: 11,
+            fontWeight: '700',
+            minWidth: 20,
+            height: 20,
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: theme.card,
+            top: -2
+          }
         }} 
         component={MyInboxScreen} 
       />

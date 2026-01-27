@@ -2,6 +2,7 @@
 // Barra de filtros y búsqueda reutilizable. Permite filtrar por área, responsable, prioridad, vencidas y buscar por título.
 import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 const FilterBar = memo(function FilterBar({ onFilterChange }) {
@@ -11,6 +12,7 @@ const FilterBar = memo(function FilterBar({ onFilterChange }) {
   const [selectedResponsible, setSelectedResponsible] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [showOverdue, setShowOverdue] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const debounceTimer = useRef(null);
 
   const areas = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
@@ -74,215 +76,238 @@ const FilterBar = memo(function FilterBar({ onFilterChange }) {
     setSelectedResponsible('');
     setSelectedPriority('');
     setShowOverdue(false);
+    setIsExpanded(false);
     onFilterChange && onFilterChange({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
   };
 
+  const hasActiveFilters = selectedArea || selectedPriority || showOverdue;
+
   return (
     <View style={[styles.container, { backgroundColor: isDark ? theme.surface : '#FAFAFA' }]}>
-      {/* Búsqueda */}
-      <TextInput
-        placeholder="Buscar por título..."
-        placeholderTextColor={isDark ? '#999' : '#666'}
-        value={searchText}
-        onChangeText={handleSearchChange}
-        style={[
-          styles.searchInput,
-          {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0',
-            color: theme.text,
-            borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3'
-          }
-        ]}
-      />
-
-      {/* Filtros por área */}
-      <View style={styles.section}>
-        <Text style={[styles.label, { color: isDark ? '#AAA' : '#6E6E73' }]}>ÁREA:</Text>
-        <View style={styles.chipRow}>
-          {areas.map(area => (
-            <TouchableOpacity
-              key={area}
-              onPress={() => toggleArea(area)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selectedArea === area
-                    ? '#9F2241'
-                    : isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : '#FFFAF0',
-                  borderColor: selectedArea === area
-                    ? '#9F2241'
-                    : isDark
-                    ? 'rgba(255,255,255,0.2)'
-                    : '#F5DEB3'
-                },
-                selectedArea === area && styles.chipActive
-              ]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  {
-                    color: selectedArea === area ? '#FFF' : theme.text
-                  },
-                  selectedArea === area && styles.chipTextActive
-                ]}
-              >
-                {area}
-              </Text>
+      {/* Barra compacta con búsqueda y botón de filtros */}
+      <View style={styles.compactBar}>
+        <View style={[styles.searchContainer, { 
+          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+          borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E5E5EA'
+        }]}>
+          <Ionicons name="search" size={18} color={isDark ? '#999' : '#666'} />
+          <TextInput
+            placeholder="Buscar tareas..."
+            placeholderTextColor={isDark ? '#999' : '#666'}
+            value={searchText}
+            onChangeText={handleSearchChange}
+            style={[styles.searchInput, { color: theme.text }]}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearchChange('')}>
+              <Ionicons name="close-circle" size={18} color={isDark ? '#999' : '#666'} />
             </TouchableOpacity>
-          ))}
+          )}
         </View>
+        
+        <TouchableOpacity 
+          onPress={() => setIsExpanded(!isExpanded)}
+          style={[styles.filterButton, { 
+            backgroundColor: hasActiveFilters ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+            borderColor: hasActiveFilters ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : '#E5E5EA')
+          }]}
+        >
+          <Ionicons 
+            name="filter" 
+            size={18} 
+            color={hasActiveFilters ? '#FFFFFF' : (isDark ? '#999' : '#666')} 
+          />
+          {hasActiveFilters && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>
+                {[selectedArea, selectedPriority, showOverdue].filter(Boolean).length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Filtros por prioridad y vencidas */}
-      <View style={styles.section}>
-        <Text style={[styles.label, { color: isDark ? '#AAA' : '#6E6E73' }]}>PRIORIDAD:</Text>
-        <View style={styles.chipRow}>
-          {priorities.map(priority => (
-            <TouchableOpacity
-              key={priority}
-              onPress={() => togglePriority(priority)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selectedPriority === priority
-                    ? '#9F2241'
-                    : isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : '#FFFAF0',
-                  borderColor: selectedPriority === priority
-                    ? '#9F2241'
-                    : isDark
-                    ? 'rgba(255,255,255,0.2)'
-                    : '#F5DEB3'
-                },
-                selectedPriority === priority && styles.chipActive
-              ]}
-            >
-              <Text
+      {/* Panel de filtros expandible */}
+      {isExpanded && (
+        <View style={styles.expandedFilters}>
+          {/* Áreas */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>ÁREA</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chipRow}>
+                {areas.map(area => (
+                  <TouchableOpacity
+                    key={area}
+                    onPress={() => toggleArea(area)}
+                    style={[
+                      styles.compactChip,
+                      {
+                        backgroundColor: selectedArea === area ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                        borderColor: selectedArea === area ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : '#E5E5EA')
+                      }
+                    ]}
+                  >
+                    <Text style={[
+                      styles.compactChipText,
+                      { color: selectedArea === area ? '#FFFFFF' : theme.text }
+                    ]}>
+                      {area}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Prioridades */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>PRIORIDAD</Text>
+            <View style={styles.chipRow}>
+              {priorities.map(priority => (
+                <TouchableOpacity
+                  key={priority}
+                  onPress={() => togglePriority(priority)}
+                  style={[
+                    styles.compactChip,
+                    {
+                      backgroundColor: selectedPriority === priority ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                      borderColor: selectedPriority === priority ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : '#E5E5EA')
+                    }
+                  ]}
+                >
+                  <Text style={[
+                    styles.compactChipText,
+                    { color: selectedPriority === priority ? '#FFFFFF' : theme.text }
+                  ]}>
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              
+              {/* Vencidas */}
+              <TouchableOpacity
+                onPress={toggleOverdue}
                 style={[
-                  styles.chipText,
+                  styles.compactChip,
                   {
-                    color: selectedPriority === priority ? '#FFF' : theme.text
-                  },
-                  selectedPriority === priority && styles.chipTextActive
+                    backgroundColor: showOverdue ? '#DC2626' : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                    borderColor: showOverdue ? '#DC2626' : (isDark ? 'rgba(255,255,255,0.15)' : '#E5E5EA')
+                  }
                 ]}
               >
-                {priority.charAt(0).toUpperCase() + priority.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity
-            onPress={toggleOverdue}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: showOverdue
-                  ? '#9F2241'
-                  : isDark
-                  ? 'rgba(255,255,255,0.1)'
-                  : '#FFFAF0',
-                borderColor: showOverdue
-                  ? '#9F2241'
-                  : isDark
-                  ? 'rgba(255,255,255,0.2)'
-                  : '#F5DEB3'
-              },
-              showOverdue && styles.chipOverdue
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                {
-                  color: showOverdue ? '#FFF' : theme.text
-                },
-                showOverdue && styles.chipTextActive
-              ]}
-            >
-              Vencidas
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+                <Text style={[
+                  styles.compactChipText,
+                  { color: showOverdue ? '#FFFFFF' : theme.text }
+                ]}>
+                  Vencidas
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-      {/* Botón limpiar */}
-      <TouchableOpacity onPress={clearAll} style={styles.clearBtn}>
-        <Text style={styles.clearText}>Limpiar filtros</Text>
-      </TouchableOpacity>
+          {/* Botón limpiar */}
+          {hasActiveFilters && (
+            <TouchableOpacity onPress={clearAll} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={16} color={theme.primary} />
+              <Text style={[styles.clearButtonText, { color: theme.primary }]}>Limpiar filtros</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 });
 
-export default FilterBar;
-
 const styles = StyleSheet.create({
-  container: { 
-    padding: 20,
-    paddingBottom: 16
+  container: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
-  searchInput: { 
-    padding: 14, 
-    borderRadius: 12, 
-    marginBottom: 16,
-    fontSize: 16,
-    shadowColor: '#DAA520',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1.5,
+  compactBar: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
-  section: { marginBottom: 16 },
-  label: { 
-    fontSize: 12, 
-    marginBottom: 10, 
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    padding: 0,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  expandedFilters: {
+    marginTop: 12,
+    gap: 12,
+  },
+  filterSection: {
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1
+    letterSpacing: 0.5,
   },
-  chipRow: { 
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginRight: 8
   },
-  chip: { 
-    paddingHorizontal: 12, 
-    paddingVertical: 7, 
-    borderRadius: 18, 
-    borderWidth: 1.5,
-    marginBottom: 8,
-    marginRight: 4
+  compactChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
-  chipActive: { 
-    shadowColor: '#DAA520',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  chipOverdue: {},
-  chipText: { 
-    fontSize: 13, 
+  compactChipText: {
+    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 0.1
   },
-  chipTextActive: { 
-    fontWeight: '700'
-  },
-  clearBtn: { 
-    marginTop: 8, 
-    alignSelf: 'flex-start',
+  clearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 8,
-    paddingHorizontal: 4
+    justifyContent: 'center',
   },
-  clearText: { 
-    color: '#9F2241', 
-    fontSize: 15, 
+  clearButtonText: {
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.1
-  }
+  },
 });
+
+export default FilterBar;

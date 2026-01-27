@@ -402,9 +402,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 28
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 20
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -419,10 +419,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: 0.3
   },
   heading: { 
-    fontSize: 42, 
+    fontSize: 32, 
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1.5
+    letterSpacing: -1.2
   },
   todayButton: {
     backgroundColor: 'rgba(255,255,255,0.3)',
@@ -440,21 +440,21 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     textTransform: 'uppercase',
   },
   scrollContent: {
-    padding: 20
+    padding: 12
   },
   monthControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2
   },
   monthButton: {
     width: 44,
@@ -471,7 +471,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     alignItems: 'center'
   },
   monthText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#1A1A1A',
     letterSpacing: -0.4
@@ -577,10 +577,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     marginLeft: 2
   },
   legend: {
-    marginTop: 24,
+    marginTop: 16,
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#9F2241'
   },
@@ -613,28 +613,28 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   modalContent: {
     backgroundColor: theme.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 16,
     maxHeight: '80%',
-    paddingBottom: 40,
+    paddingBottom: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 20
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 16
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 24,
-    paddingBottom: 16,
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 2,
     borderBottomColor: '#F0F0F0'
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
     color: theme.text,
     letterSpacing: -0.5,
@@ -651,13 +651,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   modalTaskCard: {
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3',
     shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2

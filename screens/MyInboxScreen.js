@@ -2,8 +2,10 @@
 // "Mi bandeja" - lista de tareas asignadas al usuario actual, ordenadas por fecha de vencimiento.
 // Acciones rápidas: marcar cerrada y posponer 1 día. Abre detalle y chat.
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl, SectionList, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import TaskItem from '../components/TaskItem';
 import EmptyState from '../components/EmptyState';
 import ShimmerEffect from '../components/ShimmerEffect';
@@ -24,6 +26,8 @@ export default function MyInboxScreen({ navigation }) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [recentMessages, setRecentMessages] = useState([]);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -60,6 +64,105 @@ export default function MyInboxScreen({ navigation }) {
       }
     };
   }, []);
+
+  // Cargar mensajes recientes de tareas donde el usuario está involucrado
+  useEffect(() => {
+    if (!currentUser?.email || !db) return;
+
+    const loadRecentMessages = async () => {
+      try {
+        const messages = [];
+        
+        // Obtener tareas donde el usuario está involucrado
+        let userTasks = tasks.filter(task => 
+          task && 
+          task.id && 
+          (task.assignedTo === currentUser.email || 
+          task.createdBy === currentUser.email)
+        );
+
+        // Si es admin, agregar tareas donde haya actividad reciente (máximo 20)
+        if (currentUser.role === 'admin' && userTasks.length < 10) {
+          const otherTasks = tasks
+            .filter(task => 
+              task && 
+              task.id && 
+              task.assignedTo !== currentUser.email && 
+              task.createdBy !== currentUser.email
+            )
+            .slice(0, 10 - userTasks.length);
+          userTasks = [...userTasks, ...otherTasks];
+        }
+
+        // Si es jefe, agregar tareas de su departamento
+        if (currentUser.role === 'jefe' && userTasks.length < 10) {
+          const deptTasks = tasks
+            .filter(task => 
+              task && 
+              task.id && 
+              task.area === currentUser.department &&
+              task.assignedTo !== currentUser.email && 
+              task.createdBy !== currentUser.email
+            )
+            .slice(0, 10 - userTasks.length);
+          userTasks = [...userTasks, ...deptTasks];
+        }
+
+        // Por cada tarea, obtener los últimos 3 mensajes
+        for (const task of userTasks.slice(0, 10)) { // Limitar a 10 tareas para no sobrecargar
+          try {
+            if (!task.id) continue;
+            
+            const messagesRef = collection(db, 'tasks', task.id, 'messages');
+            const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(3));
+            const snapshot = await getDocs(q);
+            
+            snapshot.forEach(doc => {
+              const msgData = doc.data();
+              // Solo incluir mensajes de otros usuarios con datos válidos
+              if (msgData && 
+                  typeof msgData.text === 'string' && 
+                  msgData.text.trim() !== '' &&
+                  msgData.author && 
+                  msgData.author !== currentUser.displayName && 
+                  msgData.author !== currentUser.email) {
+                messages.push({
+                  id: `${doc.id}-${Date.now()}`,
+                  taskId: task.id,
+                  taskTitle: task.title || 'Sin título',
+                  author: msgData.author || 'Anónimo',
+                  text: msgData.text || '',
+                  createdAt: msgData.createdAt || null
+                });
+              }
+            });
+          } catch (err) {
+            // Silenciar errores de tareas individuales
+          }
+        }
+
+        // Ordenar por fecha y tomar los 5 más recientes
+        messages.sort((a, b) => {
+          try {
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+            return timeB - timeA;
+          } catch {
+            return 0;
+          }
+        });
+
+        setRecentMessages(messages.slice(0, 5));
+      } catch (error) {
+        // Silenciar error pero no cargar mensajes
+        setRecentMessages([]);
+      }
+    };
+
+    if (tasks.length > 0) {
+      loadRecentMessages();
+    }
+  }, [currentUser, tasks]);
 
   // Filtrar tareas asignadas al usuario actual y ordenar por fecha
   const filtered = tasks
@@ -185,17 +288,21 @@ export default function MyInboxScreen({ navigation }) {
         onToggleComplete={() => toggleComplete(item)}
       />
       <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => markClosed(item)}>
+        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => markClosed(item)}>
           <Ionicons name="checkmark-circle-outline" size={18} color="#9F2241" style={{ marginRight: 6 }} />
           <Text style={styles.actionText}>Cerrar</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => postponeOneDay(item)}>
+        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => postponeOneDay(item)}>
           <Ionicons name="time-outline" size={18} color="#DAA520" style={{ marginRight: 6 }} />
           <Text style={styles.actionText}>Posponer</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={() => openChat(item)}>
+        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => openChat(item)}>
           <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={[styles.actionText, {color: '#fff'}]}>Chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => deleteTask(item.id)}>
+          <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={[styles.actionText, {color: '#fff'}]}>Borrar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -216,16 +323,37 @@ export default function MyInboxScreen({ navigation }) {
         <View style={styles.header}>
           <View>
             <View style={styles.greetingContainer}>
-              <Ionicons name="mail" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+              <Ionicons name="file-tray-full" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
               <Text style={styles.greeting}>Tus tareas pendientes</Text>
             </View>
             <Text style={styles.heading}>Mi Bandeja</Text>
           </View>
-          <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
-            <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
-              <Ionicons name="add" size={32} color="#9F2241" />
-            </View>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            {/* Botón de mensajes con badge */}
+            {recentMessages.length > 0 && (
+              <TouchableOpacity 
+                style={[styles.messagesButton, { marginRight: 12 }]} 
+                onPress={() => {
+                  hapticMedium();
+                  setShowMessagesModal(true);
+                }}
+              >
+                <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
+                  <Ionicons name="chatbubbles" size={24} color="#DAA520" />
+                  {recentMessages.length > 0 && (
+                    <View style={styles.messageBadge}>
+                      <Text style={styles.messageBadgeText}>{recentMessages.length}</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
+              <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
+                <Ionicons name="add" size={32} color="#9F2241" />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -241,6 +369,80 @@ export default function MyInboxScreen({ navigation }) {
           {currentUser?.email || 'Iniciando sesión...'}
         </Text>
       </View>
+
+      {/* Modal de mensajes */}
+      <Modal
+        visible={showMessagesModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMessagesModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="chatbubbles" size={24} color="#DAA520" style={{ marginRight: 8 }} />
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Mensajes Recientes</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowMessagesModal(false)}>
+                <Ionicons name="close-circle" size={28} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {recentMessages.map((msg, idx) => (
+                <TouchableOpacity
+                  key={`msg-${msg.taskId}-${msg.id}-${idx}`}
+                  style={[styles.messageCard, { 
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
+                  }]}
+                  onPress={() => {
+                    setShowMessagesModal(false);
+                    navigation.navigate('TaskChat', { taskId: msg.taskId, taskTitle: msg.taskTitle });
+                  }}
+                >
+                  <View style={styles.messageHeader}>
+                    <Ionicons name="document-text-outline" size={14} color={isDark ? '#AAA' : '#666'} style={{ marginRight: 6 }} />
+                    <Text style={[styles.messageTaskTitle, { color: theme.text }]} numberOfLines={1}>
+                      {msg.taskTitle || 'Sin título'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.messageAuthor, { color: theme.primary }]}>
+                    {msg.author || 'Anónimo'}
+                  </Text>
+                  <Text style={[styles.messageText, { color: isDark ? '#AAA' : '#666' }]} numberOfLines={2}>
+                    {msg.text || ''}
+                  </Text>
+                  <Text style={[styles.messageTime, { color: isDark ? '#888' : '#999' }]}>
+                    {(() => {
+                      try {
+                        if (msg.createdAt?.toDate) {
+                          return new Date(msg.createdAt.toDate()).toLocaleString('es-MX', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+                        } else if (msg.createdAt?.seconds) {
+                          return new Date(msg.createdAt.seconds * 1000).toLocaleString('es-MX', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+                        }
+                        return 'Reciente';
+                      } catch {
+                        return 'Reciente';
+                      }
+                    })()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <FlatList
         data={filtered}
@@ -292,9 +494,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 28
+    paddingHorizontal: 20,
+    paddingTop: 48,
+    paddingBottom: 20
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -309,10 +511,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: 0.3
   },
   heading: { 
-    fontSize: 42, 
+    fontSize: 32, 
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1.5
+    letterSpacing: -1.2
   },
   addButton: {
     borderRadius: 28,
@@ -322,6 +524,33 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 8
+  },
+  messagesButton: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#DAA520',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  messageBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF'
+  },
+  messageBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700'
   },
   addButtonGradient: {
     width: 56,
@@ -338,16 +567,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   userSection: {
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 16,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: 14,
     shadowColor: isDark ? '#000' : '#DAA520',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
@@ -364,10 +593,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: 1
   },
   currentUserName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.text,
-    marginBottom: 6,
+    marginBottom: 4,
     flexShrink: 1
   },
   currentUserHint: {
@@ -377,12 +606,90 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexShrink: 1
   },
   listContent: {
-    padding: 20
+    padding: 12
+  },
+  messagesSection: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(218, 165, 32, 0.3)',
+  },
+  messagesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  messagesSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  messageCard: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  messageTaskTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  messageAuthor: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  messageTime: {
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700'
+  },
+  modalScroll: {
+    padding: 16
   },
   actionsRow: { 
     flexDirection: 'row', 
-    marginTop: 12,
-    gap: 10
+    marginTop: 12
   },
   actionBtn: {
     flex: 1,
@@ -399,6 +706,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   actionBtnPrimary: {
     backgroundColor: '#9F2241',
     borderColor: '#9F2241'
+  },
+  actionBtnDanger: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444'
   },
   actionText: {
     fontSize: 14,

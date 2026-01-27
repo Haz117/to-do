@@ -44,7 +44,7 @@ export default function OverdueAlert({ tasks, currentUserEmail, role = 'operativ
         borderColor: '#DC2626' 
       }
     ]}>
-      <Ionicons name="warning" size={24} color="#DC2626" />
+      <Ionicons name="warning" size={20} color="#DC2626" />
       <View style={styles.alertTextContainer}>
         <Text style={[styles.alertTitle, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>
           {overdueCount} {overdueCount === 1 ? 'tarea vencida' : 'tareas vencidas'}
@@ -61,29 +61,29 @@ const styles = StyleSheet.create({
   overdueAlert: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 10,
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 12,
+    marginTop: 6,
+    marginBottom: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 8,
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2
   },
   alertTextContainer: {
     flex: 1
   },
   alertTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     marginBottom: 2
   },
   alertSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500'
   }
 });

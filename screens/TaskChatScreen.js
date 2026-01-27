@@ -192,16 +192,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6
   },
   closeButton: {
     width: 40,
@@ -218,25 +218,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.5
   },
   messagesContainer: {
-    padding: 20
+    padding: 12
   },
   msgRow: { 
-    marginBottom: 16, 
+    marginBottom: 12, 
     backgroundColor: '#FFFAF0', 
-    padding: 16, 
-    borderRadius: 20,
+    padding: 12, 
+    borderRadius: 16,
     maxWidth: '85%',
     alignSelf: 'flex-start',
     shadowColor: '#DAA520',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 2,
     borderWidth: 1.5,
     borderColor: '#F5DEB3'
@@ -262,17 +262,17 @@ const styles = StyleSheet.create({
   },
   composer: { 
     flexDirection: 'row', 
-    padding: 16, 
+    padding: 12, 
     alignItems: 'center', 
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderColor: '#E5E5EA',
-    gap: 12,
+    gap: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 6
   },
   input: { 
     flex: 1, 
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40
   },
   noAccessTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800',
     color: '#1A1A1A',
-    marginTop: 20,
-    marginBottom: 12,
-    letterSpacing: -0.8
+    marginTop: 16,
+    marginBottom: 10,
+    letterSpacing: -0.6
   },
   noAccessText: {
     fontSize: 16,

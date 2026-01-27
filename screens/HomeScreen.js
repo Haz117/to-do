@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, TouchableOpacity, RefreshControl, Animated, Platform, StatusBar } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Alert, TouchableOpacity, RefreshControl, Animated, Platform, StatusBar, Modal, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { getSwipeable } from '../utils/platformComponents';
@@ -50,6 +50,7 @@ export default function HomeScreen({ navigation }) {
   const [toastAction, setToastAction] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [savingProgress, setSavingProgress] = useState(null);
+  const [showUrgentModal, setShowUrgentModal] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -102,6 +103,24 @@ export default function HomeScreen({ navigation }) {
           console.log('📦 Tareas recibidas:', updatedTasks.length);
           setTasks(updatedTasks);
           setIsLoading(false);
+          
+          // Detectar tareas urgentes y mostrar modal
+          if (mounted && fadeAnim._value === 0) {
+            setTimeout(() => {
+              const now = Date.now();
+              const sixHours = 6 * 60 * 60 * 1000;
+              const urgent = updatedTasks.filter(task => {
+                if (task.status === 'cerrada') return false;
+                const due = new Date(task.dueAt).getTime();
+                const timeLeft = due - now;
+                return timeLeft > 0 && timeLeft < sixHours;
+              });
+              
+              if (urgent.length > 0) {
+                setShowUrgentModal(true);
+              }
+            }, 1200);
+          }
           
           // Animar entrada de la lista solo la primera vez
           if (fadeAnim._value !== 1) {
@@ -516,6 +535,91 @@ export default function HomeScreen({ navigation }) {
         role={currentUser?.role}
       />
 
+      {/* Modal de Tareas Urgentes */}
+      <Modal
+        visible={showUrgentModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowUrgentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.urgentModalContent, { backgroundColor: theme.card }]}>
+            <View style={styles.urgentModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="alarm" size={28} color="#FF3B30" style={{ marginRight: 12 }} />
+                <View>
+                  <Text style={[styles.urgentModalTitle, { color: theme.text }]}>¡Tareas Urgentes!</Text>
+                  <Text style={[styles.urgentModalSubtitle, { color: theme.textSecondary }]}>
+                    Vencen en menos de 6 horas
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowUrgentModal(false)}>
+                <Ionicons name="close-circle" size={32} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.urgentModalScroll}>
+              {urgentTasks.filter(task => {
+                const timeLeft = new Date(task.dueAt).getTime() - Date.now();
+                return timeLeft < 6 * 60 * 60 * 1000; // Menos de 6 horas
+              }).map((task) => {
+                const timeLeft = new Date(task.dueAt).getTime() - Date.now();
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                
+                return (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={[styles.urgentTaskCard, { 
+                      backgroundColor: theme.surface,
+                      borderColor: hoursLeft < 2 ? '#FF3B30' : '#FF9500'
+                    }]}
+                    onPress={() => {
+                      setShowUrgentModal(false);
+                      navigation.navigate('TaskDetail', { task });
+                    }}
+                  >
+                    <View style={styles.urgentTaskHeader}>
+                      <Ionicons 
+                        name={hoursLeft < 2 ? "alert-circle" : "time"} 
+                        size={24} 
+                        color={hoursLeft < 2 ? '#FF3B30' : '#FF9500'} 
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={[styles.urgentTaskTitle, { color: theme.text }]} numberOfLines={2}>
+                          {task.title}
+                        </Text>
+                        <Text style={[styles.urgentTaskArea, { color: theme.textSecondary }]}>
+                          {task.area} • {task.assignedTo}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.urgentTaskTimer, { 
+                      backgroundColor: hoursLeft < 2 ? 'rgba(255, 59, 48, 0.1)' : 'rgba(255, 149, 0, 0.1)' 
+                    }]}>
+                      <Ionicons name="hourglass" size={16} color={hoursLeft < 2 ? '#FF3B30' : '#FF9500'} />
+                      <Text style={[styles.urgentTaskTime, { 
+                        color: hoursLeft < 2 ? '#FF3B30' : '#FF9500' 
+                      }]}>
+                        {hoursLeft}h {minutesLeft}m restantes
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.urgentModalFooter}>
+              <TouchableOpacity 
+                style={[styles.urgentModalButton, { backgroundColor: theme.primary }]}
+                onPress={() => setShowUrgentModal(false)}
+              >
+                <Text style={styles.urgentModalButtonText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Search Bar */}
       <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />
 
@@ -740,9 +844,9 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingTop: 64,
-    paddingBottom: 28
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 16
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -757,10 +861,10 @@ const createStyles = (theme) => StyleSheet.create({
     letterSpacing: 0.3
   },
   heading: { 
-    fontSize: 42, 
+    fontSize: 32, 
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -1.5
+    letterSpacing: -1.2
   },
   urgentBadge: {
     flexDirection: 'row',
@@ -828,9 +932,9 @@ const createStyles = (theme) => StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)'
   },
   listContent: {
-    padding: 20,
-    paddingTop: 12,
-    paddingBottom: 100
+    padding: 12,
+    paddingTop: 8,
+    paddingBottom: 80
   },
   emptyContainer: {
     alignItems: 'center',
@@ -838,11 +942,11 @@ const createStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 40
   },
   emptyText: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.text,
-    marginBottom: 12,
-    letterSpacing: -0.8
+    marginBottom: 8,
+    letterSpacing: -0.6
   },
   emptySubtext: {
     fontSize: 16,
@@ -853,13 +957,13 @@ const createStyles = (theme) => StyleSheet.create({
   },
   // Bento Grid Styles
   bentoGrid: {
-    gap: 14,
-    marginBottom: 32
+    gap: 10,
+    marginBottom: 20
   },
   bentoRow: {
     flexDirection: 'row',
-    gap: 14,
-    marginBottom: 14
+    gap: 10,
+    marginBottom: 10
   },
   bentoCard: {
     borderRadius: 28,
@@ -885,22 +989,22 @@ const createStyles = (theme) => StyleSheet.create({
   bentoWide: {
     flex: 1,
     backgroundColor: theme.card,
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: theme.border,
-    padding: 20,
-    minHeight: 110
+    padding: 14,
+    minHeight: 90
   },
   bentoGradient: {
     flex: 1,
-    padding: 20,
+    padding: 14,
     justifyContent: 'flex-start'
   },
   bentoGradientSmall: {
     flex: 1,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10
+    gap: 8
   },
   bentoIconCircle: {
     width: 64,
@@ -1084,5 +1188,94 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  urgentModalContent: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 25
+  },
+  urgentModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 59, 48, 0.2)'
+  },
+  urgentModalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4
+  },
+  urgentModalSubtitle: {
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  urgentModalScroll: {
+    padding: 20
+  },
+  urgentTaskCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  urgentTaskHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12
+  },
+  urgentTaskTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4
+  },
+  urgentTaskArea: {
+    fontSize: 13,
+    fontWeight: '500'
+  },
+  urgentTaskTimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+    gap: 6
+  },
+  urgentTaskTime: {
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  urgentModalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)'
+  },
+  urgentModalButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  urgentModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700'
   }
 });
