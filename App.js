@@ -124,16 +124,16 @@ function MainTabs({ onLogout }) {
           </View>
           <TouchableOpacity
             onPress={() => {
-              console.log('🔴 BOTÓN SALIR PRESIONADO');
-              console.log('🔴 onLogout existe?', typeof onLogout);
+              console.log('[LOGOUT] BOTÓN SALIR PRESIONADO');
+              console.log('[LOGOUT] onLogout existe?', typeof onLogout);
               
               if (!onLogout) {
-                console.error('❌ ERROR: onLogout no está definido!');
+                console.error('[ERROR] onLogout no está definido!');
                 alert('Error: No se puede cerrar sesión');
                 return;
               }
               
-              console.log('✅ Llamando onLogout directamente...');
+              console.log('[SUCCESS] Llamando onLogout directamente...');
               onLogout();
             }}
             style={styles.logoutBtn}
@@ -267,18 +267,18 @@ export default function App() {
   // Función de logout que maneja todo el proceso
   const handleLogout = async () => {
     try {
-      console.log('🔴 LOGOUT: Iniciando proceso de cierre de sesión');
+      console.log('[LOGOUT] Iniciando proceso de cierre de sesión');
       
       // Limpiar sesión de AsyncStorage
       await logoutUser();
-      console.log('✅ LOGOUT: Sesión eliminada de AsyncStorage');
+      console.log('[SUCCESS] LOGOUT: Sesión eliminada de AsyncStorage');
       
       // Forzar actualización completa
       setIsAuthenticated(false);
       setIsLoading(false);
       setForceUpdate(prev => prev + 1);
       
-      console.log('✅ LOGOUT: Estado actualizado, regresando a Login');
+      console.log('[SUCCESS] LOGOUT: Estado actualizado, regresando a Login');
       
       // Toast de confirmación
       Toast.show({
@@ -289,7 +289,7 @@ export default function App() {
       });
       
     } catch (error) {
-      console.error('❌ LOGOUT ERROR:', error);
+      console.error('[ERROR] LOGOUT ERROR:', error);
       // Forzar logout incluso con error
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -363,7 +363,7 @@ export default function App() {
                   <LoginScreen 
                     {...props} 
                     onLogin={() => {
-                      console.log('✅ LOGIN: Autenticación exitosa');
+                      console.log('[SUCCESS] LOGIN: Autenticación exitosa');
                       setIsAuthenticated(true);
                       setForceUpdate(prev => prev + 1);
                     }} 

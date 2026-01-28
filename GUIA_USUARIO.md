@@ -11,16 +11,10 @@
 
 ### 🔐 **Sistema de Administración con Roles**
 
-#### **Credenciales por Defecto:**
-```
-👑 Admin Principal:
-   Email: admin@todo.com
-   Contraseña: admin123
+#### **Credenciales de Acceso:**
 
-👤 Usuario Demo:
-   Email: demo@todo.com
-   Contraseña: demo123
-```
+Por razones de seguridad, las credenciales no están disponibles públicamente. 
+Contacta al administrador del sistema para obtener acceso.
 
 #### **Roles Disponibles:**
 - **👑 Administrador (ADMIN)**: Control total

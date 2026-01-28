@@ -23,14 +23,14 @@ async function sendEmail({ to, subject, html, type = 'notification' }) {
     const data = await response.json();
 
     if (response.ok) {
-      console.log('✅ Email enviado a:', to);
+      console.log('[SUCCESS] Email enviado a:', to);
       return { success: true, data };
     } else {
-      console.error('❌ Error enviando email:', data);
+      console.error('[ERROR] Error enviando email:', data);
       return { success: false, error: data.error };
     }
   } catch (error) {
-    console.error('❌ Error en sendEmail:', error);
+    console.error('[ERROR] Error en sendEmail:', error);
     return { success: false, error: error.message };
   }
 }
@@ -64,7 +64,7 @@ function getEmailTemplate(title, content, actionUrl, actionText) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📋 ${title}</h1>
+      <h1 style="margin-left: 0; padding-left: 0;">${title}</h1>
     </div>
     <div class="content">
       ${content}
@@ -105,7 +105,7 @@ export async function notifyTaskAssigned(task, assignedToUser) {
     <p>Por favor, revisa los detalles y comienza a trabajar en ella lo antes posible.</p>
   `;
 
-  const subject = `📋 Nueva tarea asignada: ${task.title}`;
+  const subject = `Nueva tarea asignada: ${task.title}`;
   const html = getEmailTemplate('Nueva Tarea Asignada', content, task.url, 'Ver Tarea');
 
   return await sendEmail({
@@ -139,7 +139,7 @@ export async function notifyTaskDueSoon(task, user) {
         minute: '2-digit'
       })}</p>
     </div>
-    <p>⚠️ No olvides completarla antes de que venza.</p>
+    <p style="color: #dc2626; font-weight: 500;"><strong>Importante:</strong> No olvides completarla antes de que venza.</p>
   `;
 
   const subject = `⏰ Recordatorio: Tarea "${task.title}" vence pronto`;
@@ -158,7 +158,7 @@ export async function notifyTaskDueSoon(task, user) {
  */
 export async function notifyNewChatMessage(task, message, recipient) {
   const content = `
-    <h2>💬 Nuevo mensaje en tarea</h2>
+    <h2>Nuevo mensaje en tarea</h2>
     <p>Hola <strong>${recipient?.name || recipient?.email}</strong>,</p>
     <p><strong>${message.userName}</strong> escribió en la tarea:</p>
     <div style="background: #f8f8f8; padding: 15px; border-radius: 8px; margin: 15px 0;">
@@ -171,7 +171,7 @@ export async function notifyNewChatMessage(task, message, recipient) {
     </div>
   `;
 
-  const subject = `💬 Nuevo mensaje en: ${task.title}`;
+  const subject = `Nuevo mensaje en: ${task.title}`;
   const html = getEmailTemplate('Nuevo Mensaje', content, task.url, 'Ver Conversación');
 
   return await sendEmail({
@@ -187,7 +187,7 @@ export async function notifyNewChatMessage(task, message, recipient) {
  */
 export async function sendWelcomeEmail(user, tempPassword) {
   const content = `
-    <h2>👋 ¡Bienvenido a TodoApp MORENA!</h2>
+    <h2>¡Bienvenido a TodoApp MORENA!</h2>
     <p>Hola <strong>${user.name}</strong>,</p>
     <p>Tu cuenta ha sido creada exitosamente. Aquí están tus credenciales de acceso:</p>
     <div style="background: #f8f8f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -196,10 +196,10 @@ export async function sendWelcomeEmail(user, tempPassword) {
       <p style="margin: 5px 0;"><strong>Rol:</strong> ${user.role}</p>
       ${user.department ? `<p style="margin: 5px 0;"><strong>Departamento:</strong> ${user.department}</p>` : ''}
     </div>
-    <p>⚠️ <strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.</p>
+    <p style="color: #dc2626; font-weight: 500; background-color: #fef2f2; padding: 12px; border-left: 4px solid #dc2626; border-radius: 4px;"><strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.</p>
   `;
 
-  const subject = '🎉 Bienvenido a TodoApp MORENA';
+  const subject = 'Bienvenido a TodoApp MORENA';
   const html = getEmailTemplate('Bienvenido', content, process.env.APP_URL, 'Iniciar Sesión');
 
   return await sendEmail({
