@@ -165,21 +165,30 @@ const TaskItem = memo(function TaskItem({
               <Text style={[styles.title, { color: theme.text }, task.status === 'cerrada' && styles.titleCompleted]} numberOfLines={2}>
                 {task.title}
               </Text>
+              {onDelete && (
+                <TouchableOpacity
+                  onPress={() => {
+                    hapticMedium();
+                    onDelete(task);
+                  }}
+                  style={styles.deleteButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                </TouchableOpacity>
+              )}
               <View style={styles.badgeContainer}>
                 {task.hasUnreadMessages && (
                   <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
                     <Ionicons name="chatbubble" size={10} color="#FFF" />
                   </View>
                 )}
-                {remaining <= 0 && task.status !== 'cerrada' && (
+                {remaining <= 0 && task.status !== 'cerrada' ? (
                   <View style={styles.overdueBadgeContainer}>
-                    <PulsingDot size={8} color="#DC2626" />
-                    <Ionicons name="alert-circle" size={14} color="#DC2626" />
                     <Text style={styles.overdueBadge}>VENCIDA</Text>
                   </View>
-                )}
-                {!(remaining <= 0 && task.status !== 'cerrada') && (
-                  <Text style={[styles.badge, { backgroundColor: remaining <= 0 ? theme.error : theme.info, color: '#FFF' }]}>
+                ) : (
+                  <Text style={[styles.badge, { backgroundColor: theme.info, color: '#FFF' }]}>
                     {formatRemaining(remaining)}
                   </Text>
                 )}
@@ -349,5 +358,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 4,
+  },
+  overdueBadgeContainer: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  overdueBadge: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    marginLeft: 4
   },
 });

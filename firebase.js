@@ -4,29 +4,26 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, serverTimestamp } from 'firebase/firestore';
 import Constants from 'expo-constants';
 
-// Configuración de Firebase (fallback si las variables de entorno no están disponibles)
+// Configuración de Firebase - USAR SOLO VARIABLES DE ENTORNO
+// NO colocar credenciales aquí por seguridad
 const firebaseConfig = {
-  apiKey: "AIzaSyDNo2YzEqelUXBcMuSJq1n-eOKN5sHhGKM",
-  authDomain: "infra-sublime-464215-m5.firebaseapp.com",
-  projectId: "infra-sublime-464215-m5",
-  storageBucket: "infra-sublime-464215-m5.firebasestorage.app",
-  messagingSenderId: "205062729291",
-  appId: "1:205062729291:web:da314180f361bf2a3367ce",
-  measurementId: "G-T987W215LH"
+  apiKey: process.env.FIREBASE_API_KEY || extra.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || extra.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID || extra.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || extra.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || extra.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID || extra.FIREBASE_APP_ID,
+  measurementId: process.env.FIREBASE_MEASUREMENT_ID || extra.FIREBASE_MEASUREMENT_ID
 };
 
 // Intentamos obtener valores inyectados por app.config.js (expo) o desde process.env
 const extra = Constants.expoConfig?.extra || {};
 
-const firebaseConfigResolved = {
-  apiKey: extra.FIREBASE_API_KEY || firebaseConfig.apiKey,
-  authDomain: extra.FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
-  projectId: extra.FIREBASE_PROJECT_ID || firebaseConfig.projectId,
-  storageBucket: extra.FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
-  messagingSenderId: extra.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
-  appId: extra.FIREBASE_APP_ID || firebaseConfig.appId,
-  measurementId: extra.FIREBASE_MEASUREMENT_ID || firebaseConfig.measurementId,
-};
+if (!firebaseConfig.apiKey) {
+  throw new Error('❌ FIREBASE_API_KEY no configurada. Agrega las variables de entorno.');
+}
+
+const firebaseConfigResolved = firebaseConfig;
 
 // Inicializar Firebase App (solo si no existe)
 const app = getApps().length === 0 ? initializeApp(firebaseConfigResolved) : getApps()[0];

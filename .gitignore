@@ -17,6 +17,22 @@ web-build/
 .env.local
 .env.production
 
+# Scripts de desarrollo con credenciales (NO SUBIR)
+createUsers.mjs
+createTestTasks.mjs
+deleteTestTasks.mjs
+fixAdmin.mjs
+fixTaskStatus.mjs
+updateAllPasswords.mjs
+checkPassword.js
+checkHash.js
+createAdminUser.js
+setupUsers.js
+testEmail.js
+updatePasswords.js
+listUsers.js
+listAllUsers.mjs
+
 # Firebase config files (IMPORTANTE: No subir estos archivos)
 google-services.json
 GoogleService-Info.plist

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test de Emails - TodoApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    h1 {
+      color: #9F2241;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #E5E5EA;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #9F2241;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    button {
+      background: linear-gradient(135deg, #9F2241 0%, #751a32 100%);
+      color: white;
+      border: none;
+      padding: 14px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+    .result.success {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 2px solid #10B981;
+      display: block;
+    }
+    .result.error {
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 2px solid #EF4444;
+      display: block;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .templates {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .template-btn {
+      padding: 10px;
+      background: #F3F4F6;
+      border: 2px solid #E5E7EB;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+    .template-btn:hover {
+      background: #E5E7EB;
+      border-color: #9F2241;
+    }
+    .info-box {
+      background: #FEF3C7;
+      border: 2px solid #F59E0B;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📧 Test de Emails</h1>
+    <p class="subtitle">Prueba el sistema de notificaciones por email</p>
+
+    <div class="info-box">
+      ⚠️ <strong>Importante:</strong> Asegúrate de haber configurado las variables de entorno en Vercel (SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME).
+    </div>
+
+    <div class="templates">
+      <button class="template-btn" onclick="loadTemplate('simple')">📋 Email Simple</button>
+      <button class="template-btn" onclick="loadTemplate('task')">✨ Nueva Tarea</button>
+      <button class="template-btn" onclick="loadTemplate('reminder')">⏰ Recordatorio</button>
+      <button class="template-btn" onclick="loadTemplate('welcome')">👋 Bienvenida</button>
+    </div>
+
+    <form id="emailForm" onsubmit="sendTestEmail(event)">
+      <div class="form-group">
+        <label for="to">Email Destinatario *</label>
+        <input type="email" id="to" required placeholder="tu-email@gmail.com">
+      </div>
+
+      <div class="form-group">
+        <label for="subject">Asunto *</label>
+        <input type="text" id="subject" required placeholder="Test de Email">
+      </div>
+
+      <div class="form-group">
+        <label for="message">Mensaje (HTML permitido) *</label>
+        <textarea id="message" required placeholder="<h1>¡Hola!</h1><p>Este es un email de prueba.</p>"></textarea>
+      </div>
+
+      <button type="submit" id="submitBtn">
+        Enviar Email de Prueba
+      </button>
+    </form>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const templates = {
+      simple: {
+        subject: 'Test de Email - TodoApp',
+        message: '<h1>✅ Email de Prueba</h1><p>Si recibes este email, el sistema está funcionando correctamente.</p><p>¡Todo listo para producción! 🚀</p>'
+      },
+      task: {
+        subject: '✨ Nueva tarea asignada',
+        message: `
+          <h2>Nueva tarea asignada</h2>
+          <p>Se te ha asignado una nueva tarea:</p>
+          <div style="background: #f8f8f8; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <strong style="font-size: 16px; color: #9F2241;">Revisar reportes mensuales</strong>
+            <p style="margin: 10px 0;">Analizar los reportes del último mes y preparar resumen ejecutivo.</p>
+            <p style="margin: 5px 0;"><strong>Área:</strong> Administración</p>
+            <p style="margin: 5px 0;"><strong>Prioridad:</strong> <span style="color: #EF4444; font-weight: 600;">ALTA</span></p>
+            <p style="margin: 5px 0;"><strong>Vence:</strong> ${new Date(Date.now() + 86400000).toLocaleDateString('es-ES')}</p>
+          </div>
+        `
+      },
+      reminder: {
+        subject: '⏰ Recordatorio: Tarea por vencer',
+        message: `
+          <h2>⏰ Tarea por vencer</h2>
+          <p>La siguiente tarea está por vencer en <strong style="color: #EF4444;">24 horas</strong>:</p>
+          <div style="background: #FEF2F2; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #EF4444;">
+            <strong style="font-size: 16px; color: #9F2241;">Enviar informe trimestral</strong>
+            <p style="margin: 10px 0;">No olvides completar y enviar el informe antes de la fecha límite.</p>
+            <p style="margin: 5px 0;"><strong>Vence:</strong> ${new Date(Date.now() + 86400000).toLocaleString('es-ES')}</p>
+          </div>
+          <p>⚠️ No olvides completarla antes de que venza.</p>
+        `
+      },
+      welcome: {
+        subject: '🎉 Bienvenido a TodoApp MORENA',
+        message: `
+          <h2>👋 ¡Bienvenido!</h2>
+          <p>Tu cuenta ha sido creada exitosamente. Aquí están tus credenciales de acceso:</p>
+          <div style="background: #f8f8f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Email:</strong> usuario@ejemplo.com</p>
+            <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="background: #fff; padding: 5px 10px; border-radius: 4px; color: #9F2241;">temp123</code></p>
+            <p style="margin: 5px 0;"><strong>Rol:</strong> Operativo</p>
+          </div>
+          <p>⚠️ <strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.</p>
+        `
+      }
+    };
+
+    function loadTemplate(type) {
+      const template = templates[type];
+      document.getElementById('subject').value = template.subject;
+      document.getElementById('message').value = template.message;
+    }
+
+    async function sendTestEmail(event) {
+      event.preventDefault();
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const result = document.getElementById('result');
+      
+      // Deshabilitar botón
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading"></span>Enviando...';
+      result.style.display = 'none';
+      
+      const formData = {
+        to: document.getElementById('to').value,
+        subject: document.getElementById('subject').value,
+        html: document.getElementById('message').value,
+        type: 'test'
+      };
+
+      try {
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          result.className = 'result success';
+          result.innerHTML = `
+            <strong>✅ Email enviado exitosamente</strong><br>
+            Destinatario: ${formData.to}<br>
+            Revisa tu bandeja de entrada (puede tardar 1-2 minutos).
+          `;
+        } else {
+          throw new Error(data.error || 'Error desconocido');
+        }
+      } catch (error) {
+        result.className = 'result error';
+        result.innerHTML = `
+          <strong>❌ Error al enviar email</strong><br>
+          ${error.message}<br><br>
+          <strong>Posibles causas:</strong><br>
+          • Variables de entorno no configuradas en Vercel<br>
+          • API Key de SendGrid inválida<br>
+          • Email sender no verificado<br>
+          • Email destinatario inválido
+        `;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Enviar Email de Prueba';
+      }
+    }
+
+    // Cargar template simple por defecto
+    loadTemplate('simple');
+  </script>
+</body>
+</html>

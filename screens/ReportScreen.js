@@ -1,9 +1,9 @@
 // screens/ReportScreen.js
 // Reporte para reunión: tarjetas por área con contadores, lista de críticas (alta prioridad) y vencidas.
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Modal, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Modal, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { subscribeToTasks } from '../services/tasks';
+import { subscribeToTasks, deleteTask } from '../services/tasks';
 import { exportTasksToCSV, exportStatsToCSV } from '../services/export';
 import { calculateProductivityStreak, calculateAverageCompletionTime, formatAverageTime } from '../services/productivity';
 import { getActivityHeatmap, getWeeklyProductivityChart, getEstimatedVsRealTime } from '../services/productivityAdvanced';
@@ -319,35 +319,72 @@ export default function ReportScreen({ navigation }) {
     );
   };
 
-  const renderTaskItem = (task) => (
-    <TouchableOpacity
-      key={task.id}
-      onPress={() => navigation.navigate('TaskDetail', { task })}
-      style={styles.taskCard}
-    >
-      <View style={styles.taskHeader}>
-        <View style={styles.taskTitleContainer}>
-          <View style={[
-            styles.taskPriorityDot,
-            task.priority === 'alta' && styles.taskPriorityHigh
-          ]} />
-          <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
+  const renderTaskItem = (task) => {
+    const handleDeleteTask = async () => {
+      Alert.alert(
+        'Eliminar Tarea',
+        `¿Estás seguro de eliminar "${task.title}"?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteTask(task.id);
+                hapticMedium();
+                setToastMessage('Tarea eliminada');
+                setToastType('success');
+                setToastVisible(true);
+              } catch (error) {
+                console.error('Error eliminando tarea:', error);
+                setToastMessage('Error al eliminar tarea');
+                setToastType('error');
+                setToastVisible(true);
+              }
+            }
+          }
+        ]
+      );
+    };
+
+    return (
+      <TouchableOpacity
+        key={task.id}
+        onPress={() => navigation.navigate('TaskDetail', { task })}
+        style={styles.taskCard}
+      >
+        <View style={styles.taskHeader}>
+          <View style={styles.taskTitleContainer}>
+            <View style={[
+              styles.taskPriorityDot,
+              task.priority === 'alta' && styles.taskPriorityHigh
+            ]} />
+            <Text style={styles.taskTitle} numberOfLines={2}>{task.title}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleDeleteTask}
+            style={styles.deleteButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+          </TouchableOpacity>
         </View>
-      </View>
-      <View style={styles.taskMetaRow}>
-        <Ionicons name="business-outline" size={14} color="#8E8E93" />
-        <Text style={styles.taskMeta}>{task.area}</Text>
-      </View>
-      <View style={styles.taskMetaRow}>
-        <Ionicons name="person-outline" size={14} color="#8E8E93" />
-        <Text style={styles.taskMeta}>{task.assignedTo || 'Sin asignar'}</Text>
-      </View>
-      <View style={styles.taskMetaRow}>
-        <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
-        <Text style={styles.taskDue}>Vence: {new Date(task.dueAt).toLocaleDateString()}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.taskMetaRow}>
+          <Ionicons name="business-outline" size={14} color="#8E8E93" />
+          <Text style={styles.taskMeta}>{task.area}</Text>
+        </View>
+        <View style={styles.taskMetaRow}>
+          <Ionicons name="person-outline" size={14} color="#8E8E93" />
+          <Text style={styles.taskMeta}>{task.assignedTo || 'Sin asignar'}</Text>
+        </View>
+        <View style={styles.taskMetaRow}>
+          <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
+          <Text style={styles.taskDue}>Vence: {new Date(task.dueAt).toLocaleDateString()}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -1025,9 +1062,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   // Estilos de Estadísticas Personales
   personalStatsSection: {
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 20,
+    marginBottom: 28,
+    padding: 20,
+    borderRadius: 24,
     backgroundColor: 'rgba(159, 34, 65, 0.05)'
   },
   sectionHeaderRow: {
@@ -1048,22 +1085,23 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   statsCardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
     marginBottom: 12
   },
   statCard: {
-    width: (screenWidth - 72) / 2,
-    padding: 16,
-    borderRadius: 16,
+    width: '48%',
+    padding: 18,
+    borderRadius: 18,
     alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5
   },
   statCardWide: {
-    width: screenWidth - 56,
+    width: '100%',
     alignItems: 'stretch'
   },
   statCardWideContent: {
@@ -1075,32 +1113,34 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     marginLeft: 16
   },
   statIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12
+    marginBottom: 16
   },
   statEmoji: {
-    fontSize: 32
+    fontSize: 36
   },
   statValue: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: '800',
-    letterSpacing: -1.5,
-    marginBottom: 4
+    letterSpacing: -2,
+    marginBottom: 6
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: 2
+    letterSpacing: 0.3,
+    marginBottom: 4,
+    textAlign: 'center'
   },
   statSubLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.7
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.65,
+    textAlign: 'center'
   },
   progressBarContainer: {
     height: 8,
@@ -1198,11 +1238,23 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
-  taskHeader: { marginBottom: 10 },
+  taskHeader: { 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10 
+  },
   taskTitleContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10
+    gap: 10,
+    flex: 1
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    marginLeft: 8
   },
   taskPriorityDot: {
     width: 12,

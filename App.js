@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -23,6 +23,17 @@ import TaskChatScreen from './screens/TaskChatScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import { getCurrentSession, logoutUser } from './services/authFirestore';
 import { startConnectivityMonitoring } from './services/offlineQueue';
+
+// Vercel Analytics y Speed Insights (solo en web)
+let Analytics, SpeedInsights;
+if (Platform.OS === 'web') {
+  try {
+    Analytics = require('@vercel/analytics/react').Analytics;
+    SpeedInsights = require('@vercel/speed-insights/react').SpeedInsights;
+  } catch (e) {
+    console.log('Vercel analytics not available');
+  }
+}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -393,6 +404,9 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
         <Toast />
+        {/* Vercel Analytics - Solo en web */}
+        {Platform.OS === 'web' && Analytics && <Analytics />}
+        {Platform.OS === 'web' && SpeedInsights && <SpeedInsights />}
       </GestureHandlerRootView>
     </ThemeProvider>
   );

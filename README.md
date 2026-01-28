@@ -2,7 +2,45 @@
 
 Sistema completo de gestión de tareas con roles, permisos y sincronización en tiempo real.
 
-![Version](https://img.shields.io/badge/version-1.0.0-9F2241) ![React Native](https://img.shields.io/badge/React%20Native-0.76-61DAFB) ![Firebase](https://img.shields.io/badge/Firebase-11.1-FFCA28)
+![Version](https://img.shields.io/badge/version-1.0.0-9F2241) ![React Native](https://img.shields.io/badge/React%20Native-0.76-61DAFB) ![Firebase](https://img.shields.io/badge/Firebase-11.1-FFCA28) ![Vercel](https://img.shields.io/badge/Vercel-Pro-000000)
+
+---
+
+## 🚀 **OPTIMIZADO PARA VERCEL PRO**
+
+✅ **Analytics en Tiempo Real** - Monitoreo de usuarios y rendimiento  
+✅ **Speed Insights** - Métricas de Core Web Vitals  
+✅ **Headers de Seguridad** - Protección XSS, Clickjacking, MIME sniffing  
+✅ **Cache Optimizado** - Assets con cache inmutable de 1 año  
+✅ **Emails Seguros** - API serverless sin exponer credenciales  
+
+### 📖 Documentación de Mejoras
+- [⚡ Inicio Rápido (5 pasos, 20 min)](INICIO_RAPIDO.md) ← **EMPIEZA AQUÍ**
+- [📊 Guía Completa Vercel Pro](CONFIGURACION_VERCEL_PRO.md)
+- [✅ Resumen de Mejoras Implementadas](MEJORAS_IMPLEMENTADAS.md)
+- [📧 Configuración de Emails](CONFIGURACION_EMAIL.md)
+- [🔒 Guía de Seguridad](SEGURIDAD.md) ← **IMPORTANTE**
+
+### 🧪 Testing
+- **Test Emails:** `https://tu-proyecto.vercel.app/test-email.html`
+- **Validar Setup:** `npm run validate`
+
+---
+
+## 🔒 **SEGURIDAD**
+
+### ⚠️ Credenciales Protegidas
+
+**TODAS las credenciales han sido removidas del código por seguridad.**
+
+Para configurar tu entorno:
+
+1. **Copia `.env.local`** → `.env`
+2. **Completa con tus credenciales** (Firebase, SendGrid)
+3. **Configura variables en Vercel** Dashboard
+4. **NUNCA subas** el archivo `.env` a Git
+
+📖 **Lee la guía completa:** [SEGURIDAD.md](SEGURIDAD.md)
 
 ---
 
@@ -14,11 +52,10 @@ Accede desde cualquier navegador: **https://tu-proyecto.vercel.app**
 ### 📲 **App Android (APK)**
 Descarga e instala en tu celular: **[Página de Descarga](public/index.html)**
 
-### 🔐 **Credenciales de Prueba:**
+### 🔐 **Credenciales:**
 ```
-👑 Admin:     admin@todo.com / admin123
-👨‍💼 Jefe:      jefe.juridica@todo.com / jefe123  
-👷 Operativo: operativo.juridica@todo.com / oper123
+⚠️ Por seguridad, las credenciales no están públicas.
+Contacta al administrador para obtener acceso.
 ```
 
 ---

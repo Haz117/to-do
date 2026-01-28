@@ -43,15 +43,20 @@ export default function AdminScreen({ navigation, onLogout }) {
       const now = Date.now();
       const sixHours = 6 * 60 * 60 * 1000;
       const urgent = tasks.filter(task => {
-        if (task.status === 'cerrada') return false;
+        if (task.status === 'cerrada' || !task.dueAt) return false;
         const due = new Date(task.dueAt).getTime();
         const timeLeft = due - now;
         return timeLeft > 0 && timeLeft < sixHours;
       });
       
+      console.log('🚨 AdminScreen - Tareas urgentes encontradas:', urgent.length);
+      
       if (urgent.length > 0) {
         setUrgentTasks(urgent);
-        setTimeout(() => setShowUrgentModal(true), 1500);
+        setTimeout(() => {
+          console.log('🚨 AdminScreen - Mostrando modal urgente');
+          setShowUrgentModal(true);
+        }, 1500);
       }
     });
     return unsubscribe;
