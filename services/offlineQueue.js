@@ -238,10 +238,7 @@ const notifySyncListeners = (status) => {
  */
 export const startConnectivityMonitoring = () => {
   return NetInfo.addEventListener(state => {
-    console.log('📡 Estado de conexión:', state.isConnected);
-    
     if (state.isConnected && !isSyncing) {
-      console.log('🔄 Conexión restaurada, iniciando sincronización...');
       // Esperar 2 segundos antes de sincronizar
       setTimeout(() => syncQueue(), 2000);
     }

@@ -25,12 +25,10 @@ const ESCALATION_LEVEL_KEY = '@escalation_level';
 export async function ensurePermissions() {
   // En web no hay notificaciones nativas
   if (Platform.OS === 'web') {
-    console.log('Las notificaciones no están disponibles en web');
     return false;
   }
   
   if (!Device.isDevice) {
-    console.log('Las notificaciones solo funcionan en dispositivos físicos');
     return false;
   }
 
@@ -44,7 +42,6 @@ export async function ensurePermissions() {
     }
     
     if (finalStatus !== 'granted') {
-      console.log('Permisos de notificación denegados');
       return false;
     }
 
@@ -61,7 +58,6 @@ export async function ensurePermissions() {
 
     return true;
   } catch (error) {
-    console.error('Error solicitando permisos de notificación:', error);
     return false;
   }
 }
@@ -101,7 +97,6 @@ export async function scheduleNotificationForTask(task, options = { minutesBefor
 
     return id;
   } catch (e) {
-    console.error('Error programando notificación:', e);
     return null;
   }
 }
@@ -117,13 +112,11 @@ export async function scheduleDailyReminders(task, maxReminders = 3) {
   try {
     const granted = await ensurePermissions();
     if (!granted) {
-      console.log('No se pueden programar recordatorios sin permisos');
       return [];
     }
 
     // Solo programar para tareas que no están cerradas
     if (task.status === 'cerrada') {
-      console.log('No se programan recordatorios para tareas cerradas');
       return [];
     }
 
@@ -152,16 +145,13 @@ export async function scheduleDailyReminders(task, maxReminders = 3) {
         trigger: reminderDate
       });
       
-      console.log(`Recordatorio diario programado: ${reminderDate.toLocaleString()}`);
       ids.push(id);
       reminderDate = new Date(reminderDate.getTime() + 24 * 60 * 60 * 1000); // +1 día más
       count++;
     }
 
-    console.log(`Se programaron ${ids.length} recordatorios diarios`);
     return ids;
   } catch (e) {
-    console.error('Error programando recordatorios diarios:', e);
     return [];
   }
 }
@@ -193,7 +183,6 @@ export async function notifyAssignment(task) {
 
     return localNotifId;
   } catch (e) {
-    console.error('Error enviando notificación de asignación:', e);
     return null;
   }
 }
@@ -250,10 +239,8 @@ export async function scheduleOverdueTasksNotification(overdueTasks) {
       trigger: tomorrow
     });
 
-    console.log(`Notificación de tareas vencidas programada para ${tomorrow.toLocaleString()}`);
     return id;
   } catch (e) {
-    console.error('Error programando notificación de tareas vencidas:', e);
     return null;
   }
 }
@@ -327,12 +314,10 @@ export async function scheduleMultipleDailyOverdueNotifications(overdueTasks) {
       });
 
       ids.push(id);
-      console.log(`Notificación de vencidas programada para ${triggerTime.toLocaleString()}`);
     }
 
     return ids;
   } catch (e) {
-    console.error('Error programando notificaciones múltiples de vencidas:', e);
     return [];
   }
 }
@@ -345,13 +330,11 @@ export async function cancelNotification(notificationId) {
   
   try {
     if (!notificationId) {
-      console.log('No se proporcionó ID de notificación para cancelar');
       return;
     }
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log(`Notificación ${notificationId} cancelada`);
   } catch (e) {
-    console.error('Error cancelando notificación:', e);
+    // Error silencioso
   }
 }
 

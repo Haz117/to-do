@@ -31,12 +31,10 @@ const MAX_SUBSCRIPTIONS = 3; // Aumentar suscripciones permitidas
 export async function subscribeToTasks(callback) {
   try {
     activeSubscriptions++;
-    console.log('📊 Suscripciones activas:', activeSubscriptions);
 
     // Obtener sesión del usuario actual
     const sessionResult = await getCurrentSession();
     if (!sessionResult.success) {
-      console.warn('Usuario no autenticado, no se pueden cargar tareas');
       activeSubscriptions--;
       callback([]);
       return () => {};
@@ -45,8 +43,6 @@ export async function subscribeToTasks(callback) {
     const userRole = sessionResult.session.role;
     const userEmail = sessionResult.session.email;
     const userDepartment = sessionResult.session.department;
-
-    console.log('🔑 Usuario:', userEmail, '| Rol:', userRole);
 
     let tasksQuery;
 
@@ -97,24 +93,19 @@ export async function subscribeToTasks(callback) {
           };
         });
         
-        console.log(`📋 Tareas cargadas para ${userRole}:`, tasks.length);
-        console.log(`📥 Recibidas ${tasks.length} tareas en tiempo real`);
         callback(tasks);
       },
       (error) => {
-        console.error('❌ Error en suscripción:', error);
         callback([]);
       }
     );
 
     // Retornar función de limpieza mejorada
     return () => {
-      console.log('🧹 Limpiando suscripción');
       activeSubscriptions--;
       if (unsubscribe) unsubscribe();
     };
   } catch (error) {
-    console.error('❌ Error configurando subscripción:', error);
     activeSubscriptions--;
     callback([]);
     return () => {};
