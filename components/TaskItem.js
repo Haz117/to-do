@@ -169,7 +169,7 @@ const TaskItem = memo(function TaskItem({
                 <TouchableOpacity
                   onPress={() => {
                     hapticMedium();
-                    onDelete(task);
+                    onDelete();
                   }}
                   style={styles.deleteButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -230,10 +230,10 @@ export default TaskItem;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 10,
-    marginHorizontal: 12,
-    borderRadius: 14,
-    padding: 12,
+    marginBottom: 8,
+    marginHorizontal: 10,
+    borderRadius: 12,
+    padding: 10,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -244,8 +244,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 6
+    marginBottom: 6,
+    gap: 5
   },
   avatar: {
     marginRight: 8,
@@ -280,9 +280,9 @@ const styles = StyleSheet.create({
   metaRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
-    marginBottom: 8,
+    marginBottom: 6,
     alignItems: 'center',
-    gap: 8
+    gap: 6
   },
   meta: { 
     fontSize: 13, 
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   priorityRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 8
+    gap: 6
   },
   priorityBadge: { 
     fontSize: 10, 

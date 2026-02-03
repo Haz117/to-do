@@ -14,12 +14,15 @@ import { useTheme } from '../contexts/ThemeContext';
 import Toast from '../components/Toast';
 import OverdueAlert from '../components/OverdueAlert';
 import { getCurrentSession } from '../services/authFirestore';
+import { useResponsive } from '../utils/responsive';
+import { SPACING, TYPOGRAPHY, RADIUS, SHADOWS, MAX_WIDTHS } from '../theme/tokens';
 
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function CalendarScreen({ navigation }) {
   const { theme, isDark } = useTheme();
+  const { width, isDesktop, isTablet, columns, padding } = useResponsive();
   const [tasks, setTasks] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -240,10 +243,11 @@ export default function CalendarScreen({ navigation }) {
   );
 
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
-  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const styles = React.useMemo(() => createStyles(theme, isDark, isDesktop, isTablet, width, padding), [theme, isDark, isDesktop, isTablet, width, padding]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
       <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : '#9F2241' }]}>
         <View style={styles.header}>
           <View>
@@ -373,6 +377,7 @@ export default function CalendarScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      </View>
 
       <Toast
         visible={toastVisible}
@@ -384,27 +389,28 @@ export default function CalendarScreen({ navigation }) {
   );
 }
 
-const createStyles = (theme, isDark) => StyleSheet.create({
+const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: theme.background
   },
+  contentWrapper: {
+    flex: 1,
+    alignSelf: 'center',
+    width: '100%'
+  },
   headerGradient: {
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12
+    borderBottomLeftRadius: RADIUS.xl,
+    borderBottomRightRadius: RADIUS.xl,
+    ...SHADOWS.lg
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 48,
-    paddingBottom: 20
+    paddingHorizontal: padding,
+    paddingTop: isDesktop ? SPACING.xxxl : 48,
+    paddingBottom: SPACING.lg
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -440,21 +446,17 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     textTransform: 'uppercase',
   },
   scrollContent: {
-    padding: 12
+    padding: padding
   },
   monthControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
     backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.sm
   },
   monthButton: {
     width: 44,
@@ -615,7 +617,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     backgroundColor: theme.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 16,
+    padding: 12,
     maxHeight: '80%',
     paddingBottom: 32,
     shadowColor: '#000',

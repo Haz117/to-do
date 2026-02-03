@@ -23,11 +23,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { subscribeToTasks, deleteTask as deleteTaskFirebase, updateTask, createTask } from '../services/tasks';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
 import { getCurrentSession, refreshSession } from '../services/authFirestore';
+import { useResponsive } from '../utils/responsive';
+import { SPACING, TYPOGRAPHY, RADIUS, SHADOWS, MAX_WIDTHS } from '../theme/tokens';
 
 const Swipeable = getSwipeable();
 
 export default function HomeScreen({ navigation }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const { width, isDesktop, isTablet, columns, padding } = useResponsive();
   
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('');
@@ -472,8 +475,8 @@ export default function HomeScreen({ navigation }) {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
-  // Create theme-aware styles
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  // Create theme-aware and responsive styles
+  const styles = React.useMemo(() => createStyles(theme, isDark, isDesktop, isTablet, width, padding, columns), [theme, isDark, isDesktop, isTablet, width, padding, columns]);
 
   // Show shimmer loading state
   if (isLoading) {
@@ -500,50 +503,51 @@ export default function HomeScreen({ navigation }) {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ConnectionIndicator />
       
-      <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.greetingContainer}>
-              <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
-              <Text style={styles.greeting}>Hola!</Text>
-            </View>
-            <Text style={styles.heading}>Mis Tareas</Text>
-          </View>
-          <View style={styles.headerActions}>
-            {urgentTasks.length > 0 && (
-              <View style={styles.urgentBadge}>
-                <Ionicons name="alarm" size={16} color="#FFF" />
-                <Text style={styles.urgentBadgeText}>{urgentTasks.length}</Text>
+      <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
+        <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.greetingContainer}>
+                <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+                <Text style={styles.greeting}>Hola!</Text>
               </View>
-            )}
-            <AdvancedFilters
-              filters={advancedFilters}
-              onApplyFilters={handleApplyFilters}
-              areas={uniqueAreas}
-              users={uniqueUsers}
-              tasks={tasks}
-            />
-            <ThemeToggle size={22} />
+              <Text style={styles.heading}>Mis Tareas</Text>
+            </View>
+            <View style={styles.headerActions}>
+              {urgentTasks.length > 0 && (
+                <View style={styles.urgentBadge}>
+                  <Ionicons name="alarm" size={16} color="#FFF" />
+                  <Text style={styles.urgentBadgeText}>{urgentTasks.length}</Text>
+                </View>
+              )}
+              <AdvancedFilters
+                filters={advancedFilters}
+                onApplyFilters={handleApplyFilters}
+                areas={uniqueAreas}
+                users={uniqueUsers}
+                tasks={tasks}
+              />
+              <ThemeToggle size={22} />
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Alerta de tareas vencidas */}
-      <OverdueAlert 
-        tasks={tasks} 
-        currentUserEmail={currentUser?.email}
-        role={currentUser?.role}
-      />
+        {/* Alerta de tareas vencidas */}
+        <OverdueAlert 
+          tasks={tasks} 
+          currentUserEmail={currentUser?.email}
+          role={currentUser?.role}
+        />
 
-      {/* Modal de Tareas Urgentes */}
-      <Modal
-        visible={showUrgentModal}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setShowUrgentModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.urgentModalContent, { backgroundColor: theme.card }]}>
+        {/* Modal de Tareas Urgentes */}
+        <Modal
+          visible={showUrgentModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setShowUrgentModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.urgentModalContent, { backgroundColor: theme.card }]}>
             <View style={styles.urgentModalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="alarm" size={28} color="#FF3B30" style={{ marginRight: 12 }} />
@@ -616,15 +620,15 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.urgentModalButtonText}>Entendido</Text>
               </TouchableOpacity>
             </View>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Search Bar */}
-      <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />
+        {/* Search Bar */}
+        <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />
 
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <FlatList
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <FlatList
           ref={flatListRef}
           data={filteredTasks}
           keyExtractor={(i) => i.id}
@@ -751,24 +755,25 @@ export default function HomeScreen({ navigation }) {
             </Swipeable>
           );
         }}
-        ListEmptyComponent={
-          <EmptyState
-            icon="checkbox-outline"
-            title="Sin tareas"
-            message={searchText || advancedFilters.areas.length > 0 || advancedFilters.responsible.length > 0 || advancedFilters.priorities.length > 0 || advancedFilters.statuses.length > 0 || advancedFilters.overdue
-              ? "No hay tareas que coincidan con los filtros aplicados"
-              : "No tienes tareas pendientes. ¡Toca el botón + para crear una nueva!"
-            }
-          />
-        }
-      />
-      </Animated.View>
-      
-      {/* Confetti celebration */}
-      <ConfettiCelebration trigger={showConfetti} />
-      
-      {/* Sync Indicator */}
-      <SyncIndicator />
+          ListEmptyComponent={
+            <EmptyState
+              icon="checkbox-outline"
+              title="Sin tareas"
+              message={searchText || advancedFilters.areas.length > 0 || advancedFilters.responsible.length > 0 || advancedFilters.priorities.length > 0 || advancedFilters.statuses.length > 0 || advancedFilters.overdue
+                ? "No hay tareas que coincidan con los filtros aplicados"
+                : "No tienes tareas pendientes. ¡Toca el botón + para crear una nueva!"
+              }
+            />
+          }
+        />
+        </Animated.View>
+        
+        {/* Confetti celebration */}
+        <ConfettiCelebration trigger={showConfetti} />
+        
+        {/* Sync Indicator */}
+        <SyncIndicator />
+      </View>
       
       {/* Toast mejorado */}
       <Toast 
@@ -826,10 +831,15 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding, columns) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: theme.background
+  },
+  contentWrapper: {
+    flex: 1,
+    alignSelf: 'center',
+    width: '100%'
   },
   headerGradient: {
     borderBottomLeftRadius: 30,
@@ -844,9 +854,9 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 16
+    paddingHorizontal: padding,
+    paddingTop: isDesktop ? SPACING.xxxl : 48,
+    paddingBottom: SPACING.md
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -870,16 +880,12 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 59, 48, 0.9)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-    marginRight: 8,
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.lg,
+    gap: SPACING.xs,
+    marginRight: SPACING.sm,
+    ...SHADOWS.sm
   },
   urgentBadgeText: {
     color: '#FFF',
@@ -887,17 +893,13 @@ const createStyles = (theme) => StyleSheet.create({
     fontWeight: '700',
   },
   urgentAlert: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
+    marginHorizontal: padding,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...SHADOWS.sm
   },
   urgentAlertContent: {
     flexDirection: 'row',
@@ -932,14 +934,14 @@ const createStyles = (theme) => StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)'
   },
   listContent: {
-    padding: 12,
-    paddingTop: 8,
+    padding: padding,
+    paddingTop: SPACING.sm,
     paddingBottom: 80
   },
   emptyContainer: {
     alignItems: 'center',
     marginTop: 100,
-    paddingHorizontal: 40
+    paddingHorizontal: padding * 2
   },
   emptyText: {
     fontSize: 20,
@@ -957,8 +959,9 @@ const createStyles = (theme) => StyleSheet.create({
   },
   // Bento Grid Styles
   bentoGrid: {
-    gap: 10,
-    marginBottom: 20
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: padding
   },
   bentoRow: {
     flexDirection: 'row',
@@ -966,13 +969,10 @@ const createStyles = (theme) => StyleSheet.create({
     marginBottom: 10
   },
   bentoCard: {
-    borderRadius: 28,
+    borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10
+    ...SHADOWS.lg,
+    width: isDesktop ? (screenWidth > 1440 ? '23%' : '32%') : isTablet ? '48%' : '100%'
   },
   bentoLarge: {
     flex: 2,
@@ -1198,14 +1198,10 @@ const createStyles = (theme) => StyleSheet.create({
   },
   urgentModalContent: {
     width: '100%',
-    maxWidth: 500,
+    maxWidth: MAX_WIDTHS.modal,
     maxHeight: '80%',
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 25
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.xl
   },
   urgentModalHeader: {
     flexDirection: 'row',

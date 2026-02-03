@@ -17,9 +17,12 @@ import Toast from '../components/Toast';
 import { useTheme } from '../contexts/ThemeContext';
 import { scheduleOverdueTasksNotification, scheduleMultipleDailyOverdueNotifications } from '../services/notifications';
 import OverdueAlert from '../components/OverdueAlert';
+import { useResponsive } from '../utils/responsive';
+import { SPACING, TYPOGRAPHY, RADIUS, SHADOWS, MAX_WIDTHS } from '../theme/tokens';
 
 export default function MyInboxScreen({ navigation }) {
   const { theme, isDark } = useTheme();
+  const { width, isDesktop, isTablet, columns, padding } = useResponsive();
   const [tasks, setTasks] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -308,10 +311,11 @@ export default function MyInboxScreen({ navigation }) {
     </View>
   );
 
-  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const styles = React.useMemo(() => createStyles(theme, isDark, isDesktop, isTablet, width, padding), [theme, isDark, isDesktop, isTablet, width, padding]);
 
   return (
     <View style={styles.container}>
+      <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
       {/* Alerta de tareas vencidas */}
       <OverdueAlert 
         tasks={filtered} 
@@ -465,6 +469,7 @@ export default function MyInboxScreen({ navigation }) {
           />
         }
       />
+      </View>
       
       <Toast 
         visible={toastVisible}
@@ -476,14 +481,19 @@ export default function MyInboxScreen({ navigation }) {
   );
 }
 
-const createStyles = (theme, isDark) => StyleSheet.create({
+const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: theme.background
   },
+  contentWrapper: {
+    flex: 1,
+    alignSelf: 'center',
+    width: '100%'
+  },
   headerGradient: {
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: RADIUS.xl,
+    borderBottomRightRadius: RADIUS.xl,
     shadowColor: '#9F2241',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -494,9 +504,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 48,
-    paddingBottom: 20
+    paddingHorizontal: padding,
+    paddingTop: isDesktop ? SPACING.xxxl : 48,
+    paddingBottom: SPACING.lg
   },
   greetingContainer: {
     flexDirection: 'row',
@@ -517,22 +527,14 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     letterSpacing: -1.2
   },
   addButton: {
-    borderRadius: 28,
+    borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8
+    ...SHADOWS.md
   },
   messagesButton: {
-    borderRadius: 28,
+    borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    shadowColor: '#DAA520',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6
+    ...SHADOWS.md
   },
   messageBadge: {
     position: 'absolute',
@@ -567,16 +569,12 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   userSection: {
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 14,
-    padding: 14,
-    borderRadius: 14,
-    shadowColor: isDark ? '#000' : '#DAA520',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
+    marginHorizontal: padding,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.sm,
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
   },
@@ -663,20 +661,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
     maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 20
+    ...SHADOWS.xl
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
   },
@@ -685,7 +679,7 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     fontWeight: '700'
   },
   modalScroll: {
-    padding: 16
+    padding: SPACING.md
   },
   actionsRow: { 
     flexDirection: 'row', 
@@ -694,9 +688,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   actionBtn: {
     flex: 1,
     backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFAF0',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#F5DEB3',

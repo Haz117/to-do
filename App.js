@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, Platform, StatusBar, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -23,6 +23,7 @@ import TaskChatScreen from './screens/TaskChatScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import { getCurrentSession, logoutUser } from './services/authFirestore';
 import { startConnectivityMonitoring } from './services/offlineQueue';
+import { setupNotificationResponseListener } from './services/notifications';
 
 // Vercel Analytics y Speed Insights (solo en web)
 let Analytics, SpeedInsights;
@@ -163,9 +164,9 @@ function MainTabs({ onLogout }) {
             backgroundColor: theme.card,
             borderTopColor: theme.border,
             borderTopWidth: 1,
-            height: 65,
-            paddingBottom: 10,
-            paddingTop: 10,
+            height: Platform.OS === 'ios' ? 85 : 70,
+            paddingBottom: Platform.OS === 'ios' ? 25 : 12,
+            paddingTop: 8,
             elevation: 8,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },
@@ -303,6 +304,9 @@ export default function App() {
     // Iniciar monitoreo de conectividad para sincronización offline
     const unsubscribeConnectivity = startConnectivityMonitoring();
     
+    // 🔔 Setup del listener de respuestas de notificaciones
+    const notificationSubscription = setupNotificationResponseListener();
+    
     // Timeout de seguridad
     const timeout = setTimeout(() => {
       if (mounted) {
@@ -331,6 +335,7 @@ export default function App() {
       mounted = false;
       clearTimeout(timeout);
       if (unsubscribeConnectivity) unsubscribeConnectivity();
+      if (notificationSubscription) notificationSubscription.remove();
     };
   }, []);
   

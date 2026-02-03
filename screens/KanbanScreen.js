@@ -917,7 +917,7 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     fontWeight: '600'
   },
   contextMenuContent: {
-    padding: 16
+    padding: 12
   },
   contextTaskTitle: {
     fontSize: 16,
@@ -1147,8 +1147,8 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     color: '#FFFFFF'
   },
   card: { 
-    margin: 12,
-    padding: 16,
+    margin: 10,
+    padding: 12,
     borderRadius: 20,
     backgroundColor: theme.surface,
     borderWidth: 1.5,

@@ -10,11 +10,14 @@ import { getGeneralMetrics, getTrendData, getAreaStats, getTopPerformers, format
 import { hapticMedium } from '../utils/haptics';
 import LoadingIndicator from '../components/LoadingIndicator';
 import EmptyState from '../components/EmptyState';
+import { useResponsive } from '../utils/responsive';
+import { SPACING, TYPOGRAPHY, RADIUS, MAX_WIDTHS } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
   const { theme, isDark } = useTheme();
+  const { width: screenWidth, isDesktop, isTablet, columns, padding } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState(null);
@@ -60,7 +63,7 @@ export default function DashboardScreen({ navigation }) {
     loadData();
   }, [loadData]);
 
-  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const styles = React.useMemo(() => createStyles(theme, isDark, isDesktop, isTablet, screenWidth, padding, columns), [theme, isDark, isDesktop, isTablet, screenWidth, padding, columns]);
 
   if (loading) {
     return (
@@ -125,6 +128,7 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
       <View style={[styles.header, { backgroundColor: theme.primary }]}>
         <Text style={styles.headerTitle}>📊 Dashboard</Text>
         <Text style={styles.headerSubtitle}>Estadísticas y Métricas</Text>
@@ -354,14 +358,19 @@ export default function DashboardScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </View>
     </View>
   );
 }
 
-const createStyles = (theme, isDark) => StyleSheet.create({
+const createStyles = (theme, isDark, isDesktop = false, isTablet = false, screenWidth = 400, padding = 16, columns = 1) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
+  },
+  contentWrapper: {
+    alignSelf: 'center',
+    width: '100%',
   },
   centered: {
     justifyContent: 'center',
@@ -374,9 +383,9 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   header: {
     paddingTop: 60,
     paddingBottom: 24,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingHorizontal: padding,
+    borderBottomLeftRadius: RADIUS.xl,
+    borderBottomRightRadius: RADIUS.xl,
   },
   headerTitle: {
     fontSize: 32,
@@ -394,13 +403,13 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
+    padding: padding,
+    gap: SPACING.md,
   },
   metricCard: {
-    width: (width - 44) / 2,
-    padding: 16,
-    borderRadius: 16,
+    width: isDesktop ? `${(100 / Math.min(columns, 4)) - 2}%` : (screenWidth - (padding * 2) - SPACING.md) / 2,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
     alignItems: 'center',
   },
   metricIcon: {
@@ -441,10 +450,10 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     fontWeight: '600',
   },
   section: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 16,
+    marginHorizontal: padding,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -483,8 +492,16 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     textAlign: 'center',
   },
   chart: {
-    marginVertical: 8,
-    borderRadius: 16,
+    marginVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
+  chartsContainer: {
+    flexDirection: isDesktop ? 'row' : 'column',
+    gap: SPACING.md,
+  },
+  chartSection: {
+    flex: isDesktop ? 1 : undefined,
+    width: isDesktop ? undefined : '100%',
   },
   performer: {
     flexDirection: 'row',
