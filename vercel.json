@@ -69,6 +69,22 @@
   ],
   "rewrites": [
     {
+      "source": "/admin/download",
+      "destination": "/public/download.html"
+    },
+    {
+      "source": "/admin/list-users",
+      "destination": "/public/list-users.html"
+    },
+    {
+      "source": "/admin/test-email",
+      "destination": "/public/test-email.html"
+    },
+    {
+      "source": "/admin/update-passwords",
+      "destination": "/public/update-passwords.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

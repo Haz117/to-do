@@ -2,129 +2,98 @@
 
 Sistema completo de gestión de tareas con roles, permisos y sincronización en tiempo real.
 
-![Version](https://img.shields.io/badge/version-1.0.0-9F2241) ![React Native](https://img.shields.io/badge/React%20Native-0.76-61DAFB) ![Firebase](https://img.shields.io/badge/Firebase-11.1-FFCA28) ![Vercel](https://img.shields.io/badge/Vercel-Pro-000000)
+![Version](https://img.shields.io/badge/version-1.0.0-9F2241) ![React Native](https://img.shields.io/badge/React%20Native-0.76-61DAFB) ![Firebase](https://img.shields.io/badge/Firebase-11.1-FFCA28) ![Expo](https://img.shields.io/badge/Expo-SDK%2053-000020)
 
 ---
 
-## 🚀 **OPTIMIZADO PARA VERCEL PRO**
+## 🚀 Características Principales
 
-✅ **Analytics en Tiempo Real** - Monitoreo de usuarios y rendimiento  
-✅ **Speed Insights** - Métricas de Core Web Vitals  
-✅ **Headers de Seguridad** - Protección XSS, Clickjacking, MIME sniffing  
-✅ **Cache Optimizado** - Assets con cache inmutable de 1 año  
-✅ **Emails Seguros** - API serverless sin exponer credenciales  
-
-### 📖 Documentación de Mejoras
-- [⚡ Inicio Rápido (5 pasos, 20 min)](INICIO_RAPIDO.md) ← **EMPIEZA AQUÍ**
-- [📊 Guía Completa Vercel Pro](CONFIGURACION_VERCEL_PRO.md)
-- [✅ Resumen de Mejoras Implementadas](MEJORAS_IMPLEMENTADAS.md)
-- [📧 Configuración de Emails](CONFIGURACION_EMAIL.md)
-- [🔒 Guía de Seguridad](SEGURIDAD.md) ← **IMPORTANTE**
-
-### 🧪 Testing
-- **Test Emails:** `https://tu-proyecto.vercel.app/test-email.html`
-- **Validar Setup:** `npm run validate`
-
----
-
-## 🔒 **SEGURIDAD**
-
-### ⚠️ Credenciales Protegidas
-
-**TODAS las credenciales han sido removidas del código por seguridad.**
-
-Para configurar tu entorno:
-
-1. **Copia `.env.local`** → `.env`
-2. **Completa con tus credenciales** (Firebase, SendGrid)
-3. **Configura variables en Vercel** Dashboard
-4. **NUNCA subas** el archivo `.env` a Git
-
-📖 **Lee la guía completa:** [SEGURIDAD.md](SEGURIDAD.md)
-
----
-
-## 📱 **DESCARGA LA APP**
-
-### 🌐 **App Web (Disponible ahora)**
-Accede desde cualquier navegador: **https://tu-proyecto.vercel.app**
-
-### 📲 **App Android (APK)**
-Descarga e instala en tu celular: **[Página de Descarga](public/index.html)**
-
-### 🔐 **Credenciales:**
-```
-⚠️ Por seguridad, las credenciales no están públicas.
-Contacta al administrador para obtener acceso.
-```
-
----
-
-Aplicación de gestión de tareas desarrollada con React Native, Expo y Firebase.
-
-## 🚀 Características
-
-✅ **Gestión de Tareas**
+✅ **Gestión de Tareas Inteligente**
 - Crear, editar y eliminar tareas
 - Asignación de tareas a usuarios
 - Prioridades y estados personalizables
-- Fechas de compromiso con recordatorios
+- Fechas de compromiso con recordatorios automáticos
 
-🔐 **Autenticación**
-- Sistema de login con Firebase Auth
+🔐 **Sistema de Autenticación**
+- Login seguro con Firebase Auth
 - Roles de usuario (Admin, Jefe, Operativo)
 - Gestión de permisos por departamento
+- Control de acceso basado en roles
 
-🔔 **Notificaciones**
-- Notificaciones push (FCM)
+🔔 **Notificaciones Push**
+- Notificaciones en tiempo real (FCM)
 - Recordatorios automáticos
 - Alertas de asignación de tareas
-- Notificaciones de nuevos comentarios
+- Notificaciones de comentarios
 
-💬 **Colaboración**
-- Chat por tarea en tiempo real
+💬 **Colaboración en Tiempo Real**
+- Chat por tarea
 - Sistema de firmas digitales
 - Comentarios y actualizaciones
+- Sincronización instantánea con Firestore
 
 📊 **Vistas y Reportes**
 - Vista principal tipo Bento Grid
-- Vista Kanban interactiva
+- Vista Kanban interactiva con Drag & Drop  
 - Bandeja de entrada personalizada
 - Reportes y estadísticas por área
 - Exportación de datos (CSV)
 
-☁️ **Sincronización**
-- Firestore en tiempo real
-- Fallback a almacenamiento local
-- Manejo de conexión offline
+📱 **Multiplataforma**
+- Compatible con iOS, Android y Web
+- Diseño responsive y adaptativo
+- Trabajo sin conexión con sincronización automática
 
-📱 Compatible con iOS, Android y Web
+---
 
-📋 Requisitos Previos
+## 🔒 Seguridad
 
-Node.js (v14 o superior)
+⚠️ **IMPORTANTE:** Las credenciales Firebase están protegidas mediante variables de entorno.
 
-npm o yarn
+**Para configurar tu entorno:**
 
-App Expo Go en tu dispositivo móvil (para pruebas)
+1. Crea un archivo `.env` basado en `.env.example`
+2. Completa tus propias credenciales de Firebase
+3. **NUNCA** subas el archivo `.env` al repositorio
 
-Cuenta en Firebase
+```bash
+# ✅ Archivo incluido en .gitignore
+.env
+```
 
-🔧 Configuración
-1️⃣ Instalar dependencias
+---
+
+## 📋 Requisitos Previos
+
+- Node.js (v16 o superior)
+- npm o yarn
+- Expo CLI (se instala automáticamente)
+- Cuenta en [Firebase Console](https://console.firebase.google.com/)
+
+---
+
+## 🔧 Instalación y Configuración
+
+### 1️⃣ Clonar e Instalar Dependencias
+
+```bash
+git clone <repository-url>
+cd to-do
 npm install --legacy-peer-deps
+```
 
-2️⃣ Configurar Firebase
+### 2️⃣ Configurar Firebase
 
-Crea un proyecto en Firebase Console
+1. Crea un proyecto en [Firebase Console](https://console.firebase.google.com/)
+2. Habilita **Authentication** (Email/Password)
+3. Crea una base de datos **Firestore**
+4. Copia tus credenciales
 
-Copia el archivo .env.example a .env:
+### 3️⃣ Variables de Entorno
 
-copy .env.example .env
+Crea un archivo `.env` en la raíz con tus credenciales:
 
-
-Completa tus credenciales en .env:
-
+```bash
 FIREBASE_API_KEY=tu_api_key_aqui
 FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
 FIREBASE_PROJECT_ID=tu_proyecto_id
@@ -132,174 +101,108 @@ FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
 FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
 FIREBASE_APP_ID=tu_app_id
 FIREBASE_MEASUREMENT_ID=tu_measurement_id
-
-3️⃣ Instalar versiones compatibles
-npx expo install --fix
-
-🏃 Ejecutar la App
-🔹 Modo desarrollo
-npm start
-
-
-o
-
-npx expo start
-
-🔹 Opciones de ejecución
-
-Android: Presiona a o ejecuta npm run android
-
-iOS: Presiona i o ejecuta npm run ios
-
-Web: Presiona w o ejecuta npm run web
-
-Dispositivo físico: Escanea el código QR con Expo Go
-
-📁 Estructura del Proyecto
-```
-TODO/
-├── components/          # Componentes reutilizables
-│   ├── FilterBar.js
-│   └── TaskItem.js
-├── screens/             # Pantallas principales
-│   ├── AdminScreen.js       # Configuración y administración
-│   ├── HomeScreen.js        # Vista principal de tareas
-│   ├── KanbanScreen.js      # Vista tipo Kanban
-│   ├── LoginScreen.js       # Autenticación
-│   ├── MyInboxScreen.js     # Bandeja personal
-│   ├── ReportScreen.js      # Reportes y estadísticas
-│   ├── TaskChatScreen.js    # Chat por tarea
-│   └── TaskDetailScreen.js  # Crear/editar tareas
-├── services/            # Lógica de negocio y utilidades
-│   ├── auth.js             # Autenticación con Firebase Auth
-│   ├── fcm.js              # Push notifications (FCM)
-│   ├── notifications.js    # Gestión de notificaciones locales
-│   ├── people.js           # [DEPRECATED] Migrado a roles.js
-│   ├── reports.js          # Generación de reportes
-│   ├── roles.js            # Gestión de roles y usuarios
-│   ├── signatures.js       # Sistema de firmas digitales
-│   └── tasks.js            # CRUD de tareas con Firestore
-├── App.js               # Punto de entrada principal
-├── firebase.js          # Configuración de Firebase
-├── storage.js           # [FALLBACK] Almacenamiento local
-└── app.config.js        # Configuración de Expo
 ```
 
-🔥 Configurar Firestore
+### 4️⃣ Reglas de Firestore
 
-En Firebase Console, crea una colección llamada tasks con esta estructura:
+Aplica estas reglas de seguridad en Firestore:
 
-{
-  title: string,
-  description: string,
-  status: string,      // 'todo', 'in-progress', 'done'
-  priority: string,    // 'low', 'medium', 'high'
-  dueDate: timestamp,
-  assignedTo: string,
-  createdAt: timestamp,
-  updatedAt: timestamp
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /tasks/{taskId} {
+      allow read, write: if request.auth != null;
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+  }
 }
+```
 
-⚠️ Solución de Problemas
-🧩 Versiones incompatibles
+---
+
+## 🏃 Ejecutar la Aplicación
+
+### Modo Desarrollo
+
+```bash
+npm start
+# o
+npx expo start
+```
+
+### Opciones de Ejecución
+
+- **Android:** Presiona `a` en la terminal o ejecuta `npm run android`
+- **iOS:** Presiona `i` o ejecuta `npm run ios`  
+- **Web:** Presiona `w` o ejecuta `npm run web`
+- **Dispositivo físico:** Escanea el código QR con [Expo Go](https://expo.dev/client)
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+to-do/
+├── components/          # Componentes reutilizables UI
+├── screens/             # Pantallas principales
+│   ├── HomeScreen.js        # Vista principal de tareas
+│   ├── LoginScreen.js       # Autenticación
+│   ├── KanbanScreen.js      # Vista Kanban
+│   ├── AdminScreen.js       # Administración
+│   ├── MyInboxScreen.js     # Bandeja personal
+│   ├── ReportScreen.js      # Reportes
+│   ├── TaskDetailScreen.js  # Detalle de tarea
+│   └── TaskChatScreen.js    # Chat por tarea
+├── services/            # Lógica de negocio
+│   ├── auth.js              # Autenticación Firebase
+│   ├── tasks.js             # CRUD de tareas
+│   ├── roles.js             # Gestión de roles
+│   ├── notifications.js     # Notificaciones
+│   └── fcm.js              # Push notifications
+├── theme/               # Estilos y temas
+├── utils/               # Utilidades
+├── App.js              # Punto de entrada
+├── firebase.js         # Configuración Firebase
+└── app.config.js       # Configuración Expo
+```
+
+---
+
+## ⚠️ Solución de Problemas
+
+### Versiones incompatibles
+```bash
 npx expo install --fix
+```
 
-🚫 Error de Metro Bundler
+### Limpiar caché de Metro
+```bash
 npx expo start -c
+```
 
-🗑️ Problemas con node_modules
+### Reinstalar dependencias
+```bash
 Remove-Item -Recurse -Force node_modules
 Remove-Item -Force package-lock.json
 npm install --legacy-peer-deps
+```
 
-📄 Licencia
+---
+
+## 📄 Licencia
 
 ISC License
 
 ---
 
-## 🔄 Changelog - Noviembre 2025
+## 👥 Autor
 
-### ✅ Correcciones y Mejoras
-
-**Inicialización de Firebase**
-- ✅ Corregido error "No Firebase App '[DEFAULT]' has been created"
-- ✅ Firebase Auth ahora se inicializa correctamente con la instancia de app
-
-**Limpieza de Código**
-- ✅ Removida dependencia no usada: `@react-navigation/bottom-tabs`
-- ✅ Eliminado archivo obsoleto: `services/user.js`
-- ✅ Marcados archivos legacy: `storage.js`, `people.js`
-
-**Migración a Firebase Auth**
-- ✅ `MyInboxScreen` ahora usa `getCurrentUserName()` de Firebase Auth
-- ✅ `TaskChatScreen` migrado a Firebase Auth
-- ✅ `AdminScreen` simplificado, eliminadas funciones duplicadas
-- ✅ `ReportScreen` ahora usa `subscribeToTasks()` para datos en tiempo real
-- ✅ `TaskDetailScreen` migrado de `people.js` a `roles.js` (Firebase Auth)
-
-**Nuevas Funciones**
-- ✅ `getAllUsersNames()` en `roles.js` - Obtiene usuarios activos de Firebase
-- ✅ Sistema centralizado de autenticación
-- ✅ Sincronización en tiempo real en todas las pantallas
-
-### 🎯 Arquitectura Mejorada
-
-**Antes:**
-- Sistema mixto: AsyncStorage + Firebase
-- Usuario como string en localStorage
-- Código duplicado en múltiples pantallas
-
-**Ahora:**
-- Firebase como fuente única de verdad
-- Sistema de roles y permisos robusto
-- Usuario autenticado desde Firebase Auth
-- Updates en tiempo real con Firestore
-- Código limpio y mantenible
+**Hazel Jared Almaraz**
 
 ---
 
-👥 Autor
-
-Hazel Jared Almaraz
-
-⚡ Instrucciones Rápidas
-
-Crea un nuevo proyecto Expo:
-
-npx create-expo-app MyTodoApp
-cd MyTodoApp
-
-
-Copia los archivos en la raíz del proyecto.
-
-Instala las dependencias necesarias:
-
-npm install firebase @react-navigation/native @react-navigation/stack @react-native-async-storage/async-storage
-expo install expo-notifications react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context
-
-
-Agrega tu configuración de Firebase en firebase.js.
-
-Ejecuta la app:
-
-npx expo start
-
-🔐 Variables de Entorno
-
-He creado un archivo .env con tus credenciales.
-
-Recomendaciones:
-
-Añade .env a tu .gitignore para no subirlo al repositorio.
-
-Para que Expo inyecte las variables en tiempo de ejecución, app.config.js usa dotenv.
-
-Instala dotenv como dependencia de desarrollo:
-
-npm install dotenv --save-dev
-
-
-firebase.js lee la configuración desde Constants.manifest.extra (inyectado por Expo) o process.env como respaldo.
-#   T o - d o  
- 
+*Desarrollado con ❤️ usando React Native, Expo y Firebase*

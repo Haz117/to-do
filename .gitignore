@@ -41,6 +41,14 @@ GoogleService-Info.plist
 .vscode/
 .idea/
 
+# Archivos de backup y desarrollo
+*.backup
+*.bak
+*.old
+*.BACKUP.*
+*EJEMPLO_USO*
+*RESUMEN_MEJORAS*
+
 # Misc
 *.jks
 *.p8
