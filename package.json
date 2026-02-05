@@ -1,7 +1,7 @@
 {
-  "name": "todo",
+  "name": "m2-todo-app",
   "version": "1.0.0",
-  "description": "App de tareas con Expo, React Native y Firebase",
+  "description": "M2 - Sistema de gestión de tareas con Expo, React Native y Firebase",
   "main": "index.js",
   "scripts": {
     "start": "expo start",

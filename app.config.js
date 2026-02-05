@@ -3,8 +3,8 @@
 // No necesitamos require('dotenv') porque no funciona en React Native
 module.exports = {
   expo: {
-    name: 'TodoApp',
-    slug: 'todo-app',
+    name: 'M2 TodoApp',
+    slug: 'm2-todo-app',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
