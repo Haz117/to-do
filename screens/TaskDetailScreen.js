@@ -1,6 +1,6 @@
 // screens/TaskDetailScreen.js
 // Formulario para crear o editar una tarea. Incluye DateTimePicker y programación de notificación.
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Button, TextInput, Platform, Alert, TouchableOpacity, ScrollView, Animated, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createTask, updateTask, deleteTask } from '../services/tasks';
@@ -27,13 +27,22 @@ export default function TaskDetailScreen({ route, navigation }) {
   // Si route.params.task está presente, estamos editando; si no, creamos nueva
   const editingTask = route.params?.task || null;
 
+  // Función para obtener mañana a las 9am por defecto
+  const getDefaultDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    return tomorrow;
+  };
+
   const [title, setTitle] = useState(editingTask ? editingTask.title : '');
   const [description, setDescription] = useState(editingTask ? editingTask.description : '');
   const [assignedTo, setAssignedTo] = useState(editingTask ? editingTask.assignedTo : '');
   const [area, setArea] = useState(editingTask ? editingTask.area : 'Jurídica');
   const [priority, setPriority] = useState(editingTask ? editingTask.priority : 'media');
   const [status, setStatus] = useState(editingTask ? editingTask.status : 'pendiente');
-  const [dueAt, setDueAt] = useState(editingTask ? new Date(editingTask.dueAt) : new Date(Date.now() + 3600 * 1000));
+  const [dueAt, setDueAt] = useState(editingTask ? new Date(editingTask.dueAt) : getDefaultDate());
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [isRecurring, setIsRecurring] = useState(editingTask ? editingTask.isRecurring || false : false);
   const [recurrencePattern, setRecurrencePattern] = useState(editingTask ? editingTask.recurrencePattern || 'daily' : 'daily');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -55,6 +64,13 @@ export default function TaskDetailScreen({ route, navigation }) {
   const [tags, setTags] = useState(editingTask?.tags || []);
   const [estimatedHours, setEstimatedHours] = useState(editingTask?.estimatedHours?.toString() || '');
   
+  // Expandir opciones avanzadas automáticamente si hay datos
+  useEffect(() => {
+    if (editingTask && (editingTask.tags?.length > 0 || editingTask.estimatedHours || editingTask.isRecurring)) {
+      setShowAdvancedOptions(true);
+    }
+  }, [editingTask]);
+  
   // Refs para inputs
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
@@ -68,22 +84,22 @@ export default function TaskDetailScreen({ route, navigation }) {
   const priorities = ['baja', 'media', 'alta'];
   const statuses = ['pendiente', 'en_proceso', 'en_revision', 'cerrada'];
 
-  // Mapeo de áreas a departamentos
-  const areaToDepMap = {
+  // Mapeo de áreas a departamentos (usar useMemo para evitar recrear objetos)
+  const areaToDepMap = useMemo(() => ({
     'Jurídica': 'juridica',
     'Obras': 'obras',
     'Tesorería': 'tesoreria',
     'Administración': 'administracion',
     'Recursos Humanos': 'rrhh'
-  };
+  }), []);
 
-  const depToAreaMap = {
+  const depToAreaMap = useMemo(() => ({
     'juridica': 'Jurídica',
     'obras': 'Obras',
     'tesoreria': 'Tesorería',
     'administracion': 'Administración',
     'rrhh': 'Recursos Humanos'
-  };
+  }), []);
 
   useEffect(() => {
     navigation.setOptions({ 
@@ -97,6 +113,9 @@ export default function TaskDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       ) : null
     });
+  }, [editingTask, theme, navigation]);
+
+  useEffect(() => {
     loadUserNames();
     checkPermissions();
     
@@ -106,14 +125,14 @@ export default function TaskDetailScreen({ route, navigation }) {
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [editingTask, fadeAnim, theme]);
-
-  const loadUserNames = useCallback(async () => {
-    const names = await getAllUsersNames();
-    setPeopleNames(names);
   }, []);
 
-  const checkPermissions = useCallback(async () => {
+  const loadUserNames = async () => {
+    const names = await getAllUsersNames();
+    setPeopleNames(names);
+  };
+
+  const checkPermissions = async () => {
     const result = await getCurrentSession();
     if (result.success) {
       setCurrentUser(result.session);
@@ -129,9 +148,9 @@ export default function TaskDetailScreen({ route, navigation }) {
         setCanEdit(false);
       }
     }
-  }, [editingTask]);
+  };
 
-  const onChangeDate = (event, selectedDate) => {
+  const onChangeDate = useCallback((event, selectedDate) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
@@ -152,9 +171,9 @@ export default function TaskDetailScreen({ route, navigation }) {
     } else if (event.type === 'dismissed') {
       setShowDatePicker(false);
     }
-  };
+  }, [dueAt]);
 
-  const onChangeTime = (event, selectedTime) => {
+  const onChangeTime = useCallback((event, selectedTime) => {
     if (Platform.OS === 'android') {
       setShowTimePicker(false);
     }
@@ -167,7 +186,7 @@ export default function TaskDetailScreen({ route, navigation }) {
     } else if (event.type === 'dismissed') {
       setShowTimePicker(false);
     }
-  };
+  }, [tempDate]);
 
   const save = async () => {
     if (isSaving) return; // Prevenir doble clic
@@ -430,6 +449,25 @@ export default function TaskDetailScreen({ route, navigation }) {
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
+  // Memoizar handlers para evitar recrearlos en cada render
+  const handleAssignedToChange = useCallback((name) => {
+    if (canEdit) setAssignedTo(name);
+  }, [canEdit]);
+
+  const handleAreaChange = useCallback((a) => {
+    const areaDep = areaToDepMap[a] || a.toLowerCase();
+    const canSelectArea = canEdit && (currentUser?.role === 'admin' || areaDep === currentUser?.department);
+    if (canSelectArea) setArea(a);
+  }, [canEdit, currentUser, areaToDepMap]);
+
+  const handlePriorityChange = useCallback((p) => {
+    if (canEdit) setPriority(p);
+  }, [canEdit]);
+
+  const handleStatusChange = useCallback((s) => {
+    setStatus(s);
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={[styles.headerBar, { backgroundColor: '#9F2241' }]}>
@@ -454,154 +492,145 @@ export default function TaskDetailScreen({ route, navigation }) {
       </View>
       
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.label}>TÍTULO</Text>
-          <ShakeInput
-            ref={titleInputRef}
-            value={title} 
-            onChangeText={setTitle} 
-            placeholder="Título corto" 
-            placeholderTextColor="#C7C7CC" 
-            style={styles.input}
-            editable={canEdit}
-            error={!title.trim() && title.length > 0}
-          />
-
-          <Text style={styles.label}>DESCRIPCIÓN</Text>
-          <ShakeInput
-            ref={descriptionInputRef}
-            value={description} 
-            onChangeText={setDescription} 
-            placeholder="Descripción" 
-            placeholderTextColor="#C7C7CC" 
-            style={[styles.input, {height:80}]} 
-            multiline
-            editable={canEdit}
-            error={!description.trim() && description.length > 0}
-          />
-
-          <Text style={styles.label}>ASIGNADO A</Text>
-          <View style={styles.pickerRow}>
-            {peopleNames.map(name => (
-              <TouchableOpacity
-                key={name}
-                onPress={() => canEdit && setAssignedTo(name)}
-                style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
-                disabled={!canEdit}
-              >
-                <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>ÁREA</Text>
-          <View style={styles.pickerRow}>
-            {areas.map(a => {
-              // Jefes solo pueden seleccionar su propia área
-              const areaDep = areaToDepMap[a] || a.toLowerCase();
-              const canSelectArea = canEdit && (currentUser?.role === 'admin' || areaDep === currentUser?.department);
-              return (
-                <TouchableOpacity
-                  key={a}
-                  onPress={() => canSelectArea && setArea(a)}
-                  style={[
-                    styles.optionBtn, 
-                    area === a && styles.optionBtnActive, 
-                    !canSelectArea && styles.optionBtnDisabled
-                  ]}
-                  disabled={!canSelectArea}
-                >
-                  <Text style={[styles.optionText, area === a && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{a}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={styles.label}>PRIORIDAD</Text>
-          <View style={styles.pickerRow}>
-            {priorities.map(p => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => canEdit && setPriority(p)}
-                style={[styles.optionBtn, priority === p && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
-                disabled={!canEdit}
-              >
-                <Text style={[styles.optionText, priority === p && styles.optionTextActive]} numberOfLines={1}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>TIEMPO ESTIMADO (HORAS)</Text>
-          <TextInput
-            value={estimatedHours}
-            onChangeText={setEstimatedHours}
-            placeholder="Ej: 2.5"
-            placeholderTextColor="#C7C7CC"
-            keyboardType="numeric"
-            style={[styles.input, { color: theme.text }]}
-            editable={canEdit}
-          />
-
-          <Text style={styles.label}>ETIQUETAS</Text>
-          <TagInput
-            tags={tags}
-            onTagsChange={setTags}
-            placeholder="Agregar etiquetas..."
-            maxTags={10}
-          />
-
-          <Text style={styles.label}>ESTADO</Text>
-          <View style={styles.pickerRow}>
-            {statuses.map(s => (
-              <TouchableOpacity
-                key={s}
-                onPress={() => setStatus(s)}
-                style={[styles.optionBtn, status === s && styles.optionBtnActive]}
-              >
-                <Text style={[styles.optionText, status === s && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">
-                  {s === 'en_proceso' ? 'En proceso' : s === 'en_revision' ? 'En revisión' : s.charAt(0).toUpperCase() + s.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>FECHA COMPROMISO</Text>
-          
-          {Platform.OS === 'web' ? (
-            <View style={styles.webDateContainer}>
-              <input
-                type="datetime-local"
-                value={dueAt.toISOString().slice(0, 16)}
-                onChange={(e) => {
-                  const newDate = new Date(e.target.value);
-                  if (!isNaN(newDate.getTime())) {
-                    setDueAt(newDate);
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  padding: 15,
-                  fontSize: 16,
-                  borderRadius: 12,
-                  border: '2px solid #9F2241',
-                  backgroundColor: '#FFFFFF',
-                  color: '#000000',
-                  fontFamily: 'system-ui'
-                }}
-              />
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingHorizontal: 4 }}>
-                <Ionicons name="calendar" size={16} color="#9F2241" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 14, color: '#666' }}>
-                  {dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                  {' a las '}
-                  {dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={true}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* SECCIÓN BÁSICA */}
+          <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
+            <View style={styles.sectionHeaderSimple}>
+              <Ionicons name="document-text" size={20} color={theme.primary} />
+              <Text style={[styles.sectionTitleSimple, { color: theme.text }]}>Información Básica</Text>
             </View>
-          ) : (
-            <>
+            
+            <Text style={styles.label}>TÍTULO *</Text>
+            <ShakeInput
+              ref={titleInputRef}
+              value={title} 
+              onChangeText={setTitle} 
+              placeholder="¿Qué hay que hacer?" 
+              placeholderTextColor="#C7C7CC" 
+              style={styles.input}
+              editable={canEdit}
+              error={!title.trim() && title.length > 0}
+            />
+
+            <Text style={styles.label}>DESCRIPCIÓN *</Text>
+            <ShakeInput
+              ref={descriptionInputRef}
+              value={description} 
+              onChangeText={setDescription} 
+              placeholder="Detalles de la tarea..." 
+              placeholderTextColor="#C7C7CC" 
+              style={[styles.input, {height:80}]} 
+              multiline
+              editable={canEdit}
+              error={!description.trim() && description.length > 0}
+            />
+          </View>
+
+          {/* SECCIÓN ASIGNACIÓN */}
+          <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
+            <View style={styles.sectionHeaderSimple}>
+              <Ionicons name="people" size={20} color={theme.primary} />
+              <Text style={[styles.sectionTitleSimple, { color: theme.text }]}>Asignación y Área</Text>
+            </View>
+            
+            <Text style={styles.label}>ASIGNADO A *</Text>
+            <View style={styles.pickerRow}>
+              {peopleNames.map(name => (
+                <TouchableOpacity
+                  key={name}
+                  onPress={() => handleAssignedToChange(name)}
+                  style={[styles.optionBtn, assignedTo === name && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
+                  disabled={!canEdit}
+                >
+                  <Text style={[styles.optionText, assignedTo === name && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>ÁREA *</Text>
+            <View style={styles.pickerRow}>
+              {areas.map(a => {
+                const areaDep = areaToDepMap[a] || a.toLowerCase();
+                const canSelectArea = canEdit && (currentUser?.role === 'admin' || areaDep === currentUser?.department);
+                return (
+                  <TouchableOpacity
+                    key={a}
+                    onPress={() => handleAreaChange(a)}
+                    style={[
+                      styles.optionBtn, 
+                      area === a && styles.optionBtnActive, 
+                      !canSelectArea && styles.optionBtnDisabled
+                    ]}
+                    disabled={!canSelectArea}
+                  >
+                    <Text style={[styles.optionText, area === a && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">{a}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* SECCIÓN PRIORIDAD Y FECHA */}
+          <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
+            <View style={styles.sectionHeaderSimple}>
+              <Ionicons name="flag" size={20} color={theme.primary} />
+              <Text style={[styles.sectionTitleSimple, { color: theme.text }]}>Prioridad y Fecha</Text>
+            </View>
+            
+            <Text style={styles.label}>PRIORIDAD *</Text>
+            <View style={styles.pickerRow}>
+              {priorities.map(p => (
+                <TouchableOpacity
+                  key={p}
+                  onPress={() => handlePriorityChange(p)}
+                  style={[styles.optionBtn, priority === p && styles.optionBtnActive, !canEdit && styles.optionBtnDisabled]}
+                  disabled={!canEdit}
+                >
+                  <Text style={[styles.optionText, priority === p && styles.optionTextActive]} numberOfLines={1}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>FECHA COMPROMISO *</Text>
+            {Platform.OS === 'web' ? (
+              <View style={styles.webDateContainer}>
+                <input
+                  type="datetime-local"
+                  value={dueAt.toISOString().slice(0, 16)}
+                  onChange={(e) => {
+                    const newDate = new Date(e.target.value);
+                    if (!isNaN(newDate.getTime())) {
+                      setDueAt(newDate);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: 15,
+                    fontSize: 16,
+                    borderRadius: 12,
+                    border: '2px solid #9F2241',
+                    backgroundColor: '#FFFFFF',
+                    color: '#000000',
+                    fontFamily: 'system-ui'
+                  }}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, paddingHorizontal: 4 }}>
+                  <Ionicons name="calendar" size={16} color="#9F2241" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 14, color: '#666' }}>
+                    {dueAt.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    {' a las '}
+                    {dueAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </View>
+            ) : (
               <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
                 <View style={[styles.dateButtonGradient, { backgroundColor: '#9F2241' }]}>
                   <View style={styles.dateIconContainer}>
@@ -615,89 +644,168 @@ export default function TaskDetailScreen({ route, navigation }) {
                   <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
                 </View>
               </TouchableOpacity>
-            </>
-          )}
-          
-          {/* Sección de Recurrencia - Mejorada */}
-          <View style={[styles.formSection, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-            <TouchableOpacity 
-              onPress={() => setIsRecurring(!isRecurring)}
-              disabled={!canEdit}
-              style={[styles.recurrenceHeader, { backgroundColor: isRecurring ? theme.primary + '10' : 'transparent' }]}
-            >
-              <View style={styles.sectionHeader}>
-                <Ionicons name="repeat" size={22} color={isRecurring ? theme.primary : theme.textSecondary} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Tarea Recurrente</Text>
-                  <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-                    {isRecurring 
-                      ? recurrencePattern === 'daily' ? 'Se repite cada día' 
-                        : recurrencePattern === 'weekly' ? 'Se repite cada semana'
-                        : 'Se repite cada mes'
-                      : 'Activar para repetir automáticamente'}
-                  </Text>
-                </View>
+            )}
+          </View>
+
+          {/* SECCIÓN ESTADO (solo al editar) */}
+          {editingTask && (
+            <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
+              <View style={styles.sectionHeaderSimple}>
+                <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+                <Text style={[styles.sectionTitleSimple, { color: theme.text }]}>Estado</Text>
               </View>
               
-              <View style={[
-                styles.toggleSwitch, 
-                { backgroundColor: isRecurring ? theme.primary : theme.border }
-              ]}>
-                <View style={[
-                  styles.toggleThumb, 
-                  isRecurring && styles.toggleThumbActive,
-                  { backgroundColor: '#FFFFFF' }
-                ]} />
-              </View>
-            </TouchableOpacity>
-            
-            {isRecurring && (
-              <View style={styles.recurrenceOptions}>
-                <Text style={[styles.recurrenceLabel, { color: theme.textSecondary }]}>Frecuencia:</Text>
-                {['daily', 'weekly', 'monthly'].map((pattern) => (
+              <Text style={styles.label}>ESTADO</Text>
+              <View style={styles.pickerRow}>
+                {statuses.map(s => (
                   <TouchableOpacity
-                    key={pattern}
-                    onPress={() => setRecurrencePattern(pattern)}
-                    style={[
-                      styles.recurrenceOption,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                      recurrencePattern === pattern && { 
-                        borderColor: theme.primary, 
-                        backgroundColor: theme.primary + '15',
-                        borderWidth: 2
-                      }
-                    ]}
-                    disabled={!canEdit}
+                    key={s}
+                    onPress={() => handleStatusChange(s)}
+                    style={[styles.optionBtn, status === s && styles.optionBtnActive]}
                   >
-                    <Ionicons 
-                      name={pattern === 'daily' ? 'today' : pattern === 'weekly' ? 'calendar' : 'calendar-number'} 
-                      size={24} 
-                      color={recurrencePattern === pattern ? theme.primary : theme.textSecondary} 
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[
-                        styles.recurrenceOptionText,
-                        { color: recurrencePattern === pattern ? theme.primary : theme.text }
-                      ]}>
-                        {pattern === 'daily' ? 'Diaria' : pattern === 'weekly' ? 'Semanal' : 'Mensual'}
-                      </Text>
-                      <Text style={[
-                        styles.recurrenceOptionDesc,
-                        { color: theme.textSecondary }
-                      ]}>
-                        {pattern === 'daily' ? 'Se repite cada día' 
-                          : pattern === 'weekly' ? 'Se repite cada 7 días'
-                          : 'Se repite cada mes'}
-                      </Text>
-                    </View>
-                    {recurrencePattern === pattern && (
-                      <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
-                    )}
+                    <Text style={[styles.optionText, status === s && styles.optionTextActive]} numberOfLines={1} ellipsizeMode="tail">
+                      {s === 'en_proceso' ? 'En proceso' : s === 'en_revision' ? 'En revisión' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
-          </View>
+            </View>
+          )}
+
+          {/* BOTÓN OPCIONES AVANZADAS */}
+          <TouchableOpacity 
+            style={[styles.advancedToggle, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
+            onPress={() => setShowAdvancedOptions(!showAdvancedOptions)}
+          >
+            <View style={styles.advancedToggleContent}>
+              <Ionicons 
+                name={showAdvancedOptions ? "chevron-up" : "chevron-down"} 
+                size={22} 
+                color={theme.primary} 
+              />
+              <Text style={[styles.advancedToggleText, { color: theme.text }]}>
+                {showAdvancedOptions ? 'Ocultar opciones avanzadas' : 'Mostrar opciones avanzadas'}
+              </Text>
+              {!showAdvancedOptions && (tags.length > 0 || estimatedHours || isRecurring) && (
+                <View style={[styles.advancedBadge, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.advancedBadgeText}>✓</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.advancedToggleHint, { color: theme.textSecondary }]}>
+              Etiquetas, tiempo estimado y recurrencia
+            </Text>
+          </TouchableOpacity>
+
+          {/* OPCIONES AVANZADAS */}
+          {showAdvancedOptions && (
+            <View style={[styles.section, { backgroundColor: theme.cardBackground }]}>
+              <View style={styles.sectionHeaderSimple}>
+                <Ionicons name="settings" size={20} color={theme.primary} />
+                <Text style={[styles.sectionTitleSimple, { color: theme.text }]}>Opciones Avanzadas</Text>
+              </View>
+              
+              <Text style={styles.label}>TIEMPO ESTIMADO (HORAS)</Text>
+              <TextInput
+                value={estimatedHours}
+                onChangeText={setEstimatedHours}
+                placeholder="Ej: 2.5"
+                placeholderTextColor="#C7C7CC"
+                keyboardType="numeric"
+                style={[styles.input, { color: theme.text }]}
+                editable={canEdit}
+              />
+
+              <Text style={styles.label}>ETIQUETAS</Text>
+              <TagInput
+                tags={tags}
+                onTagsChange={setTags}
+                placeholder="Agregar etiquetas..."
+                maxTags={10}
+              />
+
+              {/* Sección de Recurrencia */}
+              <View style={[styles.formSection, { backgroundColor: theme.cardBackground, borderColor: theme.border, marginTop: 16 }]}>
+                <TouchableOpacity 
+                  onPress={() => setIsRecurring(!isRecurring)}
+                  disabled={!canEdit}
+                  style={[styles.recurrenceHeader, { backgroundColor: isRecurring ? theme.primary + '10' : 'transparent' }]}
+                >
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="repeat" size={22} color={isRecurring ? theme.primary : theme.textSecondary} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.sectionTitle, { color: theme.text }]}>Tarea Recurrente</Text>
+                      <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+                        {isRecurring 
+                          ? recurrencePattern === 'daily' ? 'Se repite cada día' 
+                            : recurrencePattern === 'weekly' ? 'Se repite cada semana'
+                            : 'Se repite cada mes'
+                          : 'Activar para repetir automáticamente'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={[
+                    styles.toggleSwitch, 
+                    { backgroundColor: isRecurring ? theme.primary : theme.border }
+                  ]}>
+                    <View style={[
+                      styles.toggleThumb, 
+                      isRecurring && styles.toggleThumbActive,
+                      { backgroundColor: '#FFFFFF' }
+                    ]} />
+                  </View>
+                </TouchableOpacity>
+                
+                {isRecurring && (
+                  <View style={styles.recurrenceOptions}>
+                    <Text style={[styles.recurrenceLabel, { color: theme.textSecondary }]}>Frecuencia:</Text>
+                    {['daily', 'weekly', 'monthly'].map((pattern) => (
+                      <TouchableOpacity
+                        key={pattern}
+                        onPress={() => setRecurrencePattern(pattern)}
+                        style={[
+                          styles.recurrenceOption,
+                          { backgroundColor: theme.surface, borderColor: theme.border },
+                          recurrencePattern === pattern && { 
+                            borderColor: theme.primary, 
+                            backgroundColor: theme.primary + '15',
+                            borderWidth: 2
+                          }
+                        ]}
+                        disabled={!canEdit}
+                      >
+                        <Ionicons 
+                          name={pattern === 'daily' ? 'today' : pattern === 'weekly' ? 'calendar' : 'calendar-number'} 
+                          size={24} 
+                          color={recurrencePattern === pattern ? theme.primary : theme.textSecondary} 
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[
+                            styles.recurrenceOptionText,
+                            { color: recurrencePattern === pattern ? theme.primary : theme.text }
+                          ]}>
+                            {pattern === 'daily' ? 'Diaria' : pattern === 'weekly' ? 'Semanal' : 'Mensual'}
+                          </Text>
+                          <Text style={[
+                            styles.recurrenceOptionDesc,
+                            { color: theme.textSecondary }
+                          ]}>
+                            {pattern === 'daily' ? 'Se repite cada día' 
+                              : pattern === 'weekly' ? 'Se repite cada 7 días'
+                              : 'Se repite cada mes'}
+                          </Text>
+                        </View>
+                        {recurrencePattern === pattern && (
+                          <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
           
           {Platform.OS !== 'web' && (
             <>
@@ -1140,6 +1248,63 @@ const createStyles = (theme, isDark) => StyleSheet.create({
     borderColor: '#9F2241',
     color: '#1A1A1A',
     fontWeight: '600',
+  },
+  // Nuevos estilos para secciones
+  section: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sectionHeaderSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
+  },
+  sectionTitleSimple: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  advancedToggle: {
+    marginVertical: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+  },
+  advancedToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  advancedToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  advancedToggleHint: {
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 34,
+    fontStyle: 'italic',
+  },
+  advancedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advancedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   pomodoroModal: {
     flex: 1,

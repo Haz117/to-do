@@ -118,28 +118,11 @@ export async function subscribeToTasks(callback) {
  * @returns {Promise<string>} ID de la tarea creada
  */
 export async function createTask(task) {
-  const tempId = `temp_${Date.now()}`;
-  
   try {
     // Obtener información del usuario actual
     const sessionResult = await getCurrentSession();
     const currentUserUID = sessionResult.success ? sessionResult.session.userId : 'anonymous';
     const currentUserName = sessionResult.success ? sessionResult.session.displayName : 'Usuario Anónimo';
-
-    // OPTIMISTIC UPDATE: Actualizar cache inmediatamente
-    const optimisticTask = {
-      ...task,
-      id: tempId,
-      createdBy: currentUserUID,
-      createdByName: currentUserName,
-      department: task.department || '',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      dueAt: task.dueAt,
-      _optimistic: true
-    };
-    
-    cachedTasks = [optimisticTask, ...cachedTasks];
 
     const taskData = {
       ...task,
@@ -156,9 +139,6 @@ export async function createTask(task) {
     const docRef = await addDoc(collection(db, COLLECTION_NAME), taskData);
     console.log('[Firebase] Tarea creada:', docRef.id);
     
-    // Reemplazar tarea optimista con la real
-    cachedTasks = cachedTasks.filter(t => t.id !== tempId);
-    
     // Enviar notificación por email al asignado
     if (task.assignedTo) {
       notifyTaskAssigned({...task, id: docRef.id}, task.assignedTo)
@@ -168,8 +148,6 @@ export async function createTask(task) {
     return docRef.id;
   } catch (error) {
     console.error('[Firebase] Error creando tarea:', error);
-    // Remover tarea optimista en caso de error
-    cachedTasks = cachedTasks.filter(t => t.id !== tempId);
     
     // Lanzar error con mensaje específico
     if (error.code === 'permission-denied') {
