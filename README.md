@@ -301,3 +301,5 @@ npm install dotenv --save-dev
 
 
 firebase.js lee la configuración desde Constants.manifest.extra (inyectado por Expo) o process.env como respaldo.
+#   T o - d o  
+ 
