@@ -27,9 +27,9 @@ export const showSuccess = (message, title = 'Éxito') => {
 /**
  * Show an error toast message
  * @param {string} message - Message to display
- * @param {string} title - Optional title (default: '❌ Error')
+ * @param {string} title - Optional title (default: 'Error')
  */
-export const showError = (message, title = '❌ Error') => {
+export const showError = (message, title = 'Error') => {
   Toast.show({
     type: 'error',
     text1: title,
@@ -46,9 +46,9 @@ export const showError = (message, title = '❌ Error') => {
 /**
  * Show an info toast message
  * @param {string} message - Message to display
- * @param {string} title - Optional title (default: 'ℹ️ Info')
+ * @param {string} title - Optional title (default: 'Información')
  */
-export const showInfo = (message, title = 'ℹ️ Info') => {
+export const showInfo = (message, title = 'Información') => {
   Toast.show({
     type: 'info',
     text1: title,
@@ -65,9 +65,9 @@ export const showInfo = (message, title = 'ℹ️ Info') => {
 /**
  * Show a warning toast message
  * @param {string} message - Message to display
- * @param {string} title - Optional title (default: '⚠️ Advertencia')
+ * @param {string} title - Optional title (default: 'Advertencia')
  */
-export const showWarning = (message, title = '⚠️ Advertencia') => {
+export const showWarning = (message, title = 'Advertencia') => {
   Toast.show({
     type: 'info',
     text1: title,

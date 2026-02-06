@@ -451,7 +451,7 @@ export async function scheduleHourlyReminders(task) {
       ids.push(id);
     }
 
-    console.log(`✅ ${ids.length} notificaciones horarias programadas para tarea urgente: ${task.title}`);
+    console.log(`${ids.length} notificaciones horarias programadas para tarea urgente: ${task.title}`);
     return ids;
   } catch (e) {
     console.error('Error programando notificaciones horarias:', e);
@@ -460,7 +460,7 @@ export async function scheduleHourlyReminders(task) {
 }
 
 /**
- * 2️⃣ NOTIFICACIONES PERSISTENTES CON ACCIONES OBLIGATORIAS
+ * NOTIFICACIONES PERSISTENTES CON ACCIONES OBLIGATORIAS
  * Crea notificaciones que requieren acción del usuario para descartarse
  */
 export async function schedulePersistentNotification(task) {
@@ -476,21 +476,21 @@ export async function schedulePersistentNotification(task) {
     await Notifications.setNotificationCategoryAsync('TASK_ACTION', [
       {
         identifier: 'COMPLETE',
-        buttonTitle: '✅ Completar',
+        buttonTitle: 'Completar',
         options: {
           opensAppToForeground: true,
         },
       },
       {
         identifier: 'SNOOZE',
-        buttonTitle: '⏰ Posponer 1h',
+        buttonTitle: 'Posponer 1h',
         options: {
           opensAppToForeground: false,
         },
       },
       {
         identifier: 'VIEW',
-        buttonTitle: '👁️ Ver Tarea',
+        buttonTitle: 'Ver Tarea',
         options: {
           opensAppToForeground: true,
         },
@@ -499,7 +499,7 @@ export async function schedulePersistentNotification(task) {
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: `📌 REQUIERE ACCIÓN: ${task.title}`,
+        title: `REQUIERE ACCIÓN: ${task.title}`,
         body: `Esta tarea necesita tu atención inmediata. Vence: ${new Date(task.dueAt).toLocaleDateString()}`,
         data: { 
           taskId: task.id,
@@ -523,7 +523,7 @@ export async function schedulePersistentNotification(task) {
     // Guardar tracking de notificación enviada
     await trackNotificationSent(task.id, id);
 
-    console.log(`✅ Notificación persistente creada: ${id}`);
+    console.log(`Notificación persistente creada: ${id}`);
     return id;
   } catch (e) {
     console.error('Error creando notificación persistente:', e);
@@ -532,7 +532,7 @@ export async function schedulePersistentNotification(task) {
 }
 
 /**
- * 3️⃣ SISTEMA DE CONFIRMACIÓN OBLIGATORIA
+ * SISTEMA DE CONFIRMACIÓN OBLIGATORIA
  * Tracking de notificaciones vistas y reprogramación si no se confirma
  */
 
@@ -567,7 +567,7 @@ export async function confirmNotificationViewed(taskId) {
       data[taskId].confirmedAt = Date.now();
       data[taskId].viewCount += 1;
       await AsyncStorage.setItem(NOTIFICATION_TRACKING_KEY, JSON.stringify(data));
-      console.log(`✅ Notificación confirmada para tarea: ${taskId}`);
+      console.log(`Notificación confirmada para tarea: ${taskId}`);
     }
   } catch (e) {
     console.error('Error confirmando notificación:', e);
@@ -594,7 +594,7 @@ export async function checkUnconfirmedNotifications(tasks) {
         const task = tasks.find(t => t.id === taskId);
         
         if (task && task.status !== 'cerrada') {
-          console.log(`⚠️ Reprogramando notificación no confirmada para: ${task.title}`);
+          console.log(`Reprogramando notificación no confirmada para: ${task.title}`);
           
           // Enviar notificación más agresiva
           await schedulePersistentNotification(task);
@@ -610,7 +610,7 @@ export async function checkUnconfirmedNotifications(tasks) {
 }
 
 /**
- * 4️⃣ SISTEMA DE ESCALADO DE NOTIFICACIONES
+ * SISTEMA DE ESCALADO DE NOTIFICACIONES
  * Aumenta intensidad y frecuencia si el usuario no responde
  */
 
@@ -630,7 +630,7 @@ async function incrementEscalationLevel(taskId) {
     const currentLevel = await getEscalationLevel(taskId);
     const newLevel = Math.min(currentLevel + 1, 5); // Máximo nivel 5
     await AsyncStorage.setItem(`${ESCALATION_LEVEL_KEY}_${taskId}`, newLevel.toString());
-    console.log(`📈 Nivel de escalado incrementado a ${newLevel} para tarea: ${taskId}`);
+    console.log(`Nivel de escalado incrementado a ${newLevel} para tarea: ${taskId}`);
     return newLevel;
   } catch (e) {
     console.error('Error incrementando escalado:', e);
@@ -642,7 +642,7 @@ async function incrementEscalationLevel(taskId) {
 export async function resetEscalationLevel(taskId) {
   try {
     await AsyncStorage.removeItem(`${ESCALATION_LEVEL_KEY}_${taskId}`);
-    console.log(`♻️ Nivel de escalado reseteado para tarea: ${taskId}`);
+    console.log(`Nivel de escalado reseteado para tarea: ${taskId}`);
   } catch (e) {
     console.error('Error reseteando escalado:', e);
   }
@@ -677,10 +677,10 @@ export async function scheduleEscalatedNotifications(task) {
       
       const id = await Notifications.scheduleNotificationAsync({
         content: {
-          title: `${'🚨'.repeat(level + 1)} NIVEL ${level}: ${task.title}`,
+          title: `NIVEL ${level}: ${task.title}`,
           body: level >= 3 
-            ? `⚠️⚠️⚠️ CRÍTICO: Esta tarea lleva mucho tiempo sin atención. RESPONDE AHORA.`
-            : `⚠️ Recordatorio ${level > 0 ? 'escalado' : ''}: Completa esta tarea.`,
+            ? `CRÍTICO: Esta tarea lleva mucho tiempo sin atención. RESPONDE AHORA.`
+            : `Recordatorio ${level > 0 ? 'escalado' : ''}: Completa esta tarea.`,
           data: { 
             taskId: task.id,
             type: 'escalated',
@@ -701,7 +701,7 @@ export async function scheduleEscalatedNotifications(task) {
       ids.push(id);
     }
     
-    console.log(`✅ ${ids.length} notificaciones escaladas (Nivel ${level}) programadas`);
+    console.log(`${ids.length} notificaciones escaladas (Nivel ${level}) programadas`);
     return ids;
   } catch (e) {
     console.error('Error programando notificaciones escaladas:', e);

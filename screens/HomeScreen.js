@@ -698,14 +698,20 @@ export default function HomeScreen({ navigation }) {
           )
         }
         renderItem={({ item, index }) => {
+          // Determinar permisos según el rol
+          const isAdmin = currentUser?.role === 'admin';
+          const isJefe = currentUser?.role === 'jefe';
+          
           const content = (
             <TaskItem 
               task={item}
               index={index}
               onPress={() => openDetail(item)}
-              onDelete={() => deleteTask(item.id)}
+              // Solo admin puede eliminar tareas
+              onDelete={isAdmin ? () => deleteTask(item.id) : undefined}
               onToggleComplete={() => toggleComplete(item)}
-              onDuplicate={() => duplicateTask(item)}
+              // Solo admin y jefe pueden duplicar tareas
+              onDuplicate={isAdmin || isJefe ? () => duplicateTask(item) : undefined}
               onShare={() => shareTask(item)}
               onChangeStatus={(newStatus) => changeTaskStatus(item.id, newStatus)}
               currentUserRole={currentUser?.role || 'operativo'}

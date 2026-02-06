@@ -275,38 +275,65 @@ export default function MyInboxScreen({ navigation }) {
     await updateTask(task.id, { status: newStatus });
   };
 
-  const openDetail = (task) => navigation.navigate('TaskDetail', { task });
+  const openDetail = (task) => {
+    // Solo admin y jefe pueden editar tareas
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'jefe')) {
+      setToastMessage('Solo administradores y jefes pueden editar tareas');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+    navigation.navigate('TaskDetail', { task });
+  };
+  
   const openChat = (task) => navigation.navigate('TaskChat', { taskId: task.id, taskTitle: task.title });
-  const goToCreate = () => navigation.navigate('TaskDetail');
+  
+  const goToCreate = () => {
+    // Solo admin y jefe pueden crear tareas
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'jefe')) {
+      setToastMessage('Solo administradores y jefes pueden crear tareas');
+      setToastType('warning');
+      setToastVisible(true);
+      return;
+    }
+    navigation.navigate('TaskDetail');
+  };
 
-  const renderItem = ({ item }) => (
-    <View style={{ marginBottom: 12 }}>
-      <TaskItem 
-        task={item} 
-        onPress={() => openDetail(item)}
-        onDelete={() => deleteTask(item.id)}
-        onToggleComplete={() => toggleComplete(item)}
-      />
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => markClosed(item)}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#9F2241" style={{ marginRight: 6 }} />
-          <Text style={styles.actionText}>Cerrar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => postponeOneDay(item)}>
-          <Ionicons name="time-outline" size={18} color="#DAA520" style={{ marginRight: 6 }} />
-          <Text style={styles.actionText}>Posponer</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => openChat(item)}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-          <Text style={[styles.actionText, {color: '#fff'}]}>Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => deleteTask(item.id)}>
-          <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-          <Text style={[styles.actionText, {color: '#fff'}]}>Borrar</Text>
-        </TouchableOpacity>
+  const renderItem = ({ item }) => {
+    // Solo admin puede eliminar tareas
+    const isAdmin = currentUser?.role === 'admin';
+    
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <TaskItem 
+          task={item} 
+          onPress={() => openDetail(item)}
+          onDelete={isAdmin ? () => deleteTask(item.id) : undefined}
+          onToggleComplete={() => toggleComplete(item)}
+        />
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => markClosed(item)}>
+            <Ionicons name="checkmark-circle-outline" size={18} color="#9F2241" style={{ marginRight: 6 }} />
+            <Text style={styles.actionText}>Cerrar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => postponeOneDay(item)}>
+            <Ionicons name="time-outline" size={18} color="#DAA520" style={{ marginRight: 6 }} />
+            <Text style={styles.actionText}>Posponer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => openChat(item)}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={[styles.actionText, {color: '#fff'}]}>Chat</Text>
+          </TouchableOpacity>
+          {isAdmin && (
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => deleteTask(item.id)}>
+              <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={[styles.actionText, {color: '#fff'}]}>Borrar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const styles = React.useMemo(() => createStyles(theme, isDark, isDesktop, isTablet, width, padding), [theme, isDark, isDesktop, isTablet, width, padding]);
 

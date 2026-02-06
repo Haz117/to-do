@@ -15,6 +15,7 @@ import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
 import Heatmap from '../components/Heatmap';
 import OverdueAlert from '../components/OverdueAlert';
+import StatCard from '../components/StatCard';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -292,29 +293,51 @@ export default function ReportScreen({ navigation }) {
   const renderAreaCard = (area) => {
     const data = areaData[area];
     return (
-      <View key={area} style={styles.areaCard}>
-        <Text style={styles.areaTitle}>{area}</Text>
+      <View key={area} style={[styles.areaCard, { backgroundColor: theme.card }]}>
+        {/* Area Header */}
+        <View style={styles.areaHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.areaTitle, { color: theme.text }]}>{area}</Text>
+            <Text style={[styles.areaTotalBadge, { color: theme.primary }]}>
+              {data.total} {data.total === 1 ? 'tarea' : 'tareas'}
+            </Text>
+          </View>
+          <View style={[styles.totalBadgeCircle, { backgroundColor: theme.primary + '15' }]}>
+            <Text style={[styles.totalBadgeNumber, { color: theme.primary }]}>{data.total}</Text>
+          </View>
+        </View>
+
+        {/* Stats Grid with StatCard-like items */}
         <View style={styles.statsGrid}>
           {STATUSES.map(status => (
-            <View key={status.key} style={styles.statItem}>
-              <View style={[styles.statBadge, { backgroundColor: status.color }]}>
-                <Ionicons name={status.icon} size={20} color="#FFFFFF" />
+            <View key={status.key} style={styles.statItemContainer}>
+              <View style={[styles.statCard, { 
+                backgroundColor: status.color + '15',
+                borderColor: status.color + '30',
+              }]}>
+                <View style={[styles.statBadge, { backgroundColor: status.color }]}>
+                  <Ionicons name={status.icon} size={22} color="#FFFFFF" />
+                </View>
+                <Text style={[styles.statNumber, { color: theme.text }]}>{data[status.key]}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{status.label}</Text>
               </View>
-              <Text style={styles.statNumber}>{data[status.key]}</Text>
-              <Text style={styles.statLabel}>{status.label}</Text>
             </View>
           ))}
           {data.vencidas > 0 && (
-            <View style={styles.statItem}>
-              <View style={[styles.statBadge, { backgroundColor: '#9F2241' }]}>
-                <Ionicons name="time" size={20} color="#FFFFFF" />
+            <View style={styles.statItemContainer}>
+              <View style={[styles.statCard, { 
+                backgroundColor: '#EF4444' + '15',
+                borderColor: '#EF4444' + '30',
+              }]}>
+                <View style={[styles.statBadge, { backgroundColor: '#EF4444' }]}>
+                  <Ionicons name="alert-circle" size={22} color="#FFFFFF" />
+                </View>
+                <Text style={[styles.statNumber, { color: theme.text }]}>{data.vencidas}</Text>
+                <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Vencidas</Text>
               </View>
-              <Text style={styles.statNumber}>{data.vencidas}</Text>
-              <Text style={styles.statLabel}>Vencidas</Text>
             </View>
           )}
         </View>
-        <Text style={styles.totalText}>Total: {data.total}</Text>
       </View>
     );
   };
@@ -423,63 +446,40 @@ export default function ReportScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Tarjetas de Estadísticas */}
+          {/* Tarjetas de Estadísticas con StatCard */}
           <View style={styles.statsCardsGrid}>
             {/* Racha de días productivos */}
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255, 149, 0, 0.15)' }]}>
-                <Text style={styles.statEmoji}>🔥</Text>
-              </View>
-              <Text style={[styles.statValue, { color: '#FF9500' }]}>
-                {personalStats.currentStreak}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text }]}>Racha Actual</Text>
-              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
-                {personalStats.longestStreak > 0 && `Mejor: ${personalStats.longestStreak} días`}
-              </Text>
-            </View>
+            <StatCard
+              icon="flame"
+              value={personalStats.currentStreak.toString()}
+              label="Racha Actual"
+              variant="warning"
+              trend={{ direction: 'up', value: `Mejor: ${personalStats.longestStreak} días` }}
+            />
 
             {/* Completadas Hoy */}
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(52, 199, 89, 0.15)' }]}>
-                <Ionicons name="checkmark-circle" size={28} color="#34C759" />
-              </View>
-              <Text style={[styles.statValue, { color: '#34C759' }]}>
-                {personalStats.completedToday}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text }]}>Hoy</Text>
-              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
-                Completadas
-              </Text>
-            </View>
+            <StatCard
+              icon="checkmark-circle"
+              value={personalStats.completedToday.toString()}
+              label="Hoy"
+              variant="success"
+            />
 
             {/* Completadas Esta Semana */}
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(0, 122, 255, 0.15)' }]}>
-                <Ionicons name="calendar" size={28} color="#007AFF" />
-              </View>
-              <Text style={[styles.statValue, { color: '#007AFF' }]}>
-                {personalStats.completedWeek}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text }]}>Esta Semana</Text>
-              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
-                Últimos 7 días
-              </Text>
-            </View>
+            <StatCard
+              icon="calendar"
+              value={personalStats.completedWeek.toString()}
+              label="Esta Semana"
+              variant="info"
+            />
 
             {/* Completadas Este Mes */}
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <View style={[styles.statIconCircle, { backgroundColor: 'rgba(88, 86, 214, 0.15)' }]}>
-                <Ionicons name="bar-chart" size={28} color="#5856D6" />
-              </View>
-              <Text style={[styles.statValue, { color: '#5856D6' }]}>
-                {personalStats.completedMonth}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.text }]}>Este Mes</Text>
-              <Text style={[styles.statSubLabel, { color: theme.textSecondary }]}>
-                Últimos 30 días
-              </Text>
-            </View>
+            <StatCard
+              icon="bar-chart"
+              value={personalStats.completedMonth.toString()}
+              label="Este Mes"
+              variant="info"
+            />
 
             {/* Tasa de Completitud */}
             <View style={[styles.statCard, styles.statCardWide, { backgroundColor: theme.card }]}>
@@ -1190,38 +1190,99 @@ const createStyles = (theme, isDark) => StyleSheet.create({
   },
   summaryNumber: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.8, marginBottom: 4 },
   summaryLabel: { fontSize: 13, color: '#fff', fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  areaCard: { 
-    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
-    padding: 14, 
-    borderRadius: 14, 
-    marginBottom: 12, 
-    shadowColor: isDark ? '#000' : '#DAA520',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
-    borderWidth: 1.5,
-    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#F5DEB3'
+  areaCard: {
+    padding: 18,
+    borderRadius: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
   },
-  areaTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: theme.text, letterSpacing: -0.3 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 12 },
-  statItem: { alignItems: 'center', marginRight: 8, marginBottom: 8 },
-  statBadge: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 24, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 8,
+  areaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
+  },
+  areaTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    marginBottom: 4
+  },
+  areaTotalBadge: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginTop: 2
+  },
+  totalBadgeCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2
   },
-  statNumber: { fontSize: 18, fontWeight: '900', color: theme.text, letterSpacing: -0.4, marginBottom: 4 },
-  statLabel: { fontSize: 12, color: theme.text, textAlign: 'center', fontWeight: '700', letterSpacing: 0.5 },
-  totalText: { fontSize: 16, fontWeight: '700', color: theme.textSecondary, marginTop: 12, letterSpacing: 0.2 },
+  totalBadgeNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -1
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  statItemContainer: {
+    width: '22%',
+    minWidth: 80
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: 'center'
+  },
+  statBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    marginBottom: 4
+  },
+  statLabel: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontWeight: '700',
+    letterSpacing: 0.3
+  },
   taskCard: { 
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0', 
     padding: 12, 

@@ -102,10 +102,13 @@ const TaskItem = memo(function TaskItem({
     });
   };
 
+  // Construir acciones del menú basadas en permisos disponibles
   const menuActions = [
-    { icon: 'copy-outline', label: 'Duplicar tarea', onPress: () => { hapticMedium(); onDuplicate && onDuplicate(task); } },
+    // Solo mostrar duplicar si el callback está disponible (admin y jefe)
+    ...(onDuplicate ? [{ icon: 'copy-outline', label: 'Duplicar tarea', onPress: () => { hapticMedium(); onDuplicate(task); } }] : []),
     { icon: 'share-outline', label: 'Compartir', onPress: () => { hapticMedium(); onShare && onShare(task); } },
-    { icon: 'trash-outline', label: 'Eliminar', danger: true, onPress: () => { hapticMedium(); onDelete && onDelete(); } }
+    // Solo mostrar eliminar si el callback está disponible (solo admin)
+    ...(onDelete ? [{ icon: 'trash-outline', label: 'Eliminar', danger: true, onPress: () => { hapticMedium(); onDelete(); } }] : [])
   ];
 
   const renderRightActions = (progress, dragX) => {

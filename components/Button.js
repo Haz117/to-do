@@ -72,10 +72,11 @@ export default function Button({
     switch (size) {
       case 'small':
         return {
-          paddingVertical: 10,
+          paddingVertical: 12,        // ✨ Mejorado: 10 → 12 (cumple WCAG 44px min height)
           paddingHorizontal: 16,
           fontSize: 14,
           iconSize: 16,
+          minHeight: 44,              // ✨ Nuevo: Touch target mínimo WCAG
         };
       case 'large':
         return {
@@ -83,6 +84,7 @@ export default function Button({
           paddingHorizontal: 28,
           fontSize: 18,
           iconSize: 24,
+          minHeight: 56,              // ✨ Nuevo: Large touch target
         };
       default: // medium
         return {
@@ -90,6 +92,7 @@ export default function Button({
           paddingHorizontal: 20,
           fontSize: 16,
           iconSize: 20,
+          minHeight: 48,              // ✨ Nuevo: Recomendado by iOS/Android (44-48px)
         };
     }
   };
@@ -120,6 +123,7 @@ export default function Button({
             {
               paddingVertical: sizeStyles.paddingVertical,
               paddingHorizontal: sizeStyles.paddingHorizontal,
+              minHeight: sizeStyles.minHeight,           // ✨ Aplicar minHeight
               backgroundColor: Array.isArray(variantStyles.background) ? variantStyles.background[0] : variantStyles.background,
             },
             variantStyles.border && { backgroundColor: 'transparent' },

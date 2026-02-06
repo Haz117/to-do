@@ -207,7 +207,16 @@ export default function KanbanScreen({ navigation }) {
     await changeStatus(taskId, newStatus);
   }, [changeStatus]);
 
-  const openDetail = useCallback((task) => navigation.navigate('TaskDetail', { task }), [navigation]);
+  const openDetail = useCallback((task) => {
+    // Solo admin y jefe pueden editar tareas
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'jefe')) {
+      setToastMessage('Solo administradores y jefes pueden editar tareas');
+      setToastType('info');
+      setToastVisible(true);
+      return;
+    }
+    navigation.navigate('TaskDetail', { task });
+  }, [navigation, currentUser, setToastMessage, setToastType, setToastVisible]);
 
   // Función para detectar en qué columna se soltó la tarjeta
   const getColumnAtPosition = (x) => {
@@ -751,6 +760,13 @@ export default function KanbanScreen({ navigation }) {
           <TouchableOpacity
             style={[styles.fab, { backgroundColor: theme.primary }]}
             onPress={() => {
+              // Solo admin y jefe pueden crear tareas
+              if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'jefe')) {
+                setToastMessage('Solo administradores y jefes pueden crear tareas');
+                setToastType('warning');
+                setToastVisible(true);
+                return;
+              }
               hapticMedium();
               navigation.navigate('TaskDetail', { task: null });
             }}

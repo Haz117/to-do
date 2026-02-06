@@ -10,6 +10,7 @@ import { getGeneralMetrics, getTrendData, getAreaStats, getTopPerformers, format
 import { hapticMedium } from '../utils/haptics';
 import LoadingIndicator from '../components/LoadingIndicator';
 import EmptyState from '../components/EmptyState';
+import StatCard from '../components/StatCard';
 import { useResponsive } from '../utils/responsive';
 import { SPACING, TYPOGRAPHY, RADIUS, MAX_WIDTHS } from '../theme/tokens';
 
@@ -149,44 +150,38 @@ export default function DashboardScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Tarjetas de métricas principales - estilo círculos grandes */}
+        {/* Tarjetas de métricas principales con StatCard */}
         <View style={styles.metricsContainer}>
           <View style={styles.metricsRow}>
-            <View style={styles.metricCardLarge}>
-              <View style={[styles.metricCircle, { backgroundColor: '#10B981' }]}>
-                <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
-              </View>
-              <Text style={[styles.metricNumberLarge, { color: theme.text }]}>{metrics.completed}</Text>
-              <Text style={[styles.metricLabelLarge, { color: theme.textSecondary }]}>Completadas</Text>
-              <Text style={[styles.metricPercentLarge, { color: '#10B981' }]}>{metrics.completionRate}%</Text>
-            </View>
+            <StatCard
+              icon="checkmark-done"
+              value={metrics.completed.toString()}
+              label="Completadas"
+              variant="success"
+              trend={{ direction: metrics.completionRate >= 70 ? 'up' : 'down', value: `${metrics.completionRate}%` }}
+            />
 
-            <View style={styles.metricCardLarge}>
-              <View style={[styles.metricCircle, { backgroundColor: '#F59E0B' }]}>
-                <Ionicons name="time" size={28} color="#FFFFFF" />
-              </View>
-              <Text style={[styles.metricNumberLarge, { color: theme.text }]}>{metrics.pending}</Text>
-              <Text style={[styles.metricLabelLarge, { color: theme.textSecondary }]}>Pendientes</Text>
-              {metrics.overdue > 0 && (
-                <Text style={[styles.metricPercentLarge, { color: '#EF4444' }]}>{metrics.overdue} vencidas</Text>
-              )}
-            </View>
+            <StatCard
+              icon="time"
+              value={metrics.pending.toString()}
+              label="Pendientes"
+              variant="warning"
+              trend={metrics.overdue > 0 ? { direction: 'down', value: `${metrics.overdue} vencidas` } : undefined}
+            />
 
-            <View style={styles.metricCardLarge}>
-              <View style={[styles.metricCircle, { backgroundColor: '#3B82F6' }]}>
-                <Ionicons name="play-circle" size={28} color="#FFFFFF" />
-              </View>
-              <Text style={[styles.metricNumberLarge, { color: theme.text }]}>{metrics.inProgress}</Text>
-              <Text style={[styles.metricLabelLarge, { color: theme.textSecondary }]}>En Proceso</Text>
-            </View>
+            <StatCard
+              icon="play-circle"
+              value={metrics.inProgress.toString()}
+              label="En Proceso"
+              variant="info"
+            />
 
-            <View style={styles.metricCardLarge}>
-              <View style={[styles.metricCircle, { backgroundColor: '#8B5CF6' }]}>
-                <Ionicons name="eye" size={28} color="#FFFFFF" />
-              </View>
-              <Text style={[styles.metricNumberLarge, { color: theme.text }]}>{metrics.inReview}</Text>
-              <Text style={[styles.metricLabelLarge, { color: theme.textSecondary }]}>En Revisión</Text>
-            </View>
+            <StatCard
+              icon="eye"
+              value={metrics.inReview.toString()}
+              label="En Revisión"
+              variant="info"
+            />
           </View>
         </View>
 

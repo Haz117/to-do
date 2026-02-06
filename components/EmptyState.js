@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * EmptyState component - Shows a friendly message when no data is available
+ * ✨ Mejorado con animaciones y tema
  * 
  * @param {string} icon - Ionicons icon name
  * @param {string} title - Main heading text
@@ -14,17 +16,89 @@ const EmptyState = ({
   icon = 'document-text-outline', 
   title = 'Sin tareas', 
   message = 'No hay tareas disponibles en este momento',
-  action = null
+  action = null,
+  variant = 'default', // default, success, info, warning
 }) => {
+  const { theme, isDark } = useTheme();
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animación flotante del ícono
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Fade in del contenido
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'success':
+        return {
+          bgColor: theme.statusClosedBg || 'rgba(16, 185, 129, 0.1)',
+          iconColor: theme.statusClosed || '#10B981',
+        };
+      case 'info':
+        return {
+          bgColor: theme.infoAlpha || 'rgba(59, 130, 246, 0.1)',
+          iconColor: theme.info || '#3B82F6',
+        };
+      case 'warning':
+        return {
+          bgColor: theme.statusPendingBg || 'rgba(245, 158, 11, 0.1)',
+          iconColor: theme.statusPending || '#F59E0B',
+        };
+      default:
+        return {
+          bgColor: isDark ? 'rgba(255, 107, 157, 0.1)' : 'rgba(159, 34, 65, 0.08)',
+          iconColor: theme.textSecondary,
+        };
+    }
+  };
+
+  const variantStyles = getVariantStyles();
+
+  const floatY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -20],
+  });
+
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={80} color="#D1D5DB" />
-      </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <Animated.View
+        style={[
+          styles.iconContainer,
+          {
+            backgroundColor: variantStyles.bgColor,
+            transform: [{ translateY: floatY }],
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={80} color={variantStyles.iconColor} />
+      </Animated.View>
+      
+      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
+      
       {action && <View style={styles.actionContainer}>{action}</View>}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -37,29 +111,27 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#F3F4F6',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#374151',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 15,
-    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 4,
   },
   actionContainer: {
-    marginTop: 24,
+    marginTop: 28,
   },
 });
 

@@ -1,12 +1,11 @@
 // components/OverdueAlert.js
-// Banner de advertencia para tareas vencidas - Reutilizable en todas las pantallas
+// ✨ Alerta mejorada para tareas vencidas - Usa AlertBanner profesional
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import AlertBanner from './AlertBanner';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function OverdueAlert({ tasks, currentUserEmail, role = 'operativo' }) {
-  const { theme, isDark } = useTheme();
+  const { isDark } = useTheme();
   
   if (!tasks || tasks.length === 0) return null;
 
@@ -14,17 +13,13 @@ export default function OverdueAlert({ tasks, currentUserEmail, role = 'operativ
   let overdueTasks = [];
   
   if (role === 'admin') {
-    // Admin ve todas las tareas vencidas
     overdueTasks = tasks.filter(task => task.dueAt < Date.now() && task.status !== 'cerrada');
   } else if (role === 'jefe') {
-    // Jefe ve tareas vencidas de su departamento
     overdueTasks = tasks.filter(task => 
       task.dueAt < Date.now() && 
-      task.status !== 'cerrada' &&
-      task.area === task.userDepartment // Filtrar por departamento
+      task.status !== 'cerrada'
     );
   } else {
-    // Operativo solo ve sus tareas vencidas
     overdueTasks = tasks.filter(task => 
       task.dueAt < Date.now() && 
       task.status !== 'cerrada' &&
@@ -33,57 +28,21 @@ export default function OverdueAlert({ tasks, currentUserEmail, role = 'operativ
   }
 
   const overdueCount = overdueTasks.length;
-
   if (overdueCount === 0) return null;
 
+  const title = overdueCount === 1 ? 'Tarea vencida' : 'Tareas vencidas';
+  const message = overdueCount === 1 
+    ? 'Una tarea requiere atención inmediata' 
+    : `${overdueCount} tareas requieren atención inmediata`;
+
   return (
-    <View style={[
-      styles.overdueAlert, 
-      { 
-        backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', 
-        borderColor: '#DC2626' 
-      }
-    ]}>
-      <Ionicons name="warning" size={20} color="#DC2626" />
-      <View style={styles.alertTextContainer}>
-        <Text style={[styles.alertTitle, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>
-          {overdueCount} {overdueCount === 1 ? 'tarea vencida' : 'tareas vencidas'}
-        </Text>
-        <Text style={[styles.alertSubtitle, { color: isDark ? '#FEE2E2' : '#991B1B' }]}>
-          {overdueCount === 1 ? 'Requiere atención inmediata' : 'Requieren atención inmediata'}
-        </Text>
-      </View>
-    </View>
+    <AlertBanner
+      type="error"
+      title={title}
+      message={message}
+      icon="alert-circle"
+      dismissible={false}
+      animated={true}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  overdueAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 6,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    gap: 8,
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2
-  },
-  alertTextContainer: {
-    flex: 1
-  },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2
-  },
-  alertSubtitle: {
-    fontSize: 12,
-    fontWeight: '500'
-  }
-});
