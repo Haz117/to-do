@@ -175,22 +175,11 @@ const TaskItem = memo(function TaskItem({
                   <Text style={[styles.title, { color: theme.text }, task.status === 'cerrada' && styles.titleCompleted]} numberOfLines={2}>
                     {task.title}
                   </Text>
-                  <View style={styles.badgeContainer}>
-                    {task.hasUnreadMessages && (
-                      <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
-                        <Ionicons name="chatbubble" size={10} color="#FFF" />
-                      </View>
-                    )}
-                    {remaining <= 0 && task.status !== 'cerrada' ? (
-                      <View style={styles.overdueBadgeContainer}>
-                        <Text style={styles.overdueBadge}>VENCIDA</Text>
-                      </View>
-                    ) : (
-                      <Text style={[styles.badge, { backgroundColor: theme.info, color: '#FFF' }]}>
-                        {formatRemaining(remaining)}
-                      </Text>
-                    )}
-                  </View>
+                  {task.hasUnreadMessages && (
+                    <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
+                      <Ionicons name="chatbubble" size={10} color="#FFF" />
+                    </View>
+                  )}
                 </View>
               
                 <View style={styles.metaRow}>
