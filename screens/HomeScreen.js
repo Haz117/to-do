@@ -487,12 +487,6 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.heading}>Mis Tareas</Text>
             </View>
             <View style={styles.headerActions}>
-              {urgentTasks.length > 0 && (
-                <View style={styles.urgentBadge}>
-                  <Ionicons name="alarm" size={16} color="#FFF" />
-                  <Text style={styles.urgentBadgeText}>{urgentTasks.length}</Text>
-                </View>
-              )}
               <AdvancedFilters
                 filters={advancedFilters}
                 onApplyFilters={handleApplyFilters}
@@ -638,33 +632,6 @@ export default function HomeScreen({ navigation }) {
             <SkeletonLoader type="bento" />
           ) : (
           <View style={styles.bentoGrid}>
-            {/* Alerta de tareas urgentes */}
-            {urgentTasks.length > 0 && (
-              <TouchableOpacity 
-                style={[styles.urgentAlert, { backgroundColor: theme.error + '15', borderColor: theme.error }]}
-                onPress={() => {
-                  hapticMedium();
-                  // Scroll a la primera tarea urgente
-                  const firstUrgentIndex = filteredTasks.findIndex(t => urgentTasks.some(ut => ut.id === t.id));
-                  if (firstUrgentIndex >= 0) {
-                    flatListRef.current?.scrollToIndex({ index: firstUrgentIndex, animated: true });
-                  }
-                }}
-              >
-                <View style={styles.urgentAlertContent}>
-                  <Ionicons name="warning" size={24} color={theme.error} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.urgentAlertTitle, { color: theme.error }]}>
-                      {urgentTasks.length} {urgentTasks.length === 1 ? 'tarea vence' : 'tareas vencen'} pronto
-                    </Text>
-                    <Text style={[styles.urgentAlertText, { color: theme.textSecondary }]}>
-                      Tareas que vencen en las próximas 48 horas
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={theme.error} />
-                </View>
-              </TouchableOpacity>
-            )}
             
             {/* Fila 1: Estadísticas principales - REMOVIDA para reducir alertas
             <View style={styles.bentoRow}>
