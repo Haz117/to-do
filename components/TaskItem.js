@@ -153,11 +153,11 @@ const TaskItem = memo(function TaskItem({
     const oneDayMs = 24 * 60 * 60 * 1000;
 
     if (remaining <= 0) {
-      return { leftBorderColor: '#FF3B30', status: 'vencida' }; // Rojo - Vencida
+      return { topBorderColor: '#E53935', status: 'vencida' }; // Rojo suave - Vencida
     } else if (remaining <= oneDayMs) {
-      return { leftBorderColor: '#FFC107', status: 'proxima' }; // Amarillo - Próxima a vencer
+      return { topBorderColor: '#F57C00', status: 'proxima' }; // Naranja suave - Próxima a vencer
     }
-    return { leftBorderColor: 'transparent', status: 'normal' };
+    return { topBorderColor: 'transparent', status: 'normal' };
   };
 
   const priorityStyle = getPriorityStyle();
@@ -174,8 +174,8 @@ const TaskItem = memo(function TaskItem({
                 backgroundColor: theme.card, 
                 borderColor: theme.borderLight, 
                 shadowColor: theme.shadow,
-                borderLeftColor: dueStatus.leftBorderColor,
-                borderLeftWidth: 4
+                borderTopColor: dueStatus.topBorderColor,
+                borderTopWidth: 2
               },
               task.status === 'cerrada' && { opacity: 0.7, backgroundColor: theme.backgroundTertiary }
             ]}
