@@ -888,15 +888,15 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     backgroundColor: theme.background
   },
   headerGradient: {
-    paddingHorizontal: 20,
-    paddingTop: 48,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 52,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
     elevation: 10
   },
   header: {
@@ -910,47 +910,59 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     marginBottom: 4
   },
   greeting: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#FFFFFF',
-    opacity: 0.9,
+    opacity: 0.95,
     letterSpacing: 0.3
   },
   heading: { 
-    fontSize: 32, 
-    fontWeight: '800',
+    fontSize: 40, 
+    fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -1.2
+    letterSpacing: -1.8,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4
   },
   headerActions: {
     flexDirection: 'row',
     gap: 8
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)'
   },
   iconButtonActive: {
     backgroundColor: 'rgba(255,255,255,0.3)'
   },
   fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    right: 24,
+    bottom: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)'
   },
   priorityBar: {
     position: 'absolute',
@@ -1047,10 +1059,12 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     elevation: 4
   },
   columnHeader: { 
-    padding: 16,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    borderBottomWidth: 2,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
   },
   columnTitleContainer: {
     flexDirection: 'row',
@@ -1058,34 +1072,41 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     gap: 10
   },
   columnIconCircle: {
-    width: 36,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  columnTitle: { 
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
+  columnCount: { 
+    minWidth: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
-  },
-  columnTitle: { 
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3
-  },
-  columnCount: { 
-    minWidth: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)'
   },
   columnBadges: {
     flexDirection: 'row',
@@ -1214,17 +1235,17 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     color: '#FFFFFF'
   },
   card: { 
-    margin: 10,
-    padding: 12,
+    margin: 12,
+    padding: 14,
     borderRadius: 20,
     backgroundColor: theme.surface,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: theme.border,
     shadowColor: isDark ? theme.primary : '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.15 : 0.08,
-    shadowRadius: 6,
-    elevation: 2
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDark ? 0.18 : 0.12,
+    shadowRadius: 10,
+    elevation: 4
   },
   cardDragging: {
     opacity: 0.95,
@@ -1246,21 +1267,24 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
   priorityChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)'
   },
   priorityChipText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5
+    letterSpacing: 0.6,
+    textTransform: 'uppercase'
   },
   compactPriorityDot: {
     width: 8,
@@ -1271,29 +1295,35 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EF4444',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
     shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)'
   },
   overdueChipText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5
+    letterSpacing: 0.6,
+    textTransform: 'uppercase'
   },
   cardTitle: { 
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: theme.text,
-    marginBottom: 14,
-    lineHeight: 22,
-    letterSpacing: -0.2
+    marginBottom: 16,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.08)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1
   },
   cardInfoGrid: {
     gap: 8,
@@ -1302,39 +1332,42 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
   cardInfoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 10,
-    borderRadius: 12
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
   },
   cardInfoText: {
     color: theme.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+    letterSpacing: -0.2
   },
   dragIndicator: {
     position: 'absolute',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    marginHorizontal: 12,
-    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginHorizontal: 14,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+    borderWidth: 2.5,
     borderColor: theme.primary
   },
   dragIndicatorText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#9F2241',
-    letterSpacing: 0.3
+    letterSpacing: 0.4,
+    textTransform: 'uppercase'
   },
   statsContainer: {
     padding: 12,
@@ -1350,10 +1383,14 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     marginBottom: 12,
   },
   statLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
+    fontSize: 18,
+    fontWeight: '800',
+    marginLeft: 10,
     color: theme.text,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.08)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1
   },
   statProgress: {
     flexDirection: 'row',
@@ -1364,9 +1401,13 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   statCount: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
     color: theme.text,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
   },
   statPercentage: {
     fontSize: 14,
