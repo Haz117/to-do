@@ -24,6 +24,7 @@ import OverdueAlert from '../components/OverdueAlert';
 import Toast from '../components/Toast';
 import { useResponsive } from '../utils/responsive';
 import { SPACING, TYPOGRAPHY, RADIUS, MAX_WIDTHS } from '../theme/tokens';
+import { AREAS } from '../config/areas';
 
 const { width } = Dimensions.get('window');
 
@@ -59,8 +60,6 @@ export default function DashboardScreen({ navigation }) {
     completionRate: 0,
     onTimeRate: 0
   });
-
-  const AREAS = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
 
   useEffect(() => {
     loadAllData();

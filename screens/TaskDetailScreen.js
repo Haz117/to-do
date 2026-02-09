@@ -15,6 +15,7 @@ import PomodoroTimer from '../components/PomodoroTimer';
 import TagInput from '../components/TagInput';
 import { useTheme } from '../contexts/ThemeContext';
 import { savePomodoroSession } from '../services/pomodoro';
+import { AREAS } from '../config/areas';
 
 // Importar DateTimePicker solo en móvil
 let DateTimePicker;
@@ -84,7 +85,6 @@ export default function TaskDetailScreen({ route, navigation }) {
   const saveSuccessAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const areas = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
   const priorities = ['baja', 'media', 'alta'];
   const statuses = ['pendiente', 'en_proceso', 'en_revision', 'cerrada'];
 

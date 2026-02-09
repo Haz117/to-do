@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { AREAS } from '../config/areas';
 
 const FilterBar = memo(function FilterBar({ onFilterChange }) {
   const { theme, isDark } = useTheme();
@@ -15,7 +16,6 @@ const FilterBar = memo(function FilterBar({ onFilterChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const debounceTimer = useRef(null);
 
-  const areas = ['Jurídica', 'Obras', 'Tesorería', 'Administración', 'Recursos Humanos'];
   const priorities = ['alta', 'media', 'baja'];
 
   const applyFilters = useCallback((updates = {}) => {
