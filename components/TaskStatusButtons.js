@@ -1,10 +1,12 @@
 // components/TaskStatusButtons.js
 // Botones para cambiar el estado de las tareas (solo para operativos)
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
+import RippleButton from './RippleButton';
+import { hapticLight } from '../utils/haptics';
 
 const statusFlow = {
   'pendiente': { 
@@ -43,12 +45,17 @@ export default function TaskStatusButtons({ currentStatus, taskId, onStatusChang
   
   if (!nextState) return null;
   
+  const handlePress = () => {
+    hapticLight();
+    onStatusChange(taskId, nextState.next);
+  };
+  
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        onPress={() => onStatusChange(taskId, nextState.next)}
-        activeOpacity={0.7}
+      <RippleButton 
+        onPress={handlePress}
         style={styles.buttonWrapper}
+        rippleColor="rgba(255,255,255,0.5)"
       >
         <LinearGradient
           colors={nextState.gradient}
@@ -62,7 +69,7 @@ export default function TaskStatusButtons({ currentStatus, taskId, onStatusChang
           <Text style={styles.buttonText}>{nextState.label}</Text>
           <Ionicons name="arrow-forward" size={16} color="#FFF" style={styles.arrowIcon} />
         </LinearGradient>
-      </TouchableOpacity>
+      </RippleButton>
     </View>
   );
 }

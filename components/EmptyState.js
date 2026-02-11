@@ -1,11 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * EmptyState component - Shows a friendly message when no data is available
- * ✨ Mejorado con animaciones y tema
+ * ✨ Mejorado con animaciones fluidas y rápidas
  * 
  * @param {string} icon - Ionicons icon name
  * @param {string} title - Main heading text
@@ -21,31 +21,69 @@ const EmptyState = ({
 }) => {
   const { theme, isDark } = useTheme();
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const pulseAnim = useRef(new Animated.Value(0.9)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    // Animación flotante del ícono
+    // ✨ Entrada rápida con spring
+    Animated.parallel([
+      Animated.spring(fadeAnim, {
+        toValue: 1,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // 🌊 Animación flotante suave (más rápida)
     Animated.loop(
       Animated.sequence([
         Animated.timing(floatAnim, {
           toValue: 1,
-          duration: 3000,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(floatAnim, {
           toValue: 0,
-          duration: 3000,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     ).start();
 
-    // Fade in del contenido
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
+    // 💫 Pulso suave del círculo de fondo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.9,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
 
   const getVariantStyles = () => {
@@ -54,21 +92,25 @@ const EmptyState = ({
         return {
           bgColor: theme.statusClosedBg || 'rgba(16, 185, 129, 0.1)',
           iconColor: theme.statusClosed || '#10B981',
+          pulseColor: 'rgba(16, 185, 129, 0.3)',
         };
       case 'info':
         return {
           bgColor: theme.infoAlpha || 'rgba(59, 130, 246, 0.1)',
           iconColor: theme.info || '#3B82F6',
+          pulseColor: 'rgba(59, 130, 246, 0.3)',
         };
       case 'warning':
         return {
           bgColor: theme.statusPendingBg || 'rgba(245, 158, 11, 0.1)',
           iconColor: theme.statusPending || '#F59E0B',
+          pulseColor: 'rgba(245, 158, 11, 0.3)',
         };
       default:
         return {
           bgColor: isDark ? 'rgba(255, 107, 157, 0.1)' : 'rgba(159, 34, 65, 0.08)',
           iconColor: theme.textSecondary,
+          pulseColor: isDark ? 'rgba(255, 107, 157, 0.2)' : 'rgba(159, 34, 65, 0.15)',
         };
     }
   };
@@ -77,23 +119,47 @@ const EmptyState = ({
 
   const floatY = floatAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -20],
+    outputRange: [0, -12],
   });
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.View style={[
+      styles.container, 
+      { 
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }]
+      }
+    ]}>
+      {/* 🎨 Capa de pulso expansivo de fondo */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 160,
+          height: 160,
+          borderRadius: 80,
+          backgroundColor: variantStyles.pulseColor,
+          transform: [{ scale: pulseAnim }],
+          opacity: 0.5,
+        }}
+      />
+
+      {/* ✨ Contenedor del ícono con animaciones */}
       <Animated.View
         style={[
           styles.iconContainer,
           {
             backgroundColor: variantStyles.bgColor,
-            transform: [{ translateY: floatY }],
+            transform: [
+              { translateY: floatY },
+              { scale: scaleAnim },
+            ],
           },
         ]}
       >
-        <Ionicons name={icon} size={80} color={variantStyles.iconColor} />
+        <Ionicons name={icon} size={72} color={variantStyles.iconColor} />
       </Animated.View>
       
+      {/* 📝 Texto principal */}
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
       
@@ -108,30 +174,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-    paddingVertical: 60,
+    paddingVertical: 48,
   },
   iconContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
     marginBottom: 4,
   },
   actionContainer: {
-    marginTop: 28,
+    marginTop: 24,
   },
 });
 

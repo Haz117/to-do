@@ -2,140 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // FUNCIONES AUXILIARES
-    // Obtener datos del usuario autenticado
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
     function isSignedIn() {
       return request.auth != null;
     }
     
-    function isAdmin() {
-      return isSignedIn() && getUserData().role == 'admin';
-    }
-    
-    function isJefe() {
-      return isSignedIn() && getUserData().role == 'jefe';
-    }
-    
-    function isOperativo() {
-      return isSignedIn() && getUserData().role == 'operativo';
-    }
-    
-    function getUserDepartment() {
-      return getUserData().department;
-    }
-    
-    // USUARIOS - Gestión de cuentas
+    // USUARIOS
     match /users/{userId} {
-      // Lectura: Solo usuarios autenticados pueden leer perfiles
       allow read: if isSignedIn();
-      
-      // Crear: Permitido para registro inicial (se asigna role operativo por defecto en app)
-      allow create: if request.auth.uid == userId 
-                     && request.resource.data.role == 'operativo';
-      
-      // Actualizar: Solo el propio usuario puede actualizar su perfil (excepto role)
-      // O admin puede actualizar cualquier perfil incluyendo roles
-      allow update: if (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
-                     || isAdmin();
-      
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow delete: if false;
     }
     
-    // TAREAS - Control basado en roles
+    // TAREAS - Muy permisivo por ahora
     match /tasks/{taskId} {
-      // Lectura según rol:
-      // - Admin: todas las tareas
-      // - Jefe: tareas de su departamento
-      // - Operativo: solo tareas asignadas a él
-      allow read: if isSignedIn() && (
-        isAdmin() 
-        || (isJefe() && resource.data.area == getUserDepartment())
-        || (isOperativo() && resource.data.assignedTo == request.auth.token.email)
-      );
-      
-      // Crear: Solo usuarios autenticados (admin y jefe)
-      allow create: if isSignedIn() && (isAdmin() || isJefe());
-      
-      // Actualizar: 
-      // - Admin: puede actualizar cualquier tarea
-      // - Jefe: tareas de su departamento
-      // - Operativo: solo puede actualizar status de tareas asignadas a él
-      allow update: if isSignedIn() && (
-        isAdmin()
-        || (isJefe() && resource.data.area == getUserDepartment())
-        || (isOperativo() && resource.data.assignedTo == request.auth.token.email 
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
-      );
-      
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
-      
-      // Mensajes de chat en tareas
-      match /messages/{messageId} {
-        // Lectura: Solo quienes tienen acceso a la tarea
-        allow read: if isSignedIn() && (
-          isAdmin()
-          || (isJefe() && get(/databases/$(database)/documents/tasks/$(taskId)).data.area == getUserDepartment())
-          || (isOperativo() && get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo == request.auth.token.email)
-        );
-        
-        // Crear: Solo quienes tienen acceso a la tarea
-        allow create: if isSignedIn() && (
-          isAdmin()
-          || (isJefe() && get(/databases/$(database)/documents/tasks/$(taskId)).data.area == getUserDepartment())
-          || (isOperativo() && get(/databases/$(database)/documents/tasks/$(taskId)).data.assignedTo == request.auth.token.email)
-        );
-        
-        // No modificar ni eliminar mensajes (auditoría)
-        allow update, delete: if false;
-      }
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();  // ← Cualquier usuario autenticado puede eliminar
     }
     
-    // TOKENS FCM - Notificaciones
+    // MENSAJES
+    match /tasks/{taskId}/messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+    
+    // FCM TOKENS
     match /fcmTokens/{tokenId} {
-      // Solo usuarios autenticados pueden gestionar sus propios tokens
-      allow read, write: if isSignedIn() && request.auth.uid == tokenId;
+      allow read, write: if isSignedIn();
     }
     
     // REPORTES
     match /reports/{reportId} {
-      // Lectura: Admin y jefes
-      allow read: if isSignedIn() && (isAdmin() || isJefe());
-      
-      // Crear/Actualizar: Admin y jefes
-      allow create, update: if isSignedIn() && (isAdmin() || isJefe());
-      
-      // Eliminar: Solo admin
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
     
-    // FIRMAS DIGITALES - Auditoría
+    // FIRMAS
     match /signatures/{signatureId} {
-      // Lectura: Admin y usuarios relacionados con la tarea
-      allow read: if isSignedIn();
-      
-      // Crear: Usuarios autenticados
-      allow create: if isSignedIn();
-      
-      // No modificar ni eliminar firmas (auditoría)
+      allow read, create: if isSignedIn();
       allow update, delete: if false;
     }
     
-    // LOGS DE AUDITORÍA
+    // AUDITORÍA
     match /auditLogs/{logId} {
-      // Lectura: Solo admin
-      allow read: if isAdmin();
-      
-      // Crear: Usuarios autenticados
-      allow create: if isSignedIn();
-      
-      // No modificar ni eliminar logs
-      allow update, delete: if false;
+      allow read, write: if isSignedIn();
     }
   }
 }

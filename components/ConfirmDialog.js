@@ -1,7 +1,7 @@
 // components/ConfirmDialog.js
 // Diálogo de confirmación personalizado elegante
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { BlurView } from 'expo-blur';
@@ -15,11 +15,14 @@ export default function ConfirmDialog({
   icon = 'help-circle',
   iconColor = '#FF9500',
   danger = false,
+  isDangerous = false,
+  isLoading = false,
   onConfirm,
   onCancel 
 }) {
   const { theme, isDark } = useTheme();
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current;
+  const isDangerousDialog = isDangerous || danger;
 
   React.useEffect(() => {
     if (visible) {
@@ -30,16 +33,25 @@ export default function ConfirmDialog({
         useNativeDriver: true,
       }).start();
     } else {
-      scaleAnim.setValue(0.9);
+      // ⚡ Cierre más rápido (100ms en lugar de animación suave)
+      Animated.timing(scaleAnim, {
+        toValue: 0.8,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => scaleAnim.setValue(0.9));
     }
   }, [visible]);
 
   const handleConfirm = () => {
-    onConfirm && onConfirm();
+    if (!isLoading) {
+      onConfirm && onConfirm();
+    }
   };
 
   const handleCancel = () => {
-    onCancel && onCancel();
+    if (!isLoading) {
+      onCancel && onCancel();
+    }
   };
 
   return (
@@ -67,12 +79,12 @@ export default function ConfirmDialog({
         >
           {/* Icono */}
           <View style={[styles.iconContainer, { 
-            backgroundColor: danger ? '#FEE2E2' : iconColor + '20' 
+            backgroundColor: isDangerousDialog ? '#FEE2E2' : iconColor + '20' 
           }]}>
             <Ionicons 
               name={icon} 
               size={48} 
-              color={danger ? '#DC2626' : iconColor} 
+              color={isDangerousDialog ? '#DC2626' : iconColor} 
             />
           </View>
 
@@ -91,10 +103,12 @@ export default function ConfirmDialog({
             <TouchableOpacity
               style={[styles.button, styles.cancelButton, { 
                 backgroundColor: theme.backgroundSecondary,
-                borderColor: theme.border 
+                borderColor: theme.border,
+                opacity: isLoading ? 0.5 : 1
               }]}
               onPress={handleCancel}
               activeOpacity={0.7}
+              disabled={isLoading}
             >
               <Text style={[styles.buttonText, { color: theme.text }]}>
                 {cancelText}
@@ -103,14 +117,20 @@ export default function ConfirmDialog({
 
             <TouchableOpacity
               style={[styles.button, styles.confirmButton, { 
-                backgroundColor: danger ? '#DC2626' : '#9F2241' 
+                backgroundColor: isDangerousDialog ? '#DC2626' : '#9F2241',
+                opacity: isLoading ? 0.8 : 1
               }]}
               onPress={handleConfirm}
               activeOpacity={0.8}
+              disabled={isLoading}
             >
-              <Text style={[styles.buttonText, styles.confirmButtonText]}>
-                {confirmText}
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={[styles.buttonText, styles.confirmButtonText]}>
+                  {confirmText}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>

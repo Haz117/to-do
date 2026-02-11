@@ -1,7 +1,9 @@
 // screens/DashboardScreen.js
-// Dashboard con métricas estilo Kanban mejorado
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, TouchableOpacity, Platform, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
+// Dashboard con métricas estilo Kanban mejorado - Glassmorphism + Animaciones
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, TouchableOpacity, Platform, FlatList, Modal, ActivityIndicator, Alert, Animated, Easing } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { useTheme } from '../contexts/ThemeContext';
@@ -22,6 +24,9 @@ import MetricCard from '../components/MetricCard';
 import Heatmap from '../components/Heatmap';
 import OverdueAlert from '../components/OverdueAlert';
 import Toast from '../components/Toast';
+import FadeInView from '../components/FadeInView';
+import SpringCard from '../components/SpringCard';
+import RippleButton from '../components/RippleButton';
 import { useResponsive } from '../utils/responsive';
 import { SPACING, TYPOGRAPHY, RADIUS, MAX_WIDTHS } from '../theme/tokens';
 import { AREAS } from '../config/areas';
@@ -62,6 +67,16 @@ export default function DashboardScreen({ navigation }) {
     onTimeRate: 0
   });
 
+  // Animaciones para entrada escalonada
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(-30)).current;
+  const kanbanOpacity = useRef(new Animated.Value(0)).current;
+  const kanbanSlide = useRef(new Animated.Value(40)).current;
+  const summaryOpacity = useRef(new Animated.Value(0)).current;
+  const summarySlide = useRef(new Animated.Value(50)).current;
+  const chartsOpacity = useRef(new Animated.Value(0)).current;
+  const chartsSlide = useRef(new Animated.Value(60)).current;
+
   useEffect(() => {
     loadAllData();
     // Suscribirse a tareas en tiempo real
@@ -77,6 +92,30 @@ export default function DashboardScreen({ navigation }) {
       }
     };
   }, []);
+
+  // Animación de entrada escalonada
+  useEffect(() => {
+    if (!loading) {
+      Animated.stagger(120, [
+        Animated.parallel([
+          Animated.timing(headerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(headerSlide, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(kanbanOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(kanbanSlide, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(summaryOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(summarySlide, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(chartsOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.spring(chartsSlide, { toValue: 0, tension: 50, friction: 8, useNativeDriver: true }),
+        ]),
+      ]).start();
+    }
+  }, [loading]);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -322,28 +361,39 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
-        <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
-          <View style={styles.header}>
-            <View style={{ flex: 1 }}>
-              <View style={styles.greetingContainer}>
-                <Ionicons name="bar-chart" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.95 }} />
-                <Text style={styles.greeting}>Análisis y Métricas</Text>
+        {/* Header con gradiente premium y animación */}
+        <Animated.View style={[styles.headerGradient, { opacity: headerOpacity, transform: [{ translateY: headerSlide }] }]}>
+          <LinearGradient
+            colors={isDark ? ['#2A1520', '#1A1A1A'] : ['#9F2241', '#7F1D35']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradientInner}
+          >
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.greetingContainer}>
+                  <View style={styles.iconBadge}>
+                    <Ionicons name="bar-chart" size={18} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.greeting}>Análisis y Métricas</Text>
+                </View>
+                <Text style={styles.heading}>Dashboard + Reportes</Text>
               </View>
-              <Text style={styles.heading}>Dashboard + Reportes</Text>
+              <RippleButton 
+                style={styles.exportButton}
+                onPress={handleExport}
+                rippleColor="rgba(255,255,255,0.3)"
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="download-outline" size={22} color="#FFFFFF" />
+                )}
+              </RippleButton>
             </View>
-            <TouchableOpacity 
-              style={[styles.exportButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-              onPress={handleExport}
-              disabled={isExporting}
-            >
-              {isExporting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="download-outline" size={20} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+          </LinearGradient>
+        </Animated.View>
 
       <ScrollView
         style={styles.scroll}
@@ -353,8 +403,8 @@ export default function DashboardScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* LAYOUT KANBAN - Columnas de Estados */}
-        <View style={styles.kanbanContainer}>
+        {/* LAYOUT KANBAN - Columnas de Estados con animación */}
+        <Animated.View style={[styles.kanbanContainer, { opacity: kanbanOpacity, transform: [{ translateY: kanbanSlide }] }]}>
           <View style={styles.sectionHeaderContainer}>
             <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
               <Ionicons name="layers-outline" size={20} color="#3B82F6" />
@@ -520,7 +570,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </>
           )}
-        </View>
+        </Animated.View>
 
         {/* Sección de Tareas Críticas y Vencidas */}
         {(getCriticalTasks().length > 0 || getOverdueTasks().length > 0) && (
@@ -544,78 +594,101 @@ export default function DashboardScreen({ navigation }) {
           </View>
         )}
 
-        {/* Resumen del periodo - Mejorado */}
-        <View style={[styles.summaryCard, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
-          <View style={styles.summaryHeader}>
-            <View style={styles.summaryHeaderLeft}>
-              <Ionicons name="bar-chart" size={18} color={theme.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.summaryTitle, { color: theme.text }]}>
-                Resumen del {selectedPeriod === 'today' ? 'Día' : selectedPeriod === 'week' ? 'Semana' : 'Mes'}
-              </Text>
+        {/* Resumen del periodo - Con glassmorphism */}
+        <Animated.View style={[styles.summaryCardWrapper, { opacity: summaryOpacity, transform: [{ translateY: summarySlide }] }]}>
+          <View style={[styles.summaryCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
+            <View style={styles.summaryHeader}>
+              <View style={styles.summaryHeaderLeft}>
+                <View style={[styles.summaryIconBadge, { backgroundColor: 'rgba(159, 34, 65, 0.15)' }]}>
+                  <Ionicons name="bar-chart" size={16} color={theme.primary} />
+                </View>
+                <Text style={[styles.summaryTitle, { color: theme.text }]}>
+                  Resumen del {selectedPeriod === 'today' ? 'Día' : selectedPeriod === 'week' ? 'Semana' : 'Mes'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryDotWrapper, { backgroundColor: 'rgba(159, 34, 65, 0.1)' }]}>
+                  <View style={[styles.summaryDot, { backgroundColor: theme.primary }]} />
+                </View>
+                <Text style={[styles.summaryValue, { color: theme.primary }]}>{periodData.created}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Creadas</Text>
+              </View>
+              <View style={styles.summarySeparator} />
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryDotWrapper, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                  <View style={[styles.summaryDot, { backgroundColor: '#10B981' }]} />
+                </View>
+                <Text style={[styles.summaryValue, { color: '#10B981' }]}>{periodData.completed}</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Completadas</Text>
+              </View>
+              <View style={styles.summarySeparator} />
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryDotWrapper, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+                  <View style={[styles.summaryDot, { backgroundColor: '#8B5CF6' }]} />
+                </View>
+                <Text style={[styles.summaryValue, { color: '#8B5CF6' }]}>{metrics.weeklyProductivity}%</Text>
+                <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Productividad</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <View style={[styles.summaryDot, { backgroundColor: theme.primary }]} />
-              <Text style={[styles.summaryValue, { color: theme.primary }]}>{periodData.created}</Text>
-              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Creadas</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <View style={[styles.summaryDot, { backgroundColor: '#10B981' }]} />
-              <Text style={[styles.summaryValue, { color: '#10B981' }]}>{periodData.completed}</Text>
-              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Completadas</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <View style={[styles.summaryDot, { backgroundColor: '#8B5CF6' }]} />
-              <Text style={[styles.summaryValue, { color: '#8B5CF6' }]}>{metrics.weeklyProductivity}%</Text>
-              <Text style={[styles.summaryLabel, { color: theme.textSecondary }]}>Productividad</Text>
-            </View>
-          </View>
-        </View>
+        </Animated.View>
 
         {/* Gráfica de tendencia */}
+        {/* Gráfica de tendencia - Con glassmorphism */}
         {trendData.length > 0 && (
-          <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
-            <View style={styles.chartHeader}>
-              <Ionicons name="trending-up" size={20} color={theme.text} />
-              <Text style={[styles.chartTitle, { color: theme.text }]}>Tendencia (últimos 7 días)</Text>
+          <Animated.View style={[{ opacity: chartsOpacity, transform: [{ translateY: chartsSlide }] }]}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
+              <View style={styles.chartHeader}>
+                <View style={[styles.chartIconBadge, { backgroundColor: 'rgba(159, 34, 65, 0.15)' }]}>
+                  <Ionicons name="trending-up" size={18} color={theme.primary} />
+                </View>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Tendencia (últimos 7 días)</Text>
+              </View>
+              <LineChart
+                data={lineData}
+                width={screenWidth - 64}
+                height={220}
+                chartConfig={{
+                  backgroundColor: 'transparent',
+                  backgroundGradientFrom: 'transparent',
+                  backgroundGradientTo: 'transparent',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(159, 34, 65, ${opacity})`,
+                  labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity * 0.7})` : `rgba(0, 0, 0, ${opacity * 0.6})`,
+                  style: { borderRadius: 16 },
+                  propsForDots: { r: '5', strokeWidth: '3', stroke: theme.primary },
+                  propsForBackgroundLines: {
+                    strokeDasharray: '5,5',
+                    stroke: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                  },
+                }}
+                bezier
+                style={styles.chart}
+              />
             </View>
-            <LineChart
-              data={lineData}
-              width={screenWidth - 32}
-              height={200}
-              chartConfig={{
-                backgroundColor: theme.background,
-                backgroundGradientFrom: theme.background,
-                backgroundGradientTo: theme.background,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(159, 34, 65, ${opacity})`,
-                labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                style: { borderRadius: 16 },
-                propsForDots: { r: '4', strokeWidth: '2', stroke: theme.primary },
-              }}
-              bezier
-              style={styles.chart}
-            />
-          </View>
+          </Animated.View>
         )}
 
-        {/* Distribución por estado */}
-        {/* Gráficas de Estados */}
+        {/* Distribución por estado - Con glassmorphism */}
         {statusPieData.length > 0 && (
-          <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
-            <View style={styles.chartHeader}>
-              <Ionicons name="pie-chart" size={20} color={theme.text} />
-              <Text style={[styles.chartTitle, { color: theme.text }]}>Distribución por Estado</Text>
-            </View>
-            <PieChart
-              data={statusPieData}
-              width={screenWidth - 32}
-              height={200}
-              chartConfig={{
-                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              }}
+          <FadeInView duration={500} delay={400}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
+              <View style={styles.chartHeader}>
+                <View style={[styles.chartIconBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
+                  <Ionicons name="pie-chart" size={18} color="#8B5CF6" />
+                </View>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Distribución por Estado</Text>
+              </View>
+              <PieChart
+                data={statusPieData}
+                width={screenWidth - 64}
+                height={220}
+                chartConfig={{
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
               accessor="population"
               backgroundColor="transparent"
               paddingLeft="15"
@@ -623,16 +696,20 @@ export default function DashboardScreen({ navigation }) {
               style={styles.chart}
             />
           </View>
+          </FadeInView>
         )}
 
-        {/* Top performers (solo admin) */}
+        {/* Top performers (solo admin) - Con glassmorphism */}
         {currentUser?.role === 'admin' && performers.length > 0 && (
-          <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
-            <View style={styles.chartHeader}>
-              <Ionicons name="trophy" size={20} color={theme.text} />
-              <Text style={[styles.chartTitle, { color: theme.text }]}>Mejores Desempeños</Text>
-            </View>
-            {performers.slice(0, 5).map((performer, index) => (
+          <FadeInView duration={500} delay={500}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
+              <View style={styles.chartHeader}>
+                <View style={[styles.chartIconBadge, { backgroundColor: 'rgba(255, 215, 0, 0.2)' }]}>
+                  <Ionicons name="trophy" size={18} color="#F59E0B" />
+                </View>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Mejores Desempeños</Text>
+              </View>
+              {performers.slice(0, 5).map((performer, index) => (
               <View key={performer.userId} style={[styles.performerRow, index < 4 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                   <View style={[styles.performerRank, { 
@@ -655,12 +732,13 @@ export default function DashboardScreen({ navigation }) {
               </View>
             ))}
           </View>
+          </FadeInView>
         )}
 
-        {/* Información de Áreas (Admin) - Colapsable */}
+        {/* Información de Áreas (Admin) - Colapsable con glassmorphism */}
         {currentUser?.role === 'admin' && (
-          <>
-            <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
+          <FadeInView duration={500} delay={600}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
               
               {/* Header Colapsable */}
               <TouchableOpacity 
@@ -760,7 +838,7 @@ export default function DashboardScreen({ navigation }) {
                         <View style={styles.areaGridStats}>
                           <View style={styles.areaGridStatItem}>
                             <View style={[styles.statIcon, { backgroundColor: `${color}25` }]}>
-                              <Ionicons name="list" size={16} color={color} />
+                              <Ionicons name="list" size={14} color={color} />
                             </View>
                             <Text style={[styles.areaGridStatValue, { color }]}>
                               {stats.total}
@@ -774,7 +852,7 @@ export default function DashboardScreen({ navigation }) {
                           
                           <View style={styles.areaGridStatItem}>
                             <View style={[styles.statIcon, { backgroundColor: '#10B98125' }]}>
-                              <Ionicons name="checkmark" size={16} color="#10B981" />
+                              <Ionicons name="checkmark" size={14} color="#10B981" />
                             </View>
                             <Text style={[styles.areaGridStatValue, { color: '#10B981' }]}>
                               {stats.completed}
@@ -788,7 +866,7 @@ export default function DashboardScreen({ navigation }) {
 
                           <View style={styles.areaGridStatItem}>
                             <View style={[styles.statIcon, { backgroundColor: '#FF950025' }]}>
-                              <Ionicons name="trending-up" size={16} color="#FF9500" />
+                              <Ionicons name="trending-up" size={14} color="#FF9500" />
                             </View>
                             <Text style={[styles.areaGridStatValue, { color: '#FF9500' }]}>
                               {completionRate}%
@@ -825,52 +903,56 @@ export default function DashboardScreen({ navigation }) {
                 </View>
               )}
             </View>
-            </>
+          </FadeInView>
         )}
 
-        {/* Heatmap de Actividad */}
+        {/* Heatmap de Actividad - Con glassmorphism */}
         {!loadingAdvanced && heatmapData.length > 0 && (
-          <>
-            <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
+          <FadeInView duration={500} delay={700}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
               <View style={styles.chartHeader}>
-                <Ionicons name="calendar" size={20} color={theme.text} />
+                <View style={[styles.chartIconBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                  <Ionicons name="calendar" size={18} color="#10B981" />
+                </View>
                 <Text style={[styles.chartTitle, { color: theme.text }]}>Actividad (Últimos 90 días)</Text>
               </View>
               <Heatmap data={heatmapData} />
             </View>
-            </>
+          </FadeInView>
         )}
 
-        {/* Estadísticas Pomodoro */}
+        {/* Estadísticas Pomodoro - Con glassmorphism */}
         {pomodoroStats && (
-          <>
-            <View style={[styles.chartCard, { backgroundColor: theme.background }]}>
-            <View style={styles.chartHeader}>
-              <Ionicons name="timer" size={20} color={theme.text} />
-              <Text style={[styles.chartTitle, { color: theme.text }]}>Tiempo de Enfoque (Últimos 30 días)</Text>
+          <FadeInView duration={500} delay={800}>
+            <View style={[styles.chartCard, { backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)' }]}>
+              <View style={styles.chartHeader}>
+                <View style={[styles.chartIconBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                  <Ionicons name="timer" size={18} color="#EF4444" />
+                </View>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Tiempo de Enfoque (Últimos 30 días)</Text>
+              </View>
+              <View style={styles.pomodoroStats}>
+                <View style={styles.pomodoroItem}>
+                  <Text style={[styles.pomodoroValue, { color: theme.primary }]}>
+                    {pomodoroStats.totalSessions}
+                  </Text>
+                  <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Sesiones</Text>
+                </View>
+                <View style={styles.pomodoroItem}>
+                  <Text style={[styles.pomodoroValue, { color: '#10B981' }]}>
+                    {pomodoroStats.totalMinutes}m
+                  </Text>
+                  <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Minutos</Text>
+                </View>
+                <View style={styles.pomodoroItem}>
+                  <Text style={[styles.pomodoroValue, { color: '#8B5CF6' }]}>
+                    {pomodoroStats.averageSessionLength}m
+                  </Text>
+                  <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Promedio</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.pomodoroStats}>
-              <View style={styles.pomodoroItem}>
-                <Text style={[styles.pomodoroValue, { color: theme.primary }]}>
-                  {pomodoroStats.totalSessions}
-                </Text>
-                <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Sesiones</Text>
-              </View>
-              <View style={styles.pomodoroItem}>
-                <Text style={[styles.pomodoroValue, { color: '#10B981' }]}>
-                  {pomodoroStats.totalMinutes}m
-                </Text>
-                <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Minutos</Text>
-              </View>
-              <View style={styles.pomodoroItem}>
-                <Text style={[styles.pomodoroValue, { color: '#8B5CF6' }]}>
-                  {pomodoroStats.averageSessionLength}m
-                </Text>
-                <Text style={[styles.pomodoroLabel, { color: theme.textSecondary }]}>Promedio</Text>
-              </View>
-            </View>
-          </View>
-            </>
+          </FadeInView>
         )}
       </ScrollView>
       </View>
@@ -916,17 +998,25 @@ const createStyles = (theme, isDark, isDesktop, isTablet, isDesktopLarge, screen
       fontSize: 16,
     },
     headerGradient: {
+      borderBottomLeftRadius: isDesktop ? 32 : 24,
+      borderBottomRightRadius: isDesktop ? 32 : 24,
+      overflow: 'hidden',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#9F2241',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
+        },
+        android: { elevation: 16 },
+        default: {},
+      }),
+      width: '100%',
+    },
+    headerGradientInner: {
       paddingHorizontal: responsiveHeaderPadding,
       paddingTop: isTablet ? 48 : 40,
-      paddingBottom: isTablet ? 24 : 20,
-      borderBottomLeftRadius: isDesktop ? 32 : 20,
-      borderBottomRightRadius: isDesktop ? 32 : 20,
-      shadowColor: '#9F2241',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.35,
-      shadowRadius: 14,
-      elevation: 14,
-      width: '100%',
+      paddingBottom: isTablet ? 28 : 24,
     },
     header: {
       flexDirection: 'row',
@@ -936,23 +1026,42 @@ const createStyles = (theme, isDark, isDesktop, isTablet, isDesktopLarge, screen
     greetingContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 14,
+    },
+    iconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 10,
     },
     greeting: {
-      fontSize: isDesktop ? 18 : 16,
+      fontSize: isDesktop ? 16 : 14,
       fontWeight: '700',
-      color: '#FFFFFF',
-      opacity: 0.95,
-      letterSpacing: 0.3,
+      color: 'rgba(255,255,255,0.9)',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
     },
     heading: { 
-      fontSize: isDesktop ? 44 : 40, 
+      fontSize: isDesktop ? 40 : 36, 
       fontWeight: '900',
       color: '#FFFFFF',
-      letterSpacing: -2.2,
-      textShadowColor: 'rgba(0,0,0,0.2)',
-      textShadowOffset: { width: 0, height: 2 },
-      textShadowRadius: 4,
+      letterSpacing: -1.5,
+      textShadowColor: 'rgba(0,0,0,0.25)',
+      textShadowOffset: { width: 0, height: 3 },
+      textShadowRadius: 6,
+    },
+    exportButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.3)',
     },
     scroll: {
       flex: 1,
@@ -1116,84 +1225,131 @@ const createStyles = (theme, isDark, isDesktop, isTablet, isDesktopLarge, screen
     periodButtonTextActive: {
       color: '#FFFFFF',
     },
-    summaryCard: {
-      padding: isDesktop ? 32 : 24,
-      borderRadius: 20,
+    summaryCardWrapper: {
       marginBottom: isDesktop ? 32 : 24,
-      borderWidth: 1.5,
-      borderColor: 'rgba(0,0,0,0.08)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
+    },
+    summaryCard: {
+      padding: isDesktop ? 28 : 22,
+      borderRadius: isDesktop ? 28 : 24,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+      ...Platform.select({
+        ios: {
+          shadowColor: isDark ? '#000' : '#9F2241',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: isDark ? 0.4 : 0.12,
+          shadowRadius: 24,
+        },
+        android: { elevation: 10 },
+        default: {},
+      }),
     },
     summaryHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 16,
     },
     summaryHeaderLeft: {
       flexDirection: 'row',
       alignItems: 'center',
     },
+    summaryIconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
     summaryTitle: {
-      fontSize: isDesktop ? 18 : 16,
-      fontWeight: '700',
+      fontSize: isDesktop ? 20 : 18,
+      fontWeight: '800',
+      letterSpacing: -0.3,
     },
     summaryDivider: {
       height: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.05)',
-      marginBottom: 12,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(159,34,65,0.1)',
+      marginBottom: 20,
+      marginHorizontal: -8,
     },
     summaryRow: {
       flexDirection: 'row',
       justifyContent: 'space-around',
+      alignItems: 'center',
     },
     summaryItem: {
       alignItems: 'center',
       flex: 1,
+      paddingVertical: 8,
+    },
+    summarySeparator: {
+      width: 1,
+      height: 50,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    },
+    summaryDotWrapper: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
     },
     summaryDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginBottom: 8,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
     summaryValue: {
-      fontSize: isDesktop ? 28 : 24,
-      fontWeight: '800',
+      fontSize: isDesktop ? 32 : 28,
+      fontWeight: '900',
       marginBottom: 4,
+      letterSpacing: -0.5,
     },
     summaryLabel: {
-      fontSize: isDesktop ? 15 : 13,
-      fontWeight: '500',
+      fontSize: isDesktop ? 14 : 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     chartCard: {
       padding: isDesktop ? 28 : 22,
-      borderRadius: 20,
+      borderRadius: isDesktop ? 28 : 24,
       marginBottom: isDesktop ? 32 : 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 4,
-      borderWidth: 1.5,
-      borderColor: 'rgba(0,0,0,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+      ...Platform.select({
+        ios: {
+          shadowColor: isDark ? '#000' : '#9F2241',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: isDark ? 0.4 : 0.12,
+          shadowRadius: 24,
+        },
+        android: { elevation: 10 },
+        default: {},
+      }),
     },
     chartHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: isDesktop ? 14 : 12,
       marginBottom: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    },
+    chartIconBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     chartTitle: {
       fontSize: isDesktop ? 20 : 18,
-      fontWeight: '900',
+      fontWeight: '800',
       letterSpacing: -0.4,
-      textShadowColor: 'rgba(0,0,0,0.1)',
-      textShadowOffset: { width: 0, height: 1 },
       textShadowRadius: 2,
     },
     chart: {
@@ -1449,111 +1605,112 @@ const createStyles = (theme, isDark, isDesktop, isTablet, isDesktopLarge, screen
     areaGridContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 14,
+      gap: isDesktop ? 14 : 10,
     },
     areaGridCard: {
       flex: 1,
       minWidth: '47%',
-      borderRadius: 18,
-      paddingHorizontal: 16,
-      paddingVertical: 18,
+      borderRadius: isDesktop ? 16 : 14,
+      paddingHorizontal: isDesktop ? 14 : 10,
+      paddingVertical: isDesktop ? 14 : 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
       shadowRadius: 12,
       elevation: 5,
-      borderWidth: 2,
+      borderWidth: 1.5,
     },
     areaCardHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 10,
+      marginBottom: 8,
       width: '100%',
     },
     areaColorDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
     statusBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
       borderRadius: 6,
     },
     statusBadgeText: {
-      fontSize: 9,
+      fontSize: 8,
       fontWeight: '700',
       color: '#FFF',
       textTransform: 'uppercase',
-      letterSpacing: 0.3,
+      letterSpacing: 0.2,
     },
     areaGridCardTitle: {
-      fontSize: 15,
+      fontSize: isDesktop ? 14 : 12,
       fontWeight: '700',
-      marginBottom: 12,
+      marginBottom: 10,
       textAlign: 'center',
+      lineHeight: isDesktop ? 18 : 16,
     },
     areaGridStats: {
       flexDirection: 'row',
       alignItems: 'center',
       width: '100%',
       gap: 0,
-      marginBottom: 12,
+      marginBottom: 10,
     },
     areaGridStatItem: {
       flex: 1,
       alignItems: 'center',
-      paddingHorizontal: 4,
+      paddingHorizontal: 2,
     },
     statIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
+      width: isDesktop ? 28 : 24,
+      height: isDesktop ? 28 : 24,
+      borderRadius: 6,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: 4,
     },
     areaGridStatValue: {
-      fontSize: 18,
+      fontSize: isDesktop ? 16 : 14,
       fontWeight: '800',
     },
     areaGridStatLabel: {
-      fontSize: 11,
+      fontSize: isDesktop ? 9 : 8,
       fontWeight: '600',
-      marginTop: 4,
+      marginTop: 2,
       textTransform: 'uppercase',
-      letterSpacing: 0.3,
+      letterSpacing: 0.2,
     },
     gridDivider: {
       width: 1,
-      height: 40,
-      marginHorizontal: 4,
+      height: 30,
+      marginHorizontal: 2,
     },
     progressBarContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       width: '100%',
     },
     progressBar: {
       flex: 1,
-      height: 8,
-      borderRadius: 4,
+      height: 6,
+      borderRadius: 3,
       overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
-      borderRadius: 4,
+      borderRadius: 3,
       minWidth: 2,
     },
     progressLabel: {
-      fontSize: 11,
+      fontSize: 9,
       fontWeight: '700',
-      minWidth: 28,
+      minWidth: 24,
       textAlign: 'right',
     },
     // Estilos para header colapsable

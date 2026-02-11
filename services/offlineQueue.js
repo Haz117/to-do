@@ -121,27 +121,33 @@ export const syncQueue = async (force = false) => {
         switch (operation.type) {
           case OPERATION_TYPES.CREATE:
             result = await createTask(operation.data);
+            // createTask devuelve ID (string)
+            if (!result) throw new Error('No se obtuvo ID de tarea creada');
             break;
+            
           case OPERATION_TYPES.UPDATE:
             result = await updateTask(operation.data.id, operation.data);
+            // updateTask devuelve undefined si es exitoso
+            result = { success: true };
             break;
+            
           case OPERATION_TYPES.DELETE:
             result = await deleteTask(operation.data.id);
+            // deleteTask devuelve undefined si es exitoso
+            result = { success: true };
             break;
+            
           default:
             throw new Error(`Tipo de operación desconocido: ${operation.type}`);
         }
 
-        if (result.success) {
-          // Marcar como completada
-          operation.status = 'completed';
-          await updateQueueItem(operation);
-          syncedCount++;
-        } else {
-          throw new Error(result.error || 'Error desconocido');
-        }
+        // Marcar como completada (sin esperar success)
+        operation.status = 'completed';
+        await updateQueueItem(operation);
+        syncedCount++;
 
       } catch (error) {
+        console.error(`❌ Error sincronizando operación ${operation.type}:`, error.message);
         operation.status = 'failed';
         operation.error = error.message;
         await updateQueueItem(operation);

@@ -77,7 +77,7 @@ const Toast = ({
 
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, duration]);
 
   const hideToast = () => {
     Animated.parallel([

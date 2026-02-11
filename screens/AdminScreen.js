@@ -1,8 +1,10 @@
 // screens/AdminScreen.js
 // Pantalla de configuración y administración
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Platform, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Platform, Modal, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ensurePermissions, getAllScheduledNotifications, cancelAllNotifications } from '../services/notifications';
 import { collection, addDoc, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -32,6 +34,91 @@ export default function AdminScreen({ navigation, onLogout }) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+
+  // Animation refs for stagger effect
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(-20)).current;
+  const statsOpacity = useRef(new Animated.Value(0)).current;
+  const statsSlide = useRef(new Animated.Value(30)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formSlide = useRef(new Animated.Value(30)).current;
+  const usersOpacity = useRef(new Animated.Value(0)).current;
+  const usersSlide = useRef(new Animated.Value(30)).current;
+
+  // Stagger animations on mount
+  useEffect(() => {
+    const staggerDelay = 120;
+    
+    // Header animation
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.spring(headerSlide, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Stats cards animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(statsOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(statsSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay);
+
+    // Form section animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(formSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay * 2);
+
+    // Users list animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(usersOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(usersSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay * 3);
+  }, []);
 
   const showToast = (message, type = 'success') => {
     setToastMessage(message);
@@ -368,41 +455,48 @@ export default function AdminScreen({ navigation, onLogout }) {
         </View>
       </Modal>
 
-      <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.greetingContainer}>
-              <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
-              <Text style={styles.greeting}>Hola!</Text>
+      <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
+        <LinearGradient
+          colors={isDark ? ['#2A1520', '#1A1A1A'] : ['#9F2241', '#7F1D35']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.greetingContainer}>
+                <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+                <Text style={styles.greeting}>Hola!</Text>
+              </View>
+              <Text style={styles.heading}>Administración</Text>
             </View>
-            <Text style={styles.heading}>Administración</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.logoutButton}
-            onPress={async () => {
-              hapticMedium();
-              Alert.alert(
-                'Cerrar Sesión',
-                '¿Estás seguro que deseas cerrar sesión?',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Cerrar Sesión',
-                    style: 'destructive',
-                    onPress: async () => {
-                      if (onLogout) {
-                        await onLogout();
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={async () => {
+                hapticMedium();
+                Alert.alert(
+                  'Cerrar Sesión',
+                  '¿Estás seguro que deseas cerrar sesión?',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Cerrar Sesión',
+                      style: 'destructive',
+                      onPress: async () => {
+                        if (onLogout) {
+                          await onLogout();
+                        }
                       }
                     }
-                  }
-                ]
-              );
-            }}
-          >
-            <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </Animated.View>
 
       {/* Alerta de tareas vencidas */}
       <OverdueAlert 
@@ -415,35 +509,75 @@ export default function AdminScreen({ navigation, onLogout }) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats Overview - Estilo tarjetas grandes */}
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: '#3B82F6' }]}>
-            <Ionicons name="people" size={36} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{allUsers.length}</Text>
-            <Text style={styles.statLabel}>USUARIOS</Text>
+        {/* Stats Overview - Estilo tarjetas grandes con glassmorphism */}
+        <Animated.View style={[
+          styles.statsContainer,
+          { opacity: statsOpacity, transform: [{ translateY: statsSlide }] }
+        ]}>
+          <View style={[styles.statCard, styles.statCardGlass]}>
+            <LinearGradient
+              colors={['rgba(59, 130, 246, 0.95)', 'rgba(37, 99, 235, 0.9)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.statCardGradient}
+            >
+              <View style={styles.statIconBadge}>
+                <Ionicons name="people" size={28} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{allUsers.length}</Text>
+              <Text style={styles.statLabel}>USUARIOS</Text>
+            </LinearGradient>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#F59E0B' }]}>
-            <Ionicons name="notifications" size={36} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{notificationCount}</Text>
-            <Text style={styles.statLabel}>NOTIFICACIONES</Text>
+          <View style={[styles.statCard, styles.statCardGlass]}>
+            <LinearGradient
+              colors={['rgba(245, 158, 11, 0.95)', 'rgba(217, 119, 6, 0.9)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.statCardGradient}
+            >
+              <View style={styles.statIconBadge}>
+                <Ionicons name="notifications" size={28} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{notificationCount}</Text>
+              <Text style={styles.statLabel}>NOTIFICACIONES</Text>
+            </LinearGradient>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: '#10B981' }]}>
-            <Ionicons name={isDark ? "moon" : "sunny"} size={36} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{isDark ? 'ON' : 'OFF'}</Text>
-            <Text style={styles.statLabel}>MODO OSCURO</Text>
+          <View style={[styles.statCard, styles.statCardGlass]}>
+            <LinearGradient
+              colors={['rgba(16, 185, 129, 0.95)', 'rgba(5, 150, 105, 0.9)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.statCardGradient}
+            >
+              <View style={styles.statIconBadge}>
+                <Ionicons name={isDark ? "moon" : "sunny"} size={28} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{isDark ? 'ON' : 'OFF'}</Text>
+              <Text style={styles.statLabel}>MODO OSCURO</Text>
+            </LinearGradient>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Crear Usuario */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.card }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircleSection, { backgroundColor: '#8B5CF6' }]}>
-              <Ionicons name="person-add" size={24} color="#FFFFFF" />
+        <Animated.View style={{ opacity: formOpacity, transform: [{ translateY: formSlide }] }}>
+          <View style={[
+            styles.sectionCard, 
+            { 
+              backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+            }
+          ]}>
+            <View style={styles.sectionHeader}>
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                style={styles.iconCircleSection}
+              >
+                <Ionicons name="person-add" size={24} color="#FFFFFF" />
+              </LinearGradient>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Crear Usuario</Text>
             </View>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Crear Usuario</Text>
-          </View>
           
           <View style={[styles.inputContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
             <Ionicons name="person-outline" size={20} color={theme.textSecondary} style={styles.inputIcon} />
@@ -531,29 +665,45 @@ export default function AdminScreen({ navigation, onLogout }) {
               createUser();
             }}
           >
-            <View style={[styles.buttonGradient, { backgroundColor: '#34C759' }]}>
+            <LinearGradient
+              colors={['#34C759', '#30B351']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
               <Ionicons name="add-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Crear Usuario</Text>
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
-        </View>
+          </View>
+        </Animated.View>
 
         {/* Lista de Usuarios */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.card }]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircleSection, { backgroundColor: '#3B82F6' }]}>
-              <Ionicons name="people" size={24} color="#FFFFFF" />
+        <Animated.View style={{ opacity: usersOpacity, transform: [{ translateY: usersSlide }] }}>
+          <View style={[
+            styles.sectionCard, 
+            { 
+              backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+            }
+          ]}>
+            <View style={styles.sectionHeader}>
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                style={styles.iconCircleSection}
+              >
+                <Ionicons name="people" size={24} color="#FFFFFF" />
+              </LinearGradient>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Usuarios ({allUsers.length})</Text>
             </View>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Usuarios ({allUsers.length})</Text>
-          </View>
 
-          <TouchableOpacity 
-            style={[styles.expandButton, { backgroundColor: theme.background, borderColor: theme.border }]} 
-            onPress={() => {
-              hapticLight();
-              setShowUserList(!showUserList);
-            }}
-          >
+            <TouchableOpacity 
+              style={[styles.expandButton, { backgroundColor: theme.background, borderColor: theme.border }]} 
+              onPress={() => {
+                hapticLight();
+                setShowUserList(!showUserList);
+              }}
+            >
             <Ionicons 
               name={showUserList ? "chevron-up" : "chevron-down"} 
               size={20} 
@@ -628,14 +778,24 @@ export default function AdminScreen({ navigation, onLogout }) {
               ))}
             </View>
           )}
-        </View>
+          </View>
+        </Animated.View>
 
         {/* Recuperación de Contraseña */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.card }]}>
+        <View style={[
+          styles.sectionCard, 
+          { 
+            backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+          }
+        ]}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircleSection, { backgroundColor: '#F59E0B' }]}>
+            <LinearGradient
+              colors={['#F59E0B', '#D97706']}
+              style={styles.iconCircleSection}
+            >
               <Ionicons name="key" size={24} color="#FFFFFF" />
-            </View>
+            </LinearGradient>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Resetear Contraseña</Text>
           </View>
 
@@ -672,10 +832,15 @@ export default function AdminScreen({ navigation, onLogout }) {
               resetUserPassword();
             }}
           >
-            <View style={[styles.buttonGradient, { backgroundColor: '#F59E0B' }]}>
+            <LinearGradient
+              colors={['#F59E0B', '#D97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
               <Ionicons name="refresh" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Resetear Contraseña</Text>
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
 
           <Text style={[styles.helpText, { color: theme.textSecondary }]}>
@@ -684,11 +849,20 @@ export default function AdminScreen({ navigation, onLogout }) {
         </View>
 
         {/* Notificaciones */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.card }]}>
+        <View style={[
+          styles.sectionCard, 
+          { 
+            backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+          }
+        ]}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircleSection, { backgroundColor: '#06B6D4' }]}>
+            <LinearGradient
+              colors={['#06B6D4', '#0891B2']}
+              style={styles.iconCircleSection}
+            >
               <Ionicons name="notifications" size={24} color="#FFFFFF" />
-            </View>
+            </LinearGradient>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Notificaciones</Text>
           </View>
 
@@ -699,10 +873,15 @@ export default function AdminScreen({ navigation, onLogout }) {
               testNotification();
             }}
           >
-            <View style={[styles.buttonGradient, { backgroundColor: '#34C759' }]}>
+            <LinearGradient
+              colors={['#34C759', '#30B351']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
               <Ionicons name="flask" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>Enviar Notificación de Prueba</Text>
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -730,11 +909,20 @@ export default function AdminScreen({ navigation, onLogout }) {
 
 
         {/* Información de la App */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.card }]}>
+        <View style={[
+          styles.sectionCard, 
+          { 
+            backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+          }
+        ]}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconCircleSection, { backgroundColor: '#6B7280' }]}>
+            <LinearGradient
+              colors={['#6B7280', '#4B5563']}
+              style={styles.iconCircleSection}
+            >
               <Ionicons name="information-circle" size={24} color="#FFFFFF" />
-            </View>
+            </LinearGradient>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Información</Text>
           </View>
           
@@ -867,6 +1055,28 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.25)',
     overflow: 'hidden'
+  },
+  statCardGlass: {
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  statCardGradient: {
+    flex: 1,
+    width: '100%',
+    padding: 16,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statIconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   statNumber: {
     fontSize: 36,

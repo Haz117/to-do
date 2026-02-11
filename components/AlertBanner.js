@@ -16,6 +16,7 @@ export default function AlertBanner({
   icon = null,             // Custom icon name
   action = null,           // { label, onPress }
   onClose = null,
+  onDelete = null,         // Delete callback
   animated = true,
   dismissible = true,
 }) {
@@ -185,6 +186,21 @@ export default function AlertBanner({
             />
           </TouchableOpacity>
         )}
+
+        {/* Delete Button */}
+        {onDelete && (
+          <TouchableOpacity
+            onPress={onDelete}
+            style={styles.deleteButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={20}
+              color="#FF3B30"
+            />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -205,7 +221,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    gap: 12,
   },
   iconContainer: {
     width: 44,
@@ -214,26 +229,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
+    marginRight: 12,
   },
   content: {
     flex: 1,
-    gap: 4,
   },
   title: {
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.3,
+    marginBottom: 4,
   },
   message: {
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
+    marginBottom: 4,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-    gap: 4,
+    marginRight: 4,
   },
   actionText: {
     fontSize: 12,
@@ -241,6 +258,13 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   closeButton: {
+    padding: 8,
+    marginLeft: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  deleteButton: {
     padding: 8,
     marginLeft: 4,
     justifyContent: 'center',

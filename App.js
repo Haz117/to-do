@@ -10,6 +10,7 @@ import { View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity, Pla
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { TasksProvider } from './contexts/TasksContext';
 import { getGestureHandlerRootView } from './utils/platformComponents';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -355,10 +356,12 @@ export default function App() {
                   options={{ animation: 'fade' }}
                 >
                   {(props) => (
-                    <MainTabs 
-                      {...props}
-                      onLogout={handleLogout}
-                    />
+                    <TasksProvider>
+                      <MainTabs 
+                        {...props}
+                        onLogout={handleLogout}
+                      />
+                    </TasksProvider>
                   )}
                 </Stack.Screen>
                 <Stack.Screen 

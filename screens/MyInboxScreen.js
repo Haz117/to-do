@@ -2,7 +2,9 @@
 // "Mi bandeja" - lista de tareas asignadas al usuario actual, ordenadas por fecha de vencimiento.
 // Acciones rápidas: marcar cerrada y posponer 1 día. Abre detalle y chat.
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, SectionList, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, SectionList, Modal, ScrollView, TextInput, Animated, Easing, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -15,6 +17,7 @@ import { getCurrentSession } from '../services/authFirestore';
 import { hapticMedium } from '../utils/haptics';
 import Toast from '../components/Toast';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTasks } from '../contexts/TasksContext';
 import { scheduleOverdueTasksNotification, scheduleMultipleDailyOverdueNotifications } from '../services/notifications';
 import OverdueAlert from '../components/OverdueAlert';
 import { useResponsive } from '../utils/responsive';
@@ -23,7 +26,8 @@ import { SPACING, TYPOGRAPHY, RADIUS, SHADOWS, MAX_WIDTHS } from '../theme/token
 export default function MyInboxScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const { width, isDesktop, isTablet, columns, padding } = useResponsive();
-  const [tasks, setTasks] = useState([]);
+  // 🌍 USAR EL CONTEXT GLOBAL DE TAREAS
+  const { tasks, setTasks, markAsDeleting, unmarkAsDeleting } = useTasks();
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
@@ -31,9 +35,107 @@ export default function MyInboxScreen({ navigation }) {
   const [toastType, setToastType] = useState('success');
   const [recentMessages, setRecentMessages] = useState([]);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
+  const [filters, setFilters] = useState({
+    status: [],
+    priority: [],
+    area: [],
+    overdue: false,
+  });
+  const [deletingTaskIds, setDeletingTaskIds] = useState(new Set());
+
+  // Animation refs for stagger effect
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(-20)).current;
+  const userCardOpacity = useRef(new Animated.Value(0)).current;
+  const userCardSlide = useRef(new Animated.Value(20)).current;
+  const searchOpacity = useRef(new Animated.Value(0)).current;
+  const searchSlide = useRef(new Animated.Value(20)).current;
+  const listOpacity = useRef(new Animated.Value(0)).current;
+  const listSlide = useRef(new Animated.Value(30)).current;
+
+  // Stagger animations on mount
+  useEffect(() => {
+    const staggerDelay = 100;
+    
+    // Header animation
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.spring(headerSlide, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // User card animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(userCardOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(userCardSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay);
+
+    // Search bar animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(searchOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(searchSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay * 2);
+
+    // List animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(listOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(listSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay * 3);
+  }, []);
 
   useEffect(() => {
     loadCurrentUser();
+    
+    // 💾 al montar: restaurar tareas en proceso de borrado
+    restoreDeletingTasks();
   }, []);
 
   const loadCurrentUser = async () => {
@@ -51,23 +153,6 @@ export default function MyInboxScreen({ navigation }) {
     }, 1000);
   }, []);
 
-  // Suscribirse a cambios en tiempo real de Firebase
-  useEffect(() => {
-    let unsubscribe;
-    
-    subscribeToTasks((updatedTasks) => {
-      setTasks(updatedTasks);
-    }).then((unsub) => {
-      unsubscribe = unsub;
-    });
-
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, []);
-
   // Cargar mensajes recientes de tareas donde el usuario está involucrado
   useEffect(() => {
     if (!currentUser?.email || !db) return;
@@ -77,7 +162,7 @@ export default function MyInboxScreen({ navigation }) {
         const messages = [];
         
         // Obtener tareas donde el usuario está involucrado
-        let userTasks = tasks.filter(task => 
+        let userTasks = tasks.filter(task =>
           task && 
           task.id && 
           (task.assignedTo === currentUser.email || 
@@ -167,9 +252,7 @@ export default function MyInboxScreen({ navigation }) {
     }
   }, [currentUser, tasks]);
 
-  // Filtrar y ordenar tareas por fecha de vencimiento
-  // subscribeToTasks ya filtra según el rol (admin ve todo, jefe ve su depto, operativo ve solo sus tareas)
-  // Aquí solo ordenamos por fecha
+  // Filtrar y ordenar tareas con búsqueda y filtros avanzados
   const filtered = tasks
     .filter(task => {
       // Si no hay usuario, no mostrar nada
@@ -177,11 +260,29 @@ export default function MyInboxScreen({ navigation }) {
       
       // Si es operativo, mostrar solo sus tareas asignadas
       if (currentUser.role === 'operativo') {
-        return task.assignedTo === currentUser.email;
+        if (task.assignedTo !== currentUser.email) return false;
       }
       
-      // Para admin y jefe, mostrar todas las tareas que ya fueron filtradas por subscribeToTasks
-      // (admin ve todo, jefe ve su departamento)
+      // Filtro de búsqueda (título, descripción)
+      if (searchText) {
+        const search = searchText.toLowerCase();
+        const matchTitle = task.title?.toLowerCase().includes(search);
+        const matchDesc = task.description?.toLowerCase().includes(search);
+        if (!matchTitle && !matchDesc) return false;
+      }
+      
+      // Filtro de estado
+      if (filters.status.length > 0 && !filters.status.includes(task.status)) return false;
+      
+      // Filtro de prioridad
+      if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) return false;
+      
+      // Filtro de dirección/área
+      if (filters.area.length > 0 && !filters.area.includes(task.area)) return false;
+      
+      // Filtro de vencidas
+      if (filters.overdue && (task.dueAt >= Date.now() || task.status === 'cerrada')) return false;
+      
       return true;
     })
     .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0));
@@ -192,6 +293,9 @@ export default function MyInboxScreen({ navigation }) {
 
   // Ref para evitar programar notificaciones múltiples veces
   const lastScheduledRef = useRef(null);
+
+  // Ref para evitar eliminar la misma tarea múltiples veces
+  const deletingTasksRef = useRef(new Set());
 
   // Programar notificación diaria de tareas vencidas (solo una vez al día)
   useEffect(() => {
@@ -262,15 +366,220 @@ export default function MyInboxScreen({ navigation }) {
     }
   };
 
-  const deleteTask = async (taskId) => {
+  // 💾 Guardar tareas en proceso de borrado en AsyncStorage
+  const saveDeletingTasks = async (taskIds) => {
     try {
-      await deleteTaskFirebase(taskId);
+      const tasksToDelete = Array.from(taskIds);
+      await AsyncStorage.setItem('deletingTasks', JSON.stringify(tasksToDelete));
     } catch (error) {
-      // Error silencioso
+      // Silent fail - AsyncStorage is optional
     }
   };
 
+  // 🔄 Restaurar tareas en proceso de borrado al recargar
+  const restoreDeletingTasks = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('deletingTasks');
+      if (stored) {
+        const taskIds = JSON.parse(stored);
+        
+        // Marcar como en proceso nuevamente
+        const taskIdSet = new Set(taskIds);
+        setDeletingTaskIds(taskIdSet);
+        deletingTasksRef.current = taskIdSet;
+
+        // ✅ INMEDIATAMENTE: Remover estas tareas de la lista UI para que no reaparezcan
+        setTasks(prevTasks => prevTasks.filter(t => !taskIdSet.has(t.id)));
+
+        // Continuar el proceso de borrado para cada tarea en background
+        for (const taskId of taskIds) {
+          // Intentar borrar de Firebase nuevamente
+          deleteTaskFirebase(taskId)
+            .then(() => {
+              // Éxito
+            })
+            .catch(error => {
+              // Firebase delete failed - task remains marked as deleted locally
+            })
+            .finally(() => {
+              // Limpiar del tracking
+              deletingTasksRef.current.delete(taskId);
+              setDeletingTaskIds(prev => {
+                const updated = new Set(prev);
+                updated.delete(taskId);
+                return updated;
+              });
+            });
+        }
+
+        // Limpiar AsyncStorage después de restaurar
+        await AsyncStorage.removeItem('deletingTasks');
+      }
+    } catch (error) {
+      // AsyncStorage restore failed - continue with fresh state
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    // 🛡️ GUARD: Prevenir eliminación múltiple del mismo task
+    if (deletingTasksRef.current.has(taskId)) {
+      return;
+    }
+    
+    // Verificar permisos ANTES de intentar
+    if (!currentUser || currentUser.role !== 'admin') {
+      setToastMessage(`Solo admins pueden eliminar. Tu rol: ${currentUser?.role || 'desconocido'}`);
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    // Guardar tarea para posible undo
+    const taskToDelete = tasks.find(t => t.id === taskId);
+    
+    // ✅ MARCAR COMO EN PROCESO (en state, ref Y context global)
+    deletingTasksRef.current.add(taskId);
+    setDeletingTaskIds(prev => new Set([...prev, taskId]));
+    markAsDeleting(taskId);  // 🛡️ Evitar que el listener restaure la tarea
+    
+    // 💾 GUARDAR EN ASYNCSTORAGE para persistir si recarga
+    await saveDeletingTasks(deletingTasksRef.current);
+    
+    // ✅ MOSTRAR TOAST INMEDIATAMENTE
+    setToastMessage('🔴 ¡BORRANDO TAREA! Espera un momento...');
+    setToastType('info');
+    setToastVisible(true);
+
+    // Esperar 600ms para que el usuario vea el INDICADOR ROJO
+    // Luego remover de la lista UI
+    setTimeout(() => {
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
+    }, 600);
+    
+    // 🔄 FASE 2: EJECUTAR DELETE EN FIREBASE EN BACKGROUND (fire-and-forget)
+    deleteTaskFirebase(taskId)
+      .then(() => {
+        setToastMessage('✅ ¡TAREA ELIMINADA! Ya no aparecerá');
+        setToastType('success');
+        setToastVisible(true);
+        // ✅ Solo desmarcar después de éxito confirmado
+        unmarkAsDeleting(taskId);
+      })
+      .catch(error => {
+        setToastMessage('Error: No se pudo eliminar la tarea');
+        setToastType('error');
+        setToastVisible(true);
+        // Mantener marcado para evitar que reaparezca
+      })
+      .finally(() => {
+        // ✅ LIMPIAR MARCA LOCAL DE EN PROCESO
+        deletingTasksRef.current.delete(taskId);
+        setDeletingTaskIds(prev => {
+          const updated = new Set(prev);
+          updated.delete(taskId);
+          return updated;
+        });
+      });
+  };
+
+  // Función para borrar múltiples tareas seleccionadas
+  const deleteSelectedTasks = async () => {
+    if (selectedTaskIds.size === 0) {
+      setToastMessage('⚠️ Selecciona al menos una tarea');
+      setToastType('warning');
+      setToastVisible(true);
+      return;
+    }
+
+    if (!currentUser || currentUser.role !== 'admin') {
+      setToastMessage('❌ Solo admins pueden eliminar tareas');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+
+    const count = selectedTaskIds.size;
+    setToastMessage(`🔴 ¡ELIMINANDO ${count} TAREA${count > 1 ? 'S' : ''}! Espera...`);
+    setToastType('info');
+    setToastVisible(true);
+
+    // Marcar todas como eliminando (local + context global)
+    const newDeletingSet = new Set([...deletingTasksRef.current, ...selectedTaskIds]);
+    deletingTasksRef.current = newDeletingSet;
+    setDeletingTaskIds(newDeletingSet);
+    
+    // 🛡️ Marcar en context global para evitar restauración por listener
+    selectedTaskIds.forEach(taskId => markAsDeleting(taskId));
+
+    // 💾 GUARDAR EN ASYNCSTORAGE para persistir si recarga
+    await saveDeletingTasks(newDeletingSet);
+
+    // Esperar 800ms para que el usuario vea el INDICADOR ROJO con "ELIMINANDO"
+    // Luego remover de la lista UI
+    setTimeout(() => {
+      setTasks(prevTasks => prevTasks.filter(t => !selectedTaskIds.has(t.id)));
+    }, 800);
+
+    // Eliminar todas en background
+    const taskIdsToDelete = Array.from(selectedTaskIds);
+    const deletePromises = taskIdsToDelete.map(taskId => 
+      deleteTaskFirebase(taskId)
+        .then(() => {
+          unmarkAsDeleting(taskId); // Desmarcar solo las que se eliminaron correctamente
+          return taskId;
+        })
+        .catch(err => {
+          // Firebase delete failed
+          return null; // Mantener marcado para evitar que reaparezca
+        })
+    );
+
+    Promise.all(deletePromises)
+      .then((results) => {
+        const successCount = results.filter(r => r !== null).length;
+        setToastMessage(`✅ ¡${successCount} TAREA${successCount > 1 ? 'S' : ''} ELIMINADA${successCount > 1 ? 'S' : ''}! Ya no aparecerán`);
+        setToastType('success');
+        setToastVisible(true);
+        setSelectedTaskIds(new Set());
+      })
+      .catch(err => {
+        setToastMessage('❌ Error: No se pudieron eliminar todas las tareas');
+        setToastType('error');
+        setToastVisible(true);
+      })
+      .finally(() => {
+        setDeletingTaskIds(prev => {
+          const updated = new Set(prev);
+          taskIdsToDelete.forEach(id => updated.delete(id));
+          return updated;
+        });
+      });
+  };
+
+  // Toggle selección de tarea
+  const toggleTaskSelection = (taskId) => {
+    const updated = new Set(selectedTaskIds);
+    if (updated.has(taskId)) {
+      updated.delete(taskId);
+    } else {
+      updated.add(taskId);
+    }
+    setSelectedTaskIds(updated);
+    hapticMedium();
+  };
+
+  // Obtener áreas únicas disponibles para filtros
+  const uniqueAreas = [...new Set(tasks.map(t => t.area).filter(Boolean))].sort();
+
   const toggleComplete = async (task) => {
+    // Validar permisos: solo admin puede reabrir
+    if (task.status === 'cerrada' && currentUser?.role !== 'admin') {
+      setToastMessage('Solo administradores pueden reabrir tareas');
+      setToastType('warning');
+      setToastVisible(true);
+      return;
+    }
+    
     const newStatus = task.status === 'cerrada' ? 'pendiente' : 'cerrada';
     await updateTask(task.id, { status: newStatus });
   };
@@ -302,34 +611,105 @@ export default function MyInboxScreen({ navigation }) {
   const renderItem = ({ item }) => {
     // Solo admin puede eliminar tareas
     const isAdmin = currentUser?.role === 'admin';
+    const isSelected = selectedTaskIds.has(item.id);
+    const isDeleting = deletingTaskIds.has(item.id);
     
     return (
       <View style={{ marginBottom: 12 }}>
-        <TaskItem 
-          task={item} 
-          onPress={() => openDetail(item)}
-          onDelete={isAdmin ? () => deleteTask(item.id) : undefined}
-          onToggleComplete={() => toggleComplete(item)}
-        />
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'flex-start',
+          backgroundColor: isDeleting ? '#FFE5E5' : (isSelected ? '#E3F2FD' : 'transparent'),
+          borderRadius: 8,
+          padding: 8,
+          gap: 8
+        }}>
+          {/* Checkbox para multi-select */}
+          {isAdmin && (
+            <TouchableOpacity 
+              onPress={() => toggleTaskSelection(item.id)}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                borderWidth: 2,
+                borderColor: isSelected ? theme.primary : '#DDD',
+                backgroundColor: isSelected ? theme.primary : 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginTop: 4
+              }}
+            >
+              {isSelected && <Ionicons name="checkmark" size={18} color="#FFF" />}
+            </TouchableOpacity>
+          )}
+
+          {/* Indicador visual prominente de "Borrando..." */}
+          {isDeleting && (
+            <View style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 69, 69, 0.9)',
+              borderRadius: 8,
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 100,
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <View style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                borderWidth: 3,
+                borderColor: '#FFF',
+                borderTopColor: 'transparent',
+                transform: [{ rotate: '45deg' }]
+              }} />
+              <Text style={{ 
+                color: '#FFF', 
+                fontSize: 16, 
+                fontWeight: '700',
+                letterSpacing: 0.5
+              }}>ELIMINANDO...</Text>
+            </View>
+          )}
+
+          {/* TaskItem */}
+          <View style={{ flex: 1 }}>
+            <TaskItem 
+              task={item} 
+              onPress={() => !isDeleting && openDetail(item)}
+              onDelete={isAdmin ? () => deleteTask(item.id) : undefined}
+              onToggleComplete={() => !isDeleting && toggleComplete(item)}
+              onReopen={isAdmin ? () => !isDeleting && updateTask(item.id, { status: 'pendiente' }) : undefined}
+              isDeleting={isDeleting}
+            />
+          </View>
+        </View>
+
         <View style={styles.actionsRow}>
           <TouchableOpacity style={[styles.actionBtn, { marginRight: isTablet ? 8 : 0 }]} onPress={() => markClosed(item)}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#9F2241" style={{ marginRight: 6 }} />
+            <Ionicons name="checkmark-circle-outline" size={16} color="#9F2241" style={{ marginRight: 4 }} />
             <Text style={styles.actionText} numberOfLines={1}>Cerrar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { marginRight: isTablet ? 8 : 0 }]} onPress={() => postponeOneDay(item)}>
-            <Ionicons name="time-outline" size={18} color="#DAA520" style={{ marginRight: 6 }} />
+            <Ionicons name="time-outline" size={16} color="#DAA520" style={{ marginRight: 4 }} />
             <Text style={styles.actionText} numberOfLines={1}>Posponer</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.actionBtn, { marginRight: isTablet ? 8 : 0, backgroundColor: '#00B4D8' }]} 
             onPress={() => openChat(item)}
           >
-            <Ionicons name="chatbubble-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={[styles.actionText, {color: '#fff'}]} numberOfLines={1}>Contactar</Text>
+            <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={[styles.actionText, {color: '#fff'}]} numberOfLines={1}>Comentar</Text>
           </TouchableOpacity>
           {isAdmin && (
             <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => deleteTask(item.id)}>
-              <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
               <Text style={[styles.actionText, {color: '#fff'}]} numberOfLines={1}>Borrar</Text>
             </TouchableOpacity>
           )}
@@ -350,59 +730,375 @@ export default function MyInboxScreen({ navigation }) {
         role={currentUser?.role}
       />
       
-      <View style={[styles.headerGradient, { backgroundColor: isDark ? '#1A1A1A' : theme.primary }]}>
-        <View style={styles.header}>
-          <View>
-            <View style={styles.greetingContainer}>
-              <Ionicons name="file-tray-full" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
-              <Text style={styles.greeting}>Tus tareas pendientes</Text>
+      <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
+        <LinearGradient
+          colors={isDark ? ['#2A1520', '#1A1A1A'] : ['#9F2241', '#7F1D35']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.header}>
+            <View>
+              <View style={styles.greetingContainer}>
+                <Ionicons name="file-tray-full" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+                <Text style={styles.greeting}>Tus tareas pendientes</Text>
+              </View>
+              <Text style={styles.heading}>Mi Bandeja</Text>
             </View>
-            <Text style={styles.heading}>Mi Bandeja</Text>
-          </View>
-          <View style={{ flexDirection: 'row' }}>
-            {/* Botón de mensajes con badge */}
-            {recentMessages.length > 0 && (
-              <TouchableOpacity 
-                style={[styles.messagesButton, { marginRight: 12 }]} 
-                onPress={() => {
-                  hapticMedium();
-                  setShowMessagesModal(true);
-                }}
-              >
+            <View style={{ flexDirection: 'row' }}>
+              {/* Botón de mensajes con badge */}
+              {recentMessages.length > 0 && (
+                <TouchableOpacity 
+                  style={[styles.messagesButton, { marginRight: 12 }]} 
+                  onPress={() => {
+                    hapticMedium();
+                    setShowMessagesModal(true);
+                  }}
+                >
+                  <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
+                    <Ionicons name="chatbubbles" size={24} color="#DAA520" />
+                    {recentMessages.length > 0 && (
+                      <View style={styles.messageBadge}>
+                        <Text style={styles.messageBadgeText}>{recentMessages.length}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
                 <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
-                  <Ionicons name="chatbubbles" size={24} color="#DAA520" />
-                  {recentMessages.length > 0 && (
-                    <View style={styles.messageBadge}>
-                      <Text style={styles.messageBadgeText}>{recentMessages.length}</Text>
-                    </View>
-                  )}
+                  <Ionicons name="add" size={32} color="#9F2241" />
                 </View>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.addButton} onPress={goToCreate}>
-              <View style={[styles.addButtonGradient, { backgroundColor: '#FFFFFF' }]}>
-                <Ionicons name="add" size={32} color="#9F2241" />
-              </View>
-            </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.View style={{ opacity: userCardOpacity, transform: [{ translateY: userCardSlide }] }}>
+        <View style={[
+          styles.userSection,
+          {
+            backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            borderColor: isDark ? 'rgba(159, 34, 65, 0.3)' : 'rgba(159, 34, 65, 0.15)',
+          }
+        ]}>
+          <LinearGradient
+            colors={[theme.primary, isDark ? '#7F1D35' : '#C53860']}
+            style={styles.userIconBadge}
+          >
+            <Ionicons name="person" size={20} color="#FFFFFF" />
+          </LinearGradient>
+          <View style={styles.userInfoContent}>
+            <Text style={styles.userLabel}>
+              {currentUser?.role === 'admin' ? 'TODAS LAS TAREAS' : 
+               currentUser?.role === 'jefe' ? 'TAREAS DE MI ÁREA' : 
+               'MIS TAREAS ASIGNADAS'}
+            </Text>
+            <Text style={[styles.currentUserName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
+              {currentUser?.displayName || 'Cargando...'}
+            </Text>
+            <Text style={[styles.currentUserHint, { color: theme.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
+              {currentUser?.email || 'Iniciando sesión...'}
+            </Text>
           </View>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.userSection}>
-        <View style={styles.userLabelContainer}>
-          <Ionicons name="person-outline" size={16} color="#9F2241" style={{ marginRight: 6 }} />
-          <Text style={styles.userLabel}>
-            {currentUser?.role === 'admin' ? 'TODAS LAS TAREAS' : 
-             currentUser?.role === 'jefe' ? 'TAREAS DE MI ÁREA' : 
-             'MIS TAREAS ASIGNADAS'}
-          </Text>
+      {/* 🔍 BÚSQUEDA Y FILTROS */}
+      <Animated.View style={{ opacity: searchOpacity, transform: [{ translateY: searchSlide }] }}>
+        <View style={[
+          styles.filterSection, 
+          { 
+            backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+          }
+        ]}>
+          <View style={[styles.searchContainer, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }]}>
+            <Ionicons name="search" size={20} color={theme.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.text }]}
+              placeholder="Buscar tareas..."
+              placeholderTextColor={theme.textSecondary}
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+            {searchText !== '' && (
+              <TouchableOpacity onPress={() => setSearchText('')}>
+                <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+        {/* Botón de filtros */}
+        <TouchableOpacity 
+          style={[styles.filterButton, { backgroundColor: showFilters ? theme.primary : theme.card }]}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Ionicons 
+            name="funnel" 
+            size={18} 
+            color={showFilters ? '#FFFFFF' : theme.text} 
+          />
+        </TouchableOpacity>
         </View>
-        <Text style={styles.currentUserName} numberOfLines={1} ellipsizeMode="tail">
-          {currentUser?.displayName || 'Cargando...'}
-        </Text>
-        <Text style={styles.currentUserHint} numberOfLines={1} ellipsizeMode="tail">
-          {currentUser?.email || 'Iniciando sesión...'}
-        </Text>
+      </Animated.View>
+
+      {/* Filtros expandibles - MEJORADO */}
+      {/* 🎨 MODAL DE FILTROS AVANZADOS */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            {/* HeaderModal */}
+            <View style={[styles.modalHeader, { borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="funnel" size={24} color={theme.primary} style={{ marginRight: 10 }} />
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Filtros Avanzados</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowFilters(false)}>
+                <Ionicons name="close-circle" size={28} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Contenido con scroll */}
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={true}>
+              {/* Estado */}
+              <View style={styles.filterGroup}>
+                <View style={styles.filterGroupHeader}>
+                  <Ionicons name="bookmark-outline" size={16} color={theme.primary} />
+                  <Text style={[styles.filterTitle, { color: theme.text }]}>ESTADO DE TAREA</Text>
+                  <View style={[styles.filterBadge, { backgroundColor: theme.primary }]}>
+                    <Text style={styles.filterBadgeText}>{filters.status.length}</Text>
+                  </View>
+                </View>
+                <View style={styles.filterOptions}>
+                  {['pendiente', 'en progreso', 'cerrada'].map(status => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.filterOption,
+                        filters.status.includes(status) && { ...styles.filterOptionActive, backgroundColor: theme.primary }
+                      ]}
+                      onPress={() => {
+                        setFilters(prev => ({
+                          ...prev,
+                          status: prev.status.includes(status)
+                            ? prev.status.filter(s => s !== status)
+                            : [...prev.status, status]
+                        }));
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {filters.status.includes(status) && <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />}
+                        <Text style={[
+                          styles.filterOptionText,
+                          filters.status.includes(status) && { color: '#FFFFFF', fontWeight: '700' }
+                        ]}>
+                          {status}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Separador visual */}
+              <View style={[styles.filterSeparator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]} />
+
+              {/* Prioridad */}
+              <View style={styles.filterGroup}>
+                <View style={styles.filterGroupHeader}>
+                  <Ionicons name="flash-outline" size={16} color={theme.primary} />
+                  <Text style={[styles.filterTitle, { color: theme.text }]}>NIVEL DE PRIORIDAD</Text>
+                  <View style={[styles.filterBadge, { backgroundColor: '#FF9500' }]}>
+                    <Text style={styles.filterBadgeText}>{filters.priority.length}</Text>
+                  </View>
+                </View>
+                <View style={styles.filterOptions}>
+                  {['baja', 'media', 'alta'].map(priority => {
+                    const colors = { baja: '#4CAF50', media: '#FF9500', alta: '#FF3B30' };
+                    return (
+                      <TouchableOpacity
+                        key={priority}
+                        style={[
+                          styles.filterOption,
+                          filters.priority.includes(priority) && { 
+                            ...styles.filterOptionActive, 
+                            backgroundColor: colors[priority] 
+                          }
+                        ]}
+                        onPress={() => {
+                          setFilters(prev => ({
+                            ...prev,
+                            priority: prev.priority.includes(priority)
+                              ? prev.priority.filter(p => p !== priority)
+                              : [...prev.priority, priority]
+                          }));
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {filters.priority.includes(priority) && <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />}
+                          <Text style={[
+                            styles.filterOptionText,
+                            filters.priority.includes(priority) && { color: '#FFFFFF', fontWeight: '700' }
+                          ]}>
+                            {priority}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Separador visual */}
+              <View style={[styles.filterSeparator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]} />
+
+              {/* Dirección / Área */}
+              {uniqueAreas.length > 0 && (
+                <>
+                  <View style={styles.filterGroup}>
+                    <View style={styles.filterGroupHeader}>
+                      <Ionicons name="business-outline" size={16} color={theme.primary} />
+                      <Text style={[styles.filterTitle, { color: theme.text }]}>DIRECCIÓN O ÁREA</Text>
+                      <View style={[styles.filterBadge, { backgroundColor: '#3B82F6' }]}>
+                        <Text style={styles.filterBadgeText}>{filters.area.length}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.filterOptions}>
+                      {uniqueAreas.map(area => (
+                        <TouchableOpacity
+                          key={area}
+                          style={[
+                            styles.filterOption,
+                            filters.area.includes(area) && { ...styles.filterOptionActive, backgroundColor: '#3B82F6' }
+                          ]}
+                          onPress={() => {
+                            setFilters(prev => ({
+                              ...prev,
+                              area: prev.area.includes(area)
+                                ? prev.area.filter(a => a !== area)
+                                : [...prev.area, area]
+                            }));
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            {filters.area.includes(area) && <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />}
+                            <Text style={[
+                              styles.filterOptionText,
+                              filters.area.includes(area) && { color: '#FFFFFF', fontWeight: '700' }
+                            ]}>
+                              {area}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Separador visual */}
+                  <View style={[styles.filterSeparator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]} />
+                </>
+              )}
+
+              {/* Tareas vencidas */}
+              <View style={styles.filterGroup}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterOption,
+                    styles.filterOptionLarge,
+                    { marginTop: 0 },
+                    filters.overdue && { 
+                      ...styles.filterOptionActive, 
+                      backgroundColor: '#FF3B30' 
+                    }
+                  ]}
+                  onPress={() => setFilters(prev => ({ ...prev, overdue: !prev.overdue }))}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Ionicons 
+                      name={filters.overdue ? "alert-circle" : "alert-circle-outline"} 
+                      size={18} 
+                      color={filters.overdue ? '#FFFFFF' : '#FF3B30'} 
+                    />
+                    <Text style={[
+                      styles.filterOptionText,
+                      styles.filterOptionLargeText,
+                      filters.overdue && { color: '#FFFFFF', fontWeight: '700' }
+                    ]}>
+                      {filters.overdue ? '✓ MOSTRAR SOLO VENCIDAS' : 'MOSTRAR SOLO TAREAS VENCIDAS'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Botón para limpiar filtros */}
+              {(filters.status.length > 0 || filters.priority.length > 0 || filters.area.length > 0 || filters.overdue) && (
+                <>
+                  <View style={[styles.filterSeparator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]} />
+                  <TouchableOpacity
+                    style={[styles.clearFiltersBtn, { borderColor: theme.primary, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(159, 34, 65, 0.05)' }]}
+                    onPress={() => setFilters({ status: [], priority: [], area: [], overdue: false })}
+                  >
+                    <Ionicons name="refresh" size={18} color={theme.primary} style={{ marginRight: 8 }} />
+                    <Text style={[styles.clearFiltersBtnText, { color: theme.primary }]}>RESETEAR TODOS LOS FILTROS</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+
+            {/* Footer con acciones */}
+            <View style={[styles.modalFooter, { borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0' }]}>
+              <TouchableOpacity
+                style={[styles.modalFooterBtn, styles.modalFooterBtnSecondary, { borderColor: theme.textSecondary }]}
+                onPress={() => setShowFilters(false)}
+              >
+                <Text style={[styles.modalFooterBtnText, { color: theme.text }]}>CANCELAR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalFooterBtn, styles.modalFooterBtnPrimary, { backgroundColor: theme.primary }]}
+                onPress={() => setShowFilters(false)}
+              >
+                <Ionicons name="checkmark" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={[styles.modalFooterBtnText, { color: '#FFFFFF' }]}>APLICAR FILTROS</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Contador de tareas + Botón de borrar múltiples */}
+      <View style={[styles.counterSection, { backgroundColor: theme.backgroundSecondary, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.counterText, { color: theme.text }]}>
+            {filtered.length} {filtered.length === 1 ? 'tarea' : 'tareas'} 
+            {searchText && ` encontradas`}
+            {Object.values(filters).some(v => (Array.isArray(v) && v.length > 0) || v === true) && ` (filtradas)`}
+          </Text>
+          {selectedTaskIds.size > 0 && (
+            <Text style={[styles.counterText, { color: theme.primary, fontSize: 12, marginTop: 4 }]}>
+              {selectedTaskIds.size} seleccionada{selectedTaskIds.size > 1 ? 's' : ''}
+            </Text>
+          )}
+        </View>
+
+        {/* Botón para borrar seleccionadas */}
+        {selectedTaskIds.size > 0 && (
+          <TouchableOpacity
+            style={[styles.deleteSelectedBtn, { backgroundColor: '#FF3B30' }]}
+            onPress={deleteSelectedTasks}
+          >
+            <Ionicons name="trash-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>
+              BORRAR ({selectedTaskIds.size})
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Modal de mensajes */}
@@ -481,7 +1177,7 @@ export default function MyInboxScreen({ navigation }) {
 
       <FlatList
         data={filtered}
-        keyExtractor={(i) => i.id}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -494,9 +1190,10 @@ export default function MyInboxScreen({ navigation }) {
         }
         ListEmptyComponent={
           <EmptyState
-            icon="mail-open-outline"
-            title="Sin tareas"
-            message="No tienes tareas asignadas en este momento. ¡Disfruta tu tiempo libre!"
+            icon="inbox-outline"
+            title="¡Bandeja vacía!"
+            message="No tienes tareas en este momento. ¡Descansa y disfruta! 🎉"
+            variant="success"
           />
         }
       />
@@ -542,7 +1239,7 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) 
   greetingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4
+    marginBottom: SPACING.sm
   },
   greeting: {
     fontSize: isDesktop ? 16 : isTablet ? 15 : 16,
@@ -611,53 +1308,77 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) 
     marginTop: -2
   },
   userSection: {
-    backgroundColor: isDark ? 'rgba(159, 34, 65, 0.2)' : 'rgba(159, 34, 65, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: padding,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.xl,
-    padding: isDesktop ? SPACING.xl : isTablet ? SPACING.lg : SPACING.xl,
+    marginTop: isDesktop ? SPACING.xxxl : isTablet ? SPACING.xxl : SPACING.xxl,
+    marginBottom: isDesktop ? SPACING.lg : isTablet ? SPACING.md : SPACING.md,
+    padding: isDesktop ? SPACING.lg : isTablet ? SPACING.md : SPACING.md,
     borderRadius: RADIUS.xl,
-    ...SHADOWS.lg,
-    borderWidth: 2.5,
-    borderColor: isDark ? 'rgba(159, 34, 65, 0.6)' : '#9F2241',
-    shadowColor: '#9F2241',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5
+    borderWidth: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#9F2241',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  userIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#9F2241',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  userInfoContent: {
+    flex: 1,
   },
   userLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 4
   },
   userLabel: {
-    fontSize: isDesktop ? 11 : 12,
+    fontSize: isDesktop ? 10 : 11,
     color: '#9F2241',
-    fontWeight: '900',
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 1.2
+    letterSpacing: 1,
+    marginBottom: 4,
   },
   currentUserName: {
-    fontSize: isDesktop ? 22 : isTablet ? 20 : 22,
-    fontWeight: '900',
-    color: theme.text,
-    marginBottom: 8,
+    fontSize: isDesktop ? 18 : isTablet ? 17 : 18,
+    fontWeight: '800',
+    marginBottom: 2,
     flexShrink: 1,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2
+    letterSpacing: -0.3,
   },
   currentUserHint: {
-    fontSize: isDesktop ? 14 : 15,
-    color: theme.textSecondary,
-    fontWeight: '700',
+    fontSize: isDesktop ? 13 : 14,
+    fontWeight: '600',
     flexShrink: 1,
     letterSpacing: 0.1
   },
   listContent: {
     padding: isDesktop ? 20 : isTablet ? 16 : 16,
+    paddingTop: isDesktop ? 32 : 24,
     paddingBottom: 80
   },
   messagesSection: {
@@ -792,15 +1513,15 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) 
   actionBtn: {
     flex: isTablet ? 1 : 0.48,
     backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFAF0',
-    paddingVertical: isDesktop ? SPACING.lg : isTablet ? 14 : 16,
-    paddingHorizontal: isDesktop ? SPACING.lg : isTablet ? SPACING.md : SPACING.md,
+    paddingVertical: isDesktop ? SPACING.md : isTablet ? 12 : 12,
+    paddingHorizontal: isDesktop ? SPACING.md : isTablet ? SPACING.sm : SPACING.sm,
     borderRadius: RADIUS.lg,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: isDark ? 'rgba(255,255,255,0.3)' : '#F5DEB3',
     flexDirection: 'row',
     justifyContent: 'center',
-    minHeight: isDesktop ? 52 : isTablet ? 48 : 52,
+    minHeight: isDesktop ? 48 : isTablet ? 44 : 44,
     marginBottom: isTablet ? 0 : 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
@@ -817,13 +1538,12 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) 
     borderColor: '#EF4444'
   },
   actionText: {
-    fontSize: isDesktop ? 14 : isTablet ? 13 : 14,
-    fontWeight: '900',
+    fontSize: isDesktop ? 13 : isTablet ? 12 : 11,
+    fontWeight: '800',
     color: theme.text,
-    letterSpacing: 0.5,
-    flexShrink: 1,
+    letterSpacing: 0.2,
+    flexShrink: 0,
     textAlign: 'center',
-    textTransform: 'uppercase'
   },
   emptyContainer: {
     alignItems: 'center',
@@ -847,5 +1567,216 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding) 
     lineHeight: 26,
     fontWeight: '700',
     letterSpacing: -0.3
-  }
+  },
+  // 🔍 ESTILOS DE BÚSQUEDA Y FILTROS
+  filterSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: padding,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.lg,
+    gap: SPACING.sm,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: theme.text,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E0E0E0',
+  },
+  filtersPanel: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    gap: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0',
+  },
+  filterGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  filterBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  filterSeparator: {
+    height: 1,
+    marginVertical: SPACING.md,
+  },
+  filterTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    opacity: 0.8,
+    textTransform: 'uppercase',
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  filterGroup: {
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  filterOption: {
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#E0E0E0',
+    backgroundColor: theme.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  filterOptionLarge: {
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.lg,
+    marginVertical: SPACING.sm,
+  },
+  filterOptionActive: {
+    borderColor: 'transparent',
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  filterOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.text,
+    letterSpacing: 0.3,
+  },
+  filterOptionLargeText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 2,
+    marginTop: SPACING.md,
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  clearFiltersBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  counterSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0',
+  },
+  counterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  deleteSelectedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.lg,
+    backgroundColor: '#FF3B30',
+  },
+  // 🎨 ESTILOS DEL FOOTER DEL MODAL
+  modalFooter: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    borderTopWidth: 1,
+    backgroundColor: theme.card,
+    borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#F0F0F0',
+  },
+  modalFooterBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  modalFooterBtnSecondary: {
+    backgroundColor: 'transparent',
+    borderColor: theme.textSecondary,
+  },
+  modalFooterBtnPrimary: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  modalFooterBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
 });

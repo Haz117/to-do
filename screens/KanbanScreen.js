@@ -18,14 +18,16 @@ import ShimmerEffect from '../components/ShimmerEffect';
 import SpringCard from '../components/SpringCard';
 import BottomSheet from '../components/BottomSheet';
 import OverdueAlert from '../components/OverdueAlert';
+import FadeInView from '../components/FadeInView';
 
 const GestureHandlerRootView = getGestureHandlerRootView();
 import CircularProgress from '../components/CircularProgress';
 import PulsingDot from '../components/PulsingDot';
 import RippleButton from '../components/RippleButton';
 import { subscribeToTasks, updateTask } from '../services/tasks';
+import { useTasks } from '../contexts/TasksContext';
 import { getCurrentSession } from '../services/authFirestore';
-import { hapticMedium, hapticHeavy, hapticLight } from '../utils/haptics';
+import { hapticMedium, hapticHeavy, hapticLight, hapticSuccess, hapticWarning } from '../utils/haptics';
 import Toast from '../components/Toast';
 import TaskStatusButtons from '../components/TaskStatusButtons';
 import { useTheme } from '../contexts/ThemeContext';
@@ -39,7 +41,8 @@ const STATUSES = [
 
 export default function KanbanScreen({ navigation }) {
   const { theme, isDark } = useTheme();
-  const [tasks, setTasks] = useState([]);
+  // 🌍 USAR EL CONTEXT GLOBAL DE TAREAS
+  const { tasks, setTasks } = useTasks();
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [filters, setFilters] = useState({ searchText: '', area: '', responsible: '', priority: '', overdue: false });
@@ -65,6 +68,11 @@ export default function KanbanScreen({ navigation }) {
     en_revision: new Animated.Value(0),
     cerrada: new Animated.Value(0)
   }).current;
+  
+  // Animación para drag feedback
+  const dragScaleAnim = useRef(new Animated.Value(1)).current;
+  const dragOpacityAnim = useRef(new Animated.Value(1)).current;
+  const dragShadowAnim = useRef(new Animated.Value(4)).current;
   
   // Animación del FAB
   const fabScale = useRef(new Animated.Value(0)).current;
@@ -152,33 +160,8 @@ export default function KanbanScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real con debounce
   useEffect(() => {
-    let unsubscribe;
-    let mounted = true;
-    let timeoutId;
-    
-    subscribeToTasks((updatedTasks) => {
-      if (!mounted) return;
-      
-      // Debounce para evitar updates muy frecuentes
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (mounted) {
-          setTasks(updatedTasks);
-        }
-      }, 300);
-    }).then((unsub) => {
-      if (mounted) {
-        unsubscribe = unsub;
-      }
-    });
-
-    return () => {
-      mounted = false;
-      clearTimeout(timeoutId);
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
+    // Ya no necesitamos suscribirse, el TasksContext se encarga
+    console.log('📊 KANBAN: Usando contexto global de tareas');
   }, []);
 
   const onRefresh = useCallback(async () => {
@@ -192,14 +175,28 @@ export default function KanbanScreen({ navigation }) {
   const changeStatus = useCallback(async (taskId, newStatus) => {
     try {
       hapticMedium(); // Haptic on status change
+      
+      // 🎨 ANIMACIÓN: Feedback visual de transición
+      Animated.sequence([
+        Animated.timing(new Animated.Value(0), {
+          toValue: 1,
+          duration: 0, // Imperceptible, solo para sincronización
+          useNativeDriver: false,
+        }),
+      ]).start();
+      
       await updateTask(taskId, { status: newStatus });
-      setToastMessage('Estado actualizado correctamente');
+      setToastMessage('✨ Estado actualizado correctamente');
       setToastType('success');
       setToastVisible(true);
+      
+      // Haptic de éxito
+      hapticSuccess();
     } catch (error) {
       setToastMessage('Error al actualizar estado');
       setToastType('error');
       setToastVisible(true);
+      hapticWarning();
     }
   }, []);
 
@@ -235,10 +232,59 @@ export default function KanbanScreen({ navigation }) {
     const targetStatus = getColumnAtPosition(absoluteX);
     
     if (targetStatus && targetStatus !== task.status) {
-      changeStatus(task.id, targetStatus);
+      // 🎨 ANIMACIÓN: Scale down y fade out
+      Animated.parallel([
+        Animated.timing(dragScaleAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(dragOpacityAnim, {
+          toValue: 0.5,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Cambiar estado
+        changeStatus(task.id, targetStatus);
+        
+        // 🎨 ANIMACIÓN: Spring bounce de vuelta
+        Animated.parallel([
+          Animated.spring(dragScaleAnim, {
+            toValue: 1,
+            tension: 400,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.spring(dragOpacityAnim, {
+            toValue: 1,
+            tension: 400,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+      
+      // Haptic feedback mejorado
+      hapticHeavy(); // Feedback más fuerte al arrastrar
     }
     
+    // Reset dragging state
     setDraggingTask(null);
+    
+    // Reset animaciones si no hubo cambio de estado
+    if (!targetStatus || targetStatus === task.status) {
+      Animated.parallel([
+        Animated.spring(dragScaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.spring(dragOpacityAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
   };
 
   // Componente de tarjeta arrastrable con mejoras visuales
@@ -476,24 +522,33 @@ export default function KanbanScreen({ navigation }) {
           
           {/* Badges y estadísticas mejoradas */}
           <View style={styles.columnBadges}>
-            {/* Contador principal */}
-            <View style={[styles.columnCount, { backgroundColor: status.color }]}>
-              <Text style={styles.columnCountText}>{sorted.length}</Text>
+            {/* Contador principal con pulso si hay urgentes */}
+            <View style={styles.columnCountContainer}>
+              <View style={[styles.columnCount, { backgroundColor: status.color }]}>
+                <Text style={styles.columnCountText}>{sorted.length}</Text>
+              </View>
+              {highPriorityTasks > 0 && <PulsingDot size={8} color={status.color} />}
             </View>
             
-            {/* Badge de vencidas si hay */}
+            {/* Badge de vencidas si hay - CON PULSO */}
             {overdueTasks > 0 && (
-              <View style={[styles.overdueColumnBadge, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="alert-circle" size={12} color="#FFFFFF" />
-                <Text style={styles.columnCountText}>{overdueTasks}</Text>
+              <View style={styles.badgeContainer}>
+                <View style={[styles.overdueColumnBadge, { backgroundColor: '#DC2626' }]}>
+                  <Ionicons name="alert-circle" size={12} color="#FFFFFF" />
+                  <Text style={styles.columnCountText}>{overdueTasks}</Text>
+                </View>
+                <PulsingDot size={6} color="#DC2626" />
               </View>
             )}
             
-            {/* Badge de alta prioridad */}
+            {/* Badge de alta prioridad - CON PULSO */}
             {highPriorityTasks > 0 && (
-              <View style={[styles.priorityColumnBadge, { backgroundColor: '#F59E0B' }]}>
-                <Ionicons name="flag" size={12} color="#FFFFFF" />
-                <Text style={styles.columnCountText}>{highPriorityTasks}</Text>
+              <View style={styles.badgeContainer}>
+                <View style={[styles.priorityColumnBadge, { backgroundColor: '#F59E0B' }]}>
+                  <Ionicons name="flag" size={12} color="#FFFFFF" />
+                  <Text style={styles.columnCountText}>{highPriorityTasks}</Text>
+                </View>
+                <PulsingDot size={6} color="#F59E0B" />
               </View>
             )}
           </View>
@@ -525,17 +580,25 @@ export default function KanbanScreen({ navigation }) {
           renderItem={({ item }) => <DraggableCard item={item} status={status} />}
           contentContainerStyle={{ paddingBottom: 12 }}
           ListEmptyComponent={() => (
-            <View style={styles.emptyColumnState}>
-              <Ionicons 
-                name={status.key === 'cerrada' ? 'checkmark-circle-outline' : 'document-text-outline'} 
-                size={48} 
-                color={theme.textSecondary} 
-                style={{ opacity: 0.3 }} 
-              />
-              <Text style={[styles.emptyColumnText, { color: theme.textSecondary }]}>
-                {status.key === 'cerrada' ? '¡Todo listo!' : 'No hay tareas aquí'}
-              </Text>
-            </View>
+            <FadeInView duration={400} delay={200} style={styles.emptyColumnState}>
+              <View style={styles.emptyStateContent}>
+                <View style={[styles.emptyStateIconContainer, { backgroundColor: status.color + '15' }]}>
+                  <Ionicons 
+                    name={status.key === 'cerrada' ? 'checkmark-circle-outline' : 'document-text-outline'} 
+                    size={52} 
+                    color={status.color} 
+                  />
+                </View>
+                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+                  {status.key === 'cerrada' ? '¡Todo listo! 🎉' : 'Columna vacía'}
+                </Text>
+                <Text style={[styles.emptyStateDescription, { color: theme.textSecondary }]}>
+                  {status.key === 'cerrada' 
+                    ? 'Todas las tareas están completadas' 
+                    : 'Aquí aparecerán las tareas \n del estado ' + status.label}
+                </Text>
+              </View>
+            </FadeInView>
           )}
         />
       </Animated.View>
@@ -609,6 +672,10 @@ export default function KanbanScreen({ navigation }) {
           tasks={tasks} 
           currentUserEmail={currentUser?.email}
           role={currentUser?.role}
+          onTaskPress={(task) => {
+            hapticLight();
+            openDetail(task);
+          }}
         />
         
         {/* Barra unificada: Filtros rápidos + Búsqueda */}
@@ -1113,6 +1180,17 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     alignItems: 'center',
     gap: 8
   },
+  columnCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    position: 'relative'
+  },
   overdueColumnBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1164,10 +1242,34 @@ const createStyles = (theme, isDark, columnWidth = 300) => StyleSheet.create({
     textAlign: 'center'
   },
   emptyColumnState: {
-    paddingVertical: 40,
+    paddingVertical: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 16
+  },
+  emptyStateContent: {
+    alignItems: 'center',
     gap: 12
+  },
+  emptyStateIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3
+  },
+  emptyStateDescription: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 18,
+    opacity: 0.7
   },
   emptyColumnText: {
     fontSize: 14,

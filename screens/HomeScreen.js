@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Animated, Platform, StatusBar, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl, Animated, Platform, StatusBar, Modal, ScrollView, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { getSwipeable } from '../utils/platformComponents';
@@ -20,6 +21,7 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import SyncIndicator from '../components/SyncIndicator';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTasks } from '../contexts/TasksContext';
 import { subscribeToTasks, deleteTask as deleteTaskFirebase, updateTask, createTask } from '../services/tasks';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
 import { getCurrentSession, refreshSession } from '../services/authFirestore';
@@ -28,11 +30,15 @@ import { SPACING, TYPOGRAPHY, RADIUS, SHADOWS, MAX_WIDTHS } from '../theme/token
 
 const Swipeable = getSwipeable();
 
+// Debug and permission testing removed for production
+
 export default function HomeScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const { width, isDesktop, isTablet, columns, padding } = useResponsive();
   
-  const [tasks, setTasks] = useState([]);
+  // 🌍 USAR EL CONTEXT GLOBAL DE TAREAS
+  const { tasks, setTasks, isLoading: tasksLoading, markAsDeleting, unmarkAsDeleting } = useTasks();
+  const [isLoading, setIsLoading] = useState(tasksLoading);
   const [title, setTitle] = useState('');
   const [searchText, setSearchText] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState({
@@ -45,19 +51,85 @@ export default function HomeScreen({ navigation }) {
   });
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [toastAction, setToastAction] = useState(null);
+
+  // Animation refs for stagger effect
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(-20)).current;
+  const searchOpacity = useRef(new Animated.Value(0)).current;
+  const searchSlide = useRef(new Animated.Value(20)).current;
+  const listOpacity = useRef(new Animated.Value(0)).current;
+  const listSlide = useRef(new Animated.Value(30)).current;
+
+  // Stagger animations on mount
+  useEffect(() => {
+    const staggerDelay = 100;
+    
+    // Header animation
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.spring(headerSlide, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Search bar animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(searchOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(searchSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay);
+
+    // List animation
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(listOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.spring(listSlide, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, staggerDelay * 2);
+  }, []);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [savingProgress, setSavingProgress] = useState(null);
   const [showUrgentModal, setShowUrgentModal] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
+  const deletingTasksRef = useRef(new Set());
 
 
   // Cargar usuario actual
@@ -90,60 +162,36 @@ export default function HomeScreen({ navigation }) {
 
   // Suscribirse a cambios en tiempo real de Firebase (optimizado)
   useEffect(() => {
-    let mounted = true;
-    let unsubscribe = null;
-    
-    // Función async para manejar la suscripción
-    const setupSubscription = async () => {
-      try {
-        unsubscribe = await subscribeToTasks((updatedTasks) => {
-          if (!mounted) return;
-          
-          setTasks(updatedTasks);
-          setIsLoading(false);
-          
-          // Detectar tareas urgentes y mostrar modal
-          if (mounted && fadeAnim._value === 0) {
-            setTimeout(() => {
-              const now = Date.now();
-              const sixHours = 6 * 60 * 60 * 1000;
-              const urgent = updatedTasks.filter(task => {
-                if (task.status === 'cerrada') return false;
-                const due = new Date(task.dueAt).getTime();
-                const timeLeft = due - now;
-                return timeLeft > 0 && timeLeft < sixHours;
-              });
-              
-              if (urgent.length > 0) {
-                setShowUrgentModal(true);
-              }
-            }, 1200);
-          }
-          
-          // Animar entrada de la lista solo la primera vez
-          if (fadeAnim._value !== 1) {
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: true,
-            }).start();
-          }
-        });
-      } catch (error) {
-        setIsLoading(false);
-      }
-    };
-    
-    setupSubscription();
+    // Actualizar isLoading desde el contexto
+    setIsLoading(tasksLoading);
 
-    // Limpiar suscripción al desmontar
-    return () => {
-      mounted = false;
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, []); // Solo ejecutar una vez al montar
+    // Animar entrada de la lista cuando las tareas se cargan
+    if (!tasksLoading && tasks.length > 0 && fadeAnim._value !== 1) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+
+    // Detectar tareas urgentes y mostrar modal
+    if (!tasksLoading && tasks.length > 0 && fadeAnim._value === 0) {
+      setTimeout(() => {
+        const now = Date.now();
+        const sixHours = 6 * 60 * 60 * 1000;
+        const urgent = tasks.filter(task => {
+          if (task.status === 'cerrada') return false;
+          const due = new Date(task.dueAt).getTime();
+          const timeLeft = due - now;
+          return timeLeft > 0 && timeLeft < sixHours;
+        });
+        
+        if (urgent.length > 0) {
+          setShowUrgentModal(true);
+        }
+      }, 1200);
+    }
+  }, [tasks, tasksLoading]);
 
   // Navegar a pantalla para crear nueva tarea (solo admin y jefe)
   const goToCreate = useCallback(() => {
@@ -164,46 +212,99 @@ export default function HomeScreen({ navigation }) {
     navigation.navigate('TaskChat', { taskId: task.id, taskTitle: task.title });
   }, [navigation]);
 
-  const deleteTask = useCallback(async (taskId) => {
+  const deleteTask = useCallback((taskId) => {
+    // 🛡️ GUARD: Prevenir eliminación múltiple del mismo task
+    if (deletingTasksRef.current.has(taskId)) {
+      return;
+    }
+    
     // Solo admin puede eliminar tareas
     if (!currentUser || currentUser.role !== 'admin') {
-      setToastMessage('Solo los administradores pueden eliminar tareas');
-      setToastType('warning');
+      const msg = `❌ Solo admins. Tu rol: ${currentUser?.role || 'desconocido'}`;
+      setToastMessage(msg);
+      setToastType('error');
       setToastVisible(true);
       return;
     }
 
     // Guardar tarea antes de eliminar para undo
     const taskToDelete = tasks.find(t => t.id === taskId);
-
-    try {
-      hapticHeavy();
-      await deleteTaskFirebase(taskId);
-      setToastMessage('Tarea eliminada');
-      setToastType('success');
-      setToastAction({
-        label: 'Deshacer',
-        onPress: async () => {
-          // Recrear la tarea
+    if (!taskToDelete) {
+      setToastMessage('❌ Tarea no encontrada');
+      setToastType('error');
+      setToastVisible(true);
+      return;
+    }
+    
+    // ✅ MARCAR COMO EN PROCESO (local + context global)
+    deletingTasksRef.current.add(taskId);
+    markAsDeleting(taskId);  // 🛡️ Evitar que el listener restaure la tarea
+    hapticHeavy();
+    
+    // 🚀 FASE 1: ELIMINAR DE LA UI INMEDIATAMENTE (optimistic update)
+    setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
+    
+    // ✅ MOSTRAR TOAST DE ÉXITO AL INSTANTE
+    setToastMessage('✅ Tarea eliminada');
+    setToastType('success');
+    setToastAction({
+      label: 'Deshacer',
+      onPress: async () => {
+        // Evitar múltiples clics del botón Deshacer
+        if (isUndoing) return;
+        setIsUndoing(true);
+        
+        try {
+          // 🛡️ Desmarcar para permitir que el listener restaure
+          unmarkAsDeleting(taskId);
+          deletingTasksRef.current.delete(taskId);
+          
+          // Recrear la tarea SIN el ID para que se regenere
           if (taskToDelete) {
-            await createTask(taskToDelete);
-            setToastMessage('Tarea restaurada');
+            const { id, ...taskWithoutId } = taskToDelete;
+            await createTask(taskWithoutId);
+            setToastMessage('✅ Tarea restaurada');
             setToastType('info');
             setToastVisible(true);
           }
+        } catch (error) {
+          setToastMessage('❌ Error al restaurar');
+          setToastType('error');
+          setToastVisible(true);
+        } finally {
+          setIsUndoing(false);
         }
+      }
+    });
+    setToastVisible(true);
+    
+    // 🔄 FASE 2: EJECUTAR DELETE EN FIREBASE EN BACKGROUND (fire-and-forget)
+    deleteTaskFirebase(taskId)
+      .then(() => {
+        // ✅ Solo desmarcar después de éxito confirmado
+        unmarkAsDeleting(taskId);
+      })
+      .catch(error => {
+        // Si falla en Firebase, mantener marcado para evitar que reaparezca
+      })
+      .finally(() => {
+        // ✅ LIMPIAR MARCA LOCAL DE EN PROCESO
+        deletingTasksRef.current.delete(taskId);
       });
-      setToastVisible(true);
-    } catch (error) {
-      setToastMessage(`Error al eliminar: ${error.message}`);
-      setToastType('error');
-      setToastVisible(true);
-    }
-  }, [currentUser, tasks]);
+  }, [currentUser, isUndoing, tasks, markAsDeleting, unmarkAsDeleting]);
 
   const toggleComplete = useCallback(async (task) => {
     try {
       const newStatus = task.status === 'cerrada' ? 'pendiente' : 'cerrada';
+      
+      // Validar permisos: solo admin puede reabrir (cerrada a pendiente)
+      if (task.status === 'cerrada' && currentUser?.role !== 'admin') {
+        setToastMessage('Solo administradores pueden reabrir tareas completadas');
+        setToastType('warning');
+        setToastVisible(true);
+        return;
+      }
+      
       hapticMedium(); // Haptic feedback on toggle
       await updateTask(task.id, { status: newStatus });
       
@@ -229,7 +330,7 @@ export default function HomeScreen({ navigation }) {
       setToastVisible(true);
     }
     // La actualización del estado se hace automáticamente por el listener
-  }, []);
+  }, [currentUser]);
 
   const changeTaskStatus = useCallback(async (taskId, newStatus) => {
     try {
@@ -259,6 +360,28 @@ export default function HomeScreen({ navigation }) {
       setToastVisible(true);
     }
   }, []);
+
+  const reopenTask = useCallback(async (task) => {
+    // Solo admin puede reabrir
+    if (!currentUser || currentUser.role !== 'admin') {
+      setToastMessage('Solo los administradores pueden reabrir tareas');
+      setToastType('warning');
+      setToastVisible(true);
+      return;
+    }
+
+    try {
+      hapticMedium();
+      await updateTask(task.id, { status: 'pendiente' });
+      setToastMessage('Tarea reabierta');
+      setToastType('success');
+      setToastVisible(true);
+    } catch (error) {
+      setToastMessage(`Error al reabrir: ${error.message}`);
+      setToastType('error');
+      setToastVisible(true);
+    }
+  }, [currentUser]);
 
   const duplicateTask = useCallback((task) => {
     hapticMedium();
@@ -450,7 +573,12 @@ export default function HomeScreen({ navigation }) {
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
+        <LinearGradient
+          colors={isDark ? ['#2A1520', '#1A1A1A'] : ['#9F2241', '#7F1D35']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
           <View style={styles.header}>
             <View>
               <ShimmerEffect width={150} height={20} borderRadius={10} style={{ marginBottom: 8 }} />
@@ -458,7 +586,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <ShimmerEffect width={56} height={56} borderRadius={28} />
           </View>
-        </View>
+        </LinearGradient>
         
         <View style={{ padding: 20, gap: 16 }}>
           <SkeletonLoader type="card" count={5} />
@@ -472,27 +600,34 @@ export default function HomeScreen({ navigation }) {
       <ConnectionIndicator />
       
       <View style={[styles.contentWrapper, { maxWidth: isDesktop ? MAX_WIDTHS.content : '100%' }]}>
-        <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
-          <View style={styles.header}>
-            <View style={{ flex: 1 }}>
-              <View style={styles.greetingContainer}>
-                <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
-                <Text style={styles.greeting}>Hola!</Text>
+        <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
+          <LinearGradient
+            colors={isDark ? ['#2A1520', '#1A1A1A'] : ['#9F2241', '#7F1D35']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
+          >
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.greetingContainer}>
+                  <Ionicons name="hand-right" size={20} color="#FFFFFF" style={{ marginRight: 8, opacity: 0.9 }} />
+                  <Text style={styles.greeting}>Hola!</Text>
+                </View>
+                <Text style={styles.heading}>Mis Tareas</Text>
               </View>
-              <Text style={styles.heading}>Mis Tareas</Text>
+              <View style={styles.headerActions}>
+                <AdvancedFilters
+                  filters={advancedFilters}
+                  onApplyFilters={handleApplyFilters}
+                  areas={uniqueAreas}
+                  users={uniqueUsers}
+                  tasks={tasks}
+                />
+                <ThemeToggle size={22} />
+              </View>
             </View>
-            <View style={styles.headerActions}>
-              <AdvancedFilters
-                filters={advancedFilters}
-                onApplyFilters={handleApplyFilters}
-                areas={uniqueAreas}
-                users={uniqueUsers}
-                tasks={tasks}
-              />
-              <ThemeToggle size={22} />
-            </View>
-          </View>
-        </View>
+          </LinearGradient>
+        </Animated.View>
 
         {/* Alerta de tareas urgentes dejada en el modal - comentada la alerta de tareas vencidas
         <OverdueAlert 
@@ -591,9 +726,25 @@ export default function HomeScreen({ navigation }) {
         </Modal>
 
         {/* Search Bar */}
-        <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />
+        <Animated.View style={{ 
+          opacity: searchOpacity, 
+          transform: [{ translateY: searchSlide }],
+          marginHorizontal: 16,
+          marginTop: 16,
+          marginBottom: 8,
+        }}>
+          <View style={[
+            styles.searchBarContainer,
+            {
+              backgroundColor: isDark ? 'rgba(30, 30, 35, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+            }
+          ]}>
+            <SearchBar onSearch={handleSearch} placeholder="Buscar tareas..." />
+          </View>
+        </Animated.View>
 
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <Animated.View style={{ flex: 1, opacity: listOpacity, transform: [{ translateY: listSlide }] }}>
           <FlatList
           ref={flatListRef}
           data={filteredTasks}
@@ -684,7 +835,18 @@ export default function HomeScreen({ navigation }) {
             </View>
             */}
 
-            <Text style={styles.sectionTitle}>Todas las Tareas</Text>
+            <View style={styles.sectionTitleContainer}>
+              <LinearGradient
+                colors={[theme.primary, isDark ? '#7F1D35' : '#C53860']}
+                style={styles.sectionIconBadge}
+              >
+                <Ionicons name="list" size={18} color="#FFFFFF" />
+              </LinearGradient>
+              <Text style={styles.sectionTitle}>Todas las Tareas</Text>
+              <View style={[styles.taskCountBadge, { backgroundColor: isDark ? 'rgba(159, 34, 65, 0.2)' : 'rgba(159, 34, 65, 0.1)' }]}>
+                <Text style={[styles.taskCountText, { color: theme.primary }]}>{filteredTasks.length}</Text>
+              </View>
+            </View>
           </View>
           )
         }
@@ -701,6 +863,8 @@ export default function HomeScreen({ navigation }) {
               // Solo admin puede eliminar tareas
               onDelete={isAdmin ? () => deleteTask(item.id) : undefined}
               onToggleComplete={() => toggleComplete(item)}
+              // Solo admin puede reabrir tareas
+              onReopen={isAdmin ? reopenTask : undefined}
               // Solo admin y jefe pueden duplicar tareas
               onDuplicate={isAdmin || isJefe ? () => duplicateTask(item) : undefined}
               onShare={() => shareTask(item)}
@@ -751,6 +915,7 @@ export default function HomeScreen({ navigation }) {
         message={toastMessage}
         type={toastType}
         action={toastAction}
+        duration={toastAction ? 8000 : 3000}
         onHide={() => {
           setToastVisible(false);
           setToastAction(null);
@@ -1205,15 +1370,64 @@ const createStyles = (theme, isDark, isDesktop, isTablet, screenWidth, padding, 
     letterSpacing: -0.3
   },
   sectionTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: theme.text,
-    letterSpacing: -0.9,
-    marginBottom: 20,
-    marginTop: 16,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2
+    letterSpacing: -0.5,
+    flex: 1,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 12,
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  sectionIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.primary,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  taskCountBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  taskCountText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  searchBarContainer: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   fab: {
     position: 'absolute',

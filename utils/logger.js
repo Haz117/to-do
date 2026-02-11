@@ -1,7 +1,8 @@
 // utils/logger.js
-// Sistema de logging condicional - solo logs en ambiente de desarrollo
+// Sistema de logging condicional - DESHABILITADO para producción
 
-const isDevelopment = process.env.NODE_ENV === 'development' || __DEV__;
+// Forzar modo producción - cambiar a true para depuración
+const isDevelopment = false;
 
 const logger = {
   log: (...args) => {
